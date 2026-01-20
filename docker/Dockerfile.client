@@ -1,0 +1,18 @@
+FROM node:24.13.0-alpine
+
+WORKDIR /app
+
+# Copy workspace config and package files
+COPY package.json package-lock.json ./
+COPY client/package.json ./client/
+COPY shared/package.json ./shared/
+COPY tsconfig.base.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source (will be overwritten by volume mount in dev)
+COPY client ./client/
+COPY shared ./shared/
+
+EXPOSE 5173

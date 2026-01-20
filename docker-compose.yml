@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:18.1-alpine
+    environment:
+      POSTGRES_USER: gygax
+      POSTGRES_PASSWORD: gygax
+      POSTGRES_DB: gygax
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gygax']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    environment:
+      DATABASE_URL: postgresql://gygax:gygax@db:5432/gygax?schema=public
+      PORT: 3000
+      CLIENT_URL: http://localhost:5173
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./server/src:/app/server/src
+      - ./shared/src:/app/shared/src
+      - ./prisma:/app/prisma
+      - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ['npm', 'run', 'dev:server']
+
+  client:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.client
+    environment:
+      VITE_API_URL: http://localhost:3000
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./client/src:/app/client/src
+      - ./shared/src:/app/shared/src
+      - /app/node_modules
+    depends_on:
+      - server
+    command: ['npm', 'run', 'dev:client']
+
+volumes:
+  postgres_data:

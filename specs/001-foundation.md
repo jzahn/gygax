@@ -47,6 +47,7 @@ Establish the project scaffolding, development environment, and verify end-to-en
 
 **Port Requirements:**
 Ensure these ports are available before starting:
+
 - `5432` — PostgreSQL
 - `3000` — Server API
 - `5173` — Client (Vite)
@@ -113,6 +114,7 @@ Ensure these ports are available before starting:
 ### 2. Docker Configuration
 
 **Project Structure:**
+
 ```
 /docker
   Dockerfile.client        # Client container
@@ -135,9 +137,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - '5432:5432'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gygax"]
+      test: ['CMD-SHELL', 'pg_isready -U gygax']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -151,17 +153,17 @@ services:
       PORT: 3000
       CLIENT_URL: http://localhost:5173
     ports:
-      - "3000:3000"
+      - '3000:3000'
     volumes:
-      - ./server/src:/app/server/src        # Hot reload source
-      - ./shared/src:/app/shared/src        # Shared types
-      - ./prisma:/app/prisma                # Schema + migrations
-      - /app/node_modules                   # Exclude node_modules
+      - ./server/src:/app/server/src # Hot reload source
+      - ./shared/src:/app/shared/src # Shared types
+      - ./prisma:/app/prisma # Schema + migrations
+      - /app/node_modules # Exclude node_modules
     depends_on:
       db:
         condition: service_healthy
     # Entrypoint runs migrations + seed, then executes this command
-    command: ["npm", "run", "dev:server"]
+    command: ['npm', 'run', 'dev:server']
 
   client:
     build:
@@ -170,20 +172,21 @@ services:
     environment:
       VITE_API_URL: http://localhost:3000
     ports:
-      - "5173:5173"
+      - '5173:5173'
     volumes:
-      - ./client/src:/app/client/src        # Hot reload source
-      - ./shared/src:/app/shared/src        # Shared types
-      - /app/node_modules                   # Exclude node_modules
+      - ./client/src:/app/client/src # Hot reload source
+      - ./shared/src:/app/shared/src # Shared types
+      - /app/node_modules # Exclude node_modules
     depends_on:
       - server
-    command: ["npm", "run", "dev:client"]
+    command: ['npm', 'run', 'dev:client']
 
 volumes:
   postgres_data:
 ```
 
 **docker/Dockerfile.server:**
+
 ```dockerfile
 FROM node:24.13.0-alpine
 
@@ -215,6 +218,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 ```
 
 **docker/entrypoint.server.sh:**
+
 ```bash
 #!/bin/sh
 set -e
@@ -230,11 +234,13 @@ exec "$@"
 ```
 
 This entrypoint:
+
 1. Runs `prisma migrate deploy` on every startup (safe — skips already-applied migrations)
 2. Runs the seed script (should be idempotent)
 3. Executes the passed command (`pnpm dev:server`)
 
 **docker/Dockerfile.client:**
+
 ```dockerfile
 FROM node:24.13.0-alpine
 
@@ -256,6 +262,7 @@ EXPOSE 5173
 ```
 
 **.dockerignore:**
+
 ```
 # Dependencies
 node_modules
@@ -302,6 +309,7 @@ coverage
 **Hot Reload Configuration:**
 
 - **Client (Vite):** Vite HMR works via WebSocket. Configure `vite.config.ts` with:
+
   ```typescript
   server: {
     host: '0.0.0.0',  // Listen on all interfaces (required for Docker)
@@ -322,6 +330,7 @@ coverage
 ### 3. Client Application
 
 **Requirements:**
+
 - React 19.2.3 with TypeScript
 - React Router 7.12.0 for client-side routing
 - Vite as build tool
@@ -339,6 +348,7 @@ coverage
 ### 4. Server Application
 
 **Requirements:**
+
 - Fastify with TypeScript
 - CORS enabled for local development
 - Prisma client as Fastify plugin
@@ -372,10 +382,11 @@ The health check verifies database connectivity by fetching the seeded `HealthCh
 ```
 
 **Health check logic:**
+
 ```typescript
 // Verify DB by reading the seeded row
 const healthRow = await prisma.healthCheck.findUnique({
-  where: { id: 'healthcheck-seed' }
+  where: { id: 'healthcheck-seed' },
 })
 const dbHealthy = healthRow?.status === 'ok'
 ```
@@ -383,6 +394,7 @@ const dbHealthy = healthRow?.status === 'ok'
 ### 5. Prisma Setup
 
 **schema.prisma:**
+
 - PostgreSQL provider
 - Basic `HealthCheck` model (for verifying database connectivity):
   ```prisma
@@ -396,6 +408,7 @@ const dbHealthy = healthRow?.status === 'ok'
 **Migrations:**
 
 Initial migration `001_healthcheck` creates the `HealthCheck` table. This establishes:
+
 - The migration workflow from day one
 - A table the health check endpoint can query to verify DB connectivity
 
@@ -410,6 +423,7 @@ Initial migration `001_healthcheck` creates the `HealthCheck` table. This establ
 ```
 
 **Seed Script (prisma/seed.ts):**
+
 ```typescript
 import { PrismaClient } from '@prisma/client'
 
@@ -422,8 +436,8 @@ async function main() {
     update: {},
     create: {
       id: 'healthcheck-seed',
-      status: 'ok'
-    }
+      status: 'ok',
+    },
   })
   console.log('Seed complete: HealthCheck row created')
 }
@@ -439,6 +453,7 @@ main()
 ```
 
 **package.json prisma config:**
+
 ```json
 {
   "prisma": {
@@ -448,6 +463,7 @@ main()
 ```
 
 **Requirements:**
+
 - `npx prisma generate` generates the client
 - `npx prisma migrate dev` applies migrations in development
 - `npx prisma migrate deploy` applies migrations in production/CI
@@ -457,11 +473,13 @@ main()
 ### 6. Shared Package
 
 **Requirements:**
+
 - TypeScript types shared between client and server
 - Health check response type definition
 - Exported and consumable by both client and server
 
 **shared/package.json:**
+
 ```json
 {
   "name": "@gygax/shared",
@@ -472,6 +490,7 @@ main()
 ```
 
 **shared/src/types.ts:**
+
 ```typescript
 export interface HealthCheckResponse {
   status: 'healthy' | 'unhealthy'
@@ -493,6 +512,7 @@ export interface HealthCheckResponse {
 **Vite Configuration (client/vite.config.ts):**
 
 For Vite to resolve the workspace package correctly:
+
 ```typescript
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -502,24 +522,26 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@gygax/shared': path.resolve(__dirname, '../shared/src')
-    }
+      '@gygax/shared': path.resolve(__dirname, '../shared/src'),
+    },
   },
   server: {
     host: '0.0.0.0',
     watch: {
-      usePolling: true
-    }
-  }
+      usePolling: true,
+    },
+  },
 })
 ```
 
 **Usage in client:**
+
 ```typescript
 import type { HealthCheckResponse } from '@gygax/shared'
 ```
 
 **Usage in server:**
+
 ```typescript
 import type { HealthCheckResponse } from '@gygax/shared'
 ```
@@ -527,6 +549,7 @@ import type { HealthCheckResponse } from '@gygax/shared'
 ### 7. Development Scripts
 
 **Root package.json scripts:**
+
 ```json
 {
   "dev": "docker compose up",
@@ -554,15 +577,12 @@ import type { HealthCheckResponse } from '@gygax/shared'
 ```
 
 **Root package.json workspaces config:**
+
 ```json
 {
   "name": "gygax",
   "private": true,
-  "workspaces": [
-    "client",
-    "server",
-    "shared"
-  ]
+  "workspaces": ["client", "server", "shared"]
 }
 ```
 
@@ -572,6 +592,7 @@ import type { HealthCheckResponse } from '@gygax/shared'
 
 **ESLint (eslint.config.js):**
 Using ESLint flat config (v9+):
+
 ```javascript
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
@@ -585,20 +606,21 @@ export default tseslint.config(
     files: ['client/**/*.{ts,tsx}'],
     plugins: {
       react,
-      'react-hooks': reactHooks
+      'react-hooks': reactHooks,
     },
     rules: {
       'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn'
-    }
+      'react-hooks/exhaustive-deps': 'warn',
+    },
   },
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/*.config.js']
+    ignores: ['**/dist/**', '**/node_modules/**', '**/*.config.js'],
   }
 )
 ```
 
 **Prettier (.prettierrc):**
+
 ```json
 {
   "semi": false,
@@ -610,6 +632,7 @@ export default tseslint.config(
 ```
 
 **Root package.json scripts:**
+
 ```json
 {
   "lint": "eslint .",
@@ -620,6 +643,7 @@ export default tseslint.config(
 ```
 
 **Dev dependencies (root):**
+
 - `eslint`
 - `typescript-eslint`
 - `eslint-plugin-react`
@@ -629,6 +653,7 @@ export default tseslint.config(
 ### 9. Environment Configuration
 
 **.env.example:**
+
 ```
 # Database
 DATABASE_URL="postgresql://gygax:gygax@localhost:5432/gygax?schema=public"
@@ -644,6 +669,7 @@ VITE_API_URL=http://localhost:3000
 ### 10. Git Configuration
 
 **.gitignore:**
+
 ```
 # Dependencies
 node_modules/
@@ -691,21 +717,26 @@ coverage/
 ## Technical Approach
 
 ### Monorepo Strategy
+
 Use npm workspaces for dependency management. Each package (client, server, shared) has its own package.json but shares common dev dependencies at the root. Workspaces are configured in the root package.json.
 
 ### TypeScript Configuration
+
 Base tsconfig at root with strict settings. Each package extends the base and adds its own paths/settings.
 
 ### Prisma Integration
+
 Prisma client generated into node_modules, imported by server. The prisma/ directory lives at the root since it's shared configuration.
 
 ### Development Workflow
+
 1. `npm run dev` — Starts entire stack (PostgreSQL, Server, Client) via Docker Compose
 2. Edit code locally — Changes hot reload in containers automatically
 3. `npm run dev:logs` — Tail logs from all services
 4. `npm run dev:down` — Stop all containers
 
 ### Migration Workflow
+
 1. Edit `prisma/schema.prisma` locally
 2. Run `npm run db:migrate` to create and apply migration
 3. Migration files are volume-mounted, so server container picks up changes
@@ -715,21 +746,22 @@ Prisma client generated into node_modules, imported by server. The prisma/ direc
 
 Source code changes are hot-reloaded via volume mounts, but some changes require a container rebuild:
 
-| Change | Action Required |
-|--------|-----------------|
-| Edit `client/src/**` | Auto hot-reload (no action) |
-| Edit `server/src/**` | Auto hot-reload (no action) |
-| Edit `shared/src/**` | Auto hot-reload (no action) |
-| Edit `package.json` (any) | `npm run dev:build` |
-| Edit `package-lock.json` | `npm run dev:build` |
-| Edit `Dockerfile.*` | `npm run dev:build` |
-| Edit `docker-compose.yml` | `npm run dev:down && npm run dev` |
+| Change                      | Action Required                    |
+| --------------------------- | ---------------------------------- |
+| Edit `client/src/**`        | Auto hot-reload (no action)        |
+| Edit `server/src/**`        | Auto hot-reload (no action)        |
+| Edit `shared/src/**`        | Auto hot-reload (no action)        |
+| Edit `package.json` (any)   | `npm run dev:build`                |
+| Edit `package-lock.json`    | `npm run dev:build`                |
+| Edit `Dockerfile.*`         | `npm run dev:build`                |
+| Edit `docker-compose.yml`   | `npm run dev:down && npm run dev`  |
 | Edit `prisma/schema.prisma` | Run migration, then restart server |
-| Add new workspace package | `npm run dev:build` |
+| Add new workspace package   | `npm run dev:build`                |
 
 ## Acceptance Criteria
 
 ### Setup & Infrastructure
+
 - [ ] `git clone` + `npm install` succeeds
 - [ ] `npm run dev` starts all three containers (db, server, client)
 - [ ] PostgreSQL container becomes healthy
@@ -737,6 +769,7 @@ Source code changes are hot-reloaded via volume mounts, but some changes require
 - [ ] Client container starts and serves the app
 
 ### Health Check Functionality
+
 - [ ] Client loads at `http://localhost:5173`
 - [ ] Server responds at `http://localhost:3000/api/health`
 - [ ] Health check page shows API status as "up"
@@ -746,16 +779,19 @@ Source code changes are hot-reloaded via volume mounts, but some changes require
 - [ ] Seed script is idempotent (safe to run multiple times)
 
 ### Hot Reloading
+
 - [ ] Editing `client/src/**` triggers Vite HMR (changes appear without refresh)
 - [ ] Editing `server/src/**` triggers server restart (tsx watch)
 - [ ] Editing `shared/src/**` triggers reload in both client and server
 
 ### Database Migrations
+
 - [ ] Initial `001_healthcheck` migration exists
 - [ ] `npm run db:migrate` applies migrations successfully
 - [ ] `npm run db:migrate:reset` drops and recreates database with migrations
 
 ### Code Quality
+
 - [ ] `npm run typecheck` passes with no errors
 - [ ] `npm run lint` passes with no errors
 - [ ] `npm run format:check` passes with no errors
@@ -767,15 +803,18 @@ Source code changes are hot-reloaded via volume mounts, but some changes require
 ## Verification Steps
 
 ### 1. Fresh Clone Test
+
 ```bash
 git clone <repo>
 cd gygax
 npm install
 npm run dev
 ```
+
 Wait for all containers to start. Open http://localhost:5173 — should see health check page with all green.
 
 ### 2. Hot Reload Test (Client)
+
 ```bash
 # With containers running, edit client/src/components/HealthCheck.tsx
 # Add some visible text change
@@ -783,6 +822,7 @@ Wait for all containers to start. Open http://localhost:5173 — should see heal
 ```
 
 ### 3. Hot Reload Test (Server)
+
 ```bash
 # With containers running, edit server/src/routes/health.ts
 # Change the response (e.g., add a field)
@@ -790,18 +830,23 @@ Wait for all containers to start. Open http://localhost:5173 — should see heal
 ```
 
 ### 4. Database Failure Test
+
 ```bash
 docker compose stop db
 ```
+
 Refresh page — Database should show "down" status, API should show "up".
 
 ### 5. Database Recovery Test
+
 ```bash
 docker compose start db
 ```
+
 Wait for health check. Refresh page — Database should show "up" status.
 
 ### 6. Migration Test
+
 ```bash
 # Reset database and verify migrations apply cleanly
 npm run db:migrate:reset
@@ -809,6 +854,7 @@ npm run db:migrate:reset
 ```
 
 ### 7. Seed Idempotency Test
+
 ```bash
 # Run seed multiple times — should not error or create duplicates
 npm run db:seed
@@ -818,10 +864,12 @@ npm run db:seed
 ```
 
 ### 8. Full Stack Restart Test
+
 ```bash
 npm run dev:down
 npm run dev
 ```
+
 Everything should come back up with data persisted (postgres_data volume).
 
 ## References

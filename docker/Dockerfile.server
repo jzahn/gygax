@@ -1,0 +1,28 @@
+FROM node:24.13.0-alpine
+
+WORKDIR /app
+
+# Copy workspace config and package files
+COPY package.json package-lock.json ./
+COPY server/package.json ./server/
+COPY shared/package.json ./shared/
+COPY prisma ./prisma/
+COPY prisma.config.ts ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source (will be overwritten by volume mount in dev)
+COPY server ./server/
+COPY shared ./shared/
+
+# Copy entrypoint script
+COPY docker/entrypoint.server.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Generate Prisma client (dummy URL for generation only - not used for connections)
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npm run db:generate
+
+EXPOSE 3000
+
+ENTRYPOINT ["/entrypoint.sh"]

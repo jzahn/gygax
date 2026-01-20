@@ -3,6 +3,7 @@
 Old-school D&D virtual tabletop.
 
 **Key docs:**
+
 - `/prd.md` — Full requirements, features, design specifications
 - `/specs/` — Implementation specs (build in order)
 
@@ -18,14 +19,14 @@ Old-school D&D virtual tabletop.
 
 **Do not upgrade these without explicit approval:**
 
-| Dependency | Version |
-|------------|---------|
-| Node.js | 24.13.0 |
-| React | 19.2.3 |
-| React Router | 7.12.0 |
-| Fastify | 5.7.1 |
-| Prisma | 7.2.0 |
-| PostgreSQL | 18.1 |
+| Dependency   | Version |
+| ------------ | ------- |
+| Node.js      | 24.13.0 |
+| React        | 19.2.3  |
+| React Router | 7.12.0  |
+| Fastify      | 5.7.1   |
+| Prisma       | 7.2.0   |
+| PostgreSQL   | 18.1    |
 
 ## Project Structure
 
@@ -80,22 +81,26 @@ npm run build            # Production build
 ## Conventions
 
 ### Code Style
+
 - Functional components with hooks (no class components)
 - Named exports preferred
 - Colocate tests with source files (`*.test.ts`)
 
 ### Naming
+
 - Components: `PascalCase.tsx`
 - Hooks: `useCamelCase.ts`
 - Utils: `camelCase.ts`
 - Types: `PascalCase` (no `I` prefix for interfaces)
 
 ### State Management
+
 - Local state for component-specific data
 - Stores for shared/global state
 - WebSocket for real-time sync
 
 ### Testing
+
 - Unit tests for utils, hooks, services
 - Integration tests for API routes
 - E2E tests for critical user flows
@@ -104,14 +109,15 @@ npm run build            # Production build
 
 Implementation specs in `/specs/` — build in order:
 
-| Spec | Description | Status |
-|------|-------------|--------|
+| Spec           | Description                         | Status  |
+| -------------- | ----------------------------------- | ------- |
 | 001-foundation | Project setup, Docker, health check | Pending |
-| 002-auth | Authentication system | Planned |
-| 003-campaigns | Campaign CRUD | Planned |
-| 004-map-editor | Map drawing tools | Planned |
+| 002-auth       | Authentication system               | Planned |
+| 003-campaigns  | Campaign CRUD                       | Planned |
+| 004-map-editor | Map drawing tools                   | Planned |
 
 ## Current Focus
 
 <!-- Update as work progresses -->
+
 - [ ] Implement spec 001-foundation
