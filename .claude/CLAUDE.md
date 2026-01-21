@@ -105,6 +105,13 @@ npm run build            # Production build
 - Integration tests for API routes
 - E2E tests for critical user flows
 
+## Frontend Design
+
+- Follow design system in `/specs/002-auth.md` § Design System Setup (typography, colors, animations, components)
+- B/X aesthetic: 1981 Moldvay rulebook feel, not modern tech startup
+- No generic aesthetics (Inter/Roboto fonts, purple gradients, cookie-cutter layouts)
+- Run `/frontend-design` for new UI work requiring creative direction
+
 ## Specs
 
 Implementation specs in `/specs/` — build in order:
