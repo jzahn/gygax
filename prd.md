@@ -48,7 +48,7 @@ Currently most pen and paper D&D games are played via Discord, which lacks purpo
 - **Real-time:** WebSockets (native WS) for chat, map sync, and game state
 - **Audio:** WebRTC for peer-to-peer voice chat
 - **Database:** PostgreSQL for persistent data (users, campaigns, maps, encounters)
-- **Auth:** Email/password + magic link (Auth.js/Better Auth)
+- **Auth:** Email/password with JWT in httpOnly cookies (hand-rolled using Argon2id + jose)
 - **File Storage:** S3-compatible storage for map images and avatars
 
 ### Project Type
@@ -106,7 +106,6 @@ Web application (SPA frontend + API backend)
 7. Token movement with measurement tools
 8. Sound effects and ambient music integration
 9. Export campaign data for backup
-10. Mobile-responsive player view for phones/tablets
 
 ---
 
@@ -238,7 +237,7 @@ Web application (SPA frontend + API backend)
 
 ### Security
 
-- Passwords hashed with bcrypt or Argon2
+- Passwords hashed with Argon2id (OWASP recommended)
 - Magic link tokens expire after 15 minutes, single-use
 - Session tokens (JWT or secure cookies) with refresh rotation
 - Game sessions private by default (invite-only via unique codes)
@@ -248,7 +247,7 @@ Web application (SPA frontend + API backend)
 
 ### Constraints
 
-- Desktop-first design (mobile is nice-to-have, not MVP)
+- Responsive design supporting desktop, tablet, and mobile (Tailwind breakpoints: sm/md/lg/xl)
 - No support for video chat in MVP (audio only)
 - Maps are 2D only (no 3D rendering)
 - Single campaign per game session (no multi-campaign management in MVP)
@@ -302,6 +301,28 @@ The entire application should evoke the experience of playing D&D with pen, pape
 - Simple line-art icons throughout
 - Style consistent with B/X rulebook illustrations
 - No filled/solid icons—outlines only
+
+### Responsive Design
+
+The application should be fully usable across all device sizes using Tailwind CSS breakpoints:
+
+| Breakpoint | Min Width | Target Devices |
+|------------|-----------|----------------|
+| (default)  | 0px       | Mobile phones  |
+| sm         | 640px     | Large phones   |
+| md         | 768px     | Tablets        |
+| lg         | 1024px    | Laptops        |
+| xl         | 1280px    | Desktops       |
+
+**Layout Adaptations:**
+- **Mobile:** Single-column layouts, collapsible panels, touch-friendly tap targets (min 44px)
+- **Tablet:** Two-column layouts where appropriate, side panels
+- **Desktop:** Full multi-panel layouts, hover states, keyboard shortcuts
+
+**Game Session Adaptations:**
+- **Mobile:** Map takes full screen, player cards and chat in slide-out panels
+- **Tablet:** Map with collapsible sidebar for players/chat
+- **Desktop:** Map with persistent sidebars for players and chat
 
 ### Typography
 
