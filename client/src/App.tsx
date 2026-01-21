@@ -1,12 +1,17 @@
 import { BrowserRouter, Routes, Route } from 'react-router'
-import { HomePage } from './pages'
+import { AuthProvider } from './contexts'
+import { HomePage, LoginPage, RegisterPage } from './pages'
 
 export function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

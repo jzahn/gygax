@@ -23,6 +23,7 @@ services:
       DATABASE_URL: postgresql://gygax:gygax@db:5432/gygax?schema=public
       PORT: 3000
       CLIENT_URL: http://localhost:5173
+      JWT_SECRET: dev-jwt-secret-key-minimum-32-characters-long
     ports:
       - '3000:3000'
     volumes:

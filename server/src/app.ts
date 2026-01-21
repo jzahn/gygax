@@ -1,7 +1,9 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { prismaPlugin } from './plugins/prisma'
+import { authPlugin } from './plugins/auth'
 import { healthRoutes } from './routes/health'
+import { authRoutes } from './routes/auth'
 
 export async function buildApp() {
   const fastify = Fastify({
@@ -16,9 +18,11 @@ export async function buildApp() {
 
   // Register plugins
   await fastify.register(prismaPlugin)
+  await fastify.register(authPlugin)
 
   // Register routes
   await fastify.register(healthRoutes)
+  await fastify.register(authRoutes)
 
   return fastify
 }

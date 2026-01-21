@@ -12,3 +12,15 @@ model HealthCheck {
   checkedAt DateTime @default(now())
   status    String   @default("ok")
 }
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}

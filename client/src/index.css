@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+/* B/X Theme Configuration */
+@theme {
+  /* Typography */
+  --font-display: "IM Fell English", Georgia, serif;
+  --font-body: Spectral, Georgia, serif;
+  --font-input: "Special Elite", Courier, monospace;
+  --font-number: Cinzel, Georgia, serif;
+
+  /* Parchment palette */
+  --color-parchment-50: #FFFEF7;
+  --color-parchment-100: #FBF8F0;
+  --color-parchment-200: #F5F0E1;
+  --color-parchment-300: #E8E0CC;
+
+  /* Ink palette */
+  --color-ink: #1a1a1a;
+  --color-ink-soft: #2d2d2d;
+  --color-ink-faded: #4a4a4a;
+  --color-ink-ghost: #6a6a6a;
+
+  /* Accent colors (used sparingly) */
+  --color-blood-red: #8B0000;
+  --color-candle-glow: #D4A574;
+  --color-seal-wax: #722F37;
+
+  /* Shadows */
+  --shadow-brutal: 4px 4px 0px 0px #1a1a1a;
+  --shadow-brutal-sm: 2px 2px 0px 0px #1a1a1a;
+  --shadow-brutal-lg: 6px 6px 0px 0px #1a1a1a;
+  --shadow-brutal-pressed: 2px 2px 0px 0px #1a1a1a;
+  --shadow-candle: 0 0 40px rgba(212, 165, 116, 0.15);
+  --shadow-ink-spread: 0 1px 2px rgba(26, 26, 26, 0.1);
+
+  /* Animation timing */
+  --animate-ink-reveal: inkReveal 0.5s ease-out forwards;
+  --animate-quill-scratch: quillScratch 0.6s ease-in-out infinite;
+}
+
+/* CSS Variables for paper texture */
+:root {
+  --noise-opacity: 0.03;
+  --paper-grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* Base styles */
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-parchment-200);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Paper texture utility */
+.paper-texture {
+  background-color: var(--color-parchment-200);
+  background-image: var(--paper-grain);
+  background-blend-mode: multiply;
+  position: relative;
+}
+
+.paper-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 0%, rgba(26, 26, 26, 0.04) 100%);
+  pointer-events: none;
+}
+
+/* Card paper texture (lighter background) */
+.card-texture {
+  background-color: var(--color-parchment-100);
+  background-image: var(--paper-grain);
+  background-blend-mode: multiply;
+}
+
+/* Vignette effect for auth pages */
+.vignette::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(26, 26, 26, 0.15) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Animations */
+@keyframes inkReveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes quillScratch {
+  0%, 100% { transform: rotate(-5deg) translateX(0); }
+  25% { transform: rotate(5deg) translateX(2px); }
+  50% { transform: rotate(-3deg) translateX(-1px); }
+  75% { transform: rotate(4deg) translateX(1px); }
+}
+
+/* Ink reveal animation class */
+.animate-ink-reveal {
+  animation: inkReveal 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+/* Stagger children animation */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 320ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 400ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 480ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 560ms; }
+
+/* Quill scratch animation */
+.animate-quill-scratch {
+  animation: quillScratch 0.6s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* Button brutal styles */
+.btn-brutal {
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+}
+
+.btn-brutal:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #1a1a1a;
+}
+
+.btn-brutal:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px 0px #1a1a1a;
+}
+
+/* Input brutal styles */
+.input-brutal {
+  transition: box-shadow 0.15s ease-out, border-color 0.15s ease-out;
+}
+
+.input-brutal:focus {
+  border-color: var(--color-candle-glow);
+  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.25), 4px 4px 0px 0px #1a1a1a;
+  outline: none;
+}
+
+/* Ornate divider */
+.divider-ornate {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.divider-ornate::before,
+.divider-ornate::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #1a1a1a, transparent);
+}
+
+/* Display text styling */
+.text-display {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  text-shadow: 0 1px 2px rgba(26, 26, 26, 0.1);
+}
+
+/* Focus visible for accessibility */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-candle-glow);
+  outline-offset: 2px;
+}
