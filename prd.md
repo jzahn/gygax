@@ -255,6 +255,76 @@ Web application (SPA frontend + API backend)
 
 ---
 
+## Production Infrastructure
+
+### Deployment Requirements
+
+The application should be deployable to a single VPS or cloud server without requiring managed services. Self-hosted infrastructure is preferred over SaaS dependencies where practical.
+
+### Email Infrastructure
+
+| Requirement | Description |
+|-------------|-------------|
+| SMTP Server | Self-hosted or relay-capable mail server |
+| Email Types | Transactional only (verification, password reset, session invites) |
+| Deliverability | SPF, DKIM, DMARC records for custom domain |
+| Dev Environment | Local mail catcher (Mailpit) for testing |
+
+### Storage
+
+| Requirement | Description |
+|-------------|-------------|
+| Database | PostgreSQL (can be containerized or managed) |
+| File Storage | S3-compatible object storage for avatars, map assets |
+| Backups | Automated database backups with retention policy |
+
+### Networking & Security
+
+| Requirement | Description |
+|-------------|-------------|
+| SSL/TLS | Required for all production traffic |
+| Domain | Custom domain with proper DNS configuration |
+| Reverse Proxy | nginx or similar for SSL termination, static assets |
+| Firewall | Restrict access to necessary ports only |
+
+### Container Architecture
+
+| Service | Purpose |
+|---------|---------|
+| app (server) | Fastify API + WebSocket server |
+| client | Static build served by nginx (or bundled with app) |
+| db | PostgreSQL database |
+| mailpit (dev) | Development mail catcher |
+| smtp (prod) | Production mail server (Postal, Postfix, or external relay) |
+| redis (future) | Session storage, caching, pub/sub for scaling |
+
+### Environment Configuration
+
+Production deployments require environment-based configuration for:
+- Database credentials
+- JWT secrets
+- SMTP credentials
+- S3/storage credentials
+- Application URLs
+- Feature flags
+
+### Monitoring & Logging (Future)
+
+- Health check endpoints for uptime monitoring
+- Structured logging for debugging
+- Error tracking (self-hosted Sentry or similar)
+- Basic metrics (response times, active sessions)
+
+### Scaling Considerations (Future)
+
+Initial deployment targets a single server supporting ~10 concurrent sessions. Future scaling may require:
+- Redis for WebSocket pub/sub across instances
+- Database read replicas
+- CDN for static assets
+- Horizontal scaling of API servers
+
+---
+
 ## Visual Design
 
 ### Design Philosophy

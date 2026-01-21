@@ -53,11 +53,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+a, button, [role="button"] {
+  cursor: pointer;
+}
+
 /* Paper texture utility */
 .paper-texture {
   background-color: var(--color-parchment-200);
   background-image: var(--paper-grain);
   background-blend-mode: multiply;
+  background-size: 200px 200px;
+  background-repeat: repeat;
   position: relative;
 }
 
@@ -74,6 +80,8 @@ body {
   background-color: var(--color-parchment-100);
   background-image: var(--paper-grain);
   background-blend-mode: multiply;
+  background-size: 200px 200px;
+  background-repeat: repeat;
 }
 
 /* Vignette effect for auth pages */
@@ -131,6 +139,7 @@ body {
 
 /* Button brutal styles */
 .btn-brutal {
+  cursor: pointer;
   transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
 }
 

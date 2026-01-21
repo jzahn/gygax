@@ -116,15 +116,16 @@ npm run build            # Production build
 
 Implementation specs in `/specs/` — build in order:
 
-| Spec           | Description                         | Status  |
-| -------------- | ----------------------------------- | ------- |
-| 001-foundation | Project setup, Docker, health check | Pending |
-| 002-auth       | Authentication system               | Planned |
-| 003-campaigns  | Campaign CRUD                       | Planned |
-| 004-map-editor | Map drawing tools                   | Planned |
+| Spec           | Description                           | Status    |
+| -------------- | ------------------------------------- | --------- |
+| 001-foundation | Project setup, Docker, health check   | Complete  |
+| 002-auth       | Authentication system                 | Complete  |
+| 003-email      | Email verification & password reset   | Planned   |
+| 004-campaigns  | Campaign CRUD                         | Planned   |
+| 005-map-editor | Map drawing tools                     | Planned   |
 
 ## Current Focus
 
 <!-- Update as work progresses -->
 
-- [ ] Implement spec 001-foundation
+- [ ] Implement spec 003-email

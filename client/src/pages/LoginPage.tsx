@@ -55,9 +55,8 @@ export function LoginPage() {
             </CardDescription>
           </CardHeader>
 
-          <Divider className="mx-8 animate-ink-reveal" />
-
           <CardContent>
+            <Divider className="animate-ink-reveal !mt-0 mb-6" />
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
                 <div className="animate-ink-reveal text-blood-red text-sm font-body">

@@ -1,10 +1,16 @@
-import { Link } from 'react-router'
+import { useNavigate } from 'react-router'
 import { useAuth } from '../hooks'
 import { HealthCheck } from '../components'
 import { Button, Card, CardContent, CardHeader, CardTitle, Divider } from '../components/ui'
 
 export function HomePage() {
-  const { user, loading, logout } = useAuth()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
+
+  async function handleLogout() {
+    await logout()
+    navigate('/login')
+  }
 
   return (
     <div className="min-h-screen paper-texture">
@@ -17,39 +23,17 @@ export function HomePage() {
             </p>
           </CardHeader>
 
-          <Divider className="mx-8 animate-ink-reveal" />
-
           <CardContent className="space-y-6">
+            <Divider className="animate-ink-reveal !mt-0" />
             <div className="animate-ink-reveal">
-              {loading ? (
-                <p className="font-body text-ink-soft italic">
-                  <span className="animate-quill-scratch inline-block mr-2">&#9998;</span>
-                  Consulting the ancient tomes...
+              <div className="space-y-4">
+                <p className="font-body text-ink">
+                  Welcome back, <span className="font-medium">{user?.name}</span>
                 </p>
-              ) : user ? (
-                <div className="space-y-4">
-                  <p className="font-body text-ink">
-                    Welcome back, <span className="font-medium">{user.name}</span>
-                  </p>
-                  <Button variant="ghost" onClick={logout}>
-                    Depart from the realm
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="font-body text-ink-soft italic">
-                    You are not yet sworn to the guild.
-                  </p>
-                  <div className="flex gap-4 flex-wrap">
-                    <Link to="/login">
-                      <Button variant="primary">Enter the Realm</Button>
-                    </Link>
-                    <Link to="/register">
-                      <Button variant="default">Register Your Name</Button>
-                    </Link>
-                  </div>
-                </div>
-              )}
+                <Button variant="ghost" onClick={handleLogout}>
+                  Depart from the realm
+                </Button>
+              </div>
             </div>
 
             <Divider className="animate-ink-reveal" />
