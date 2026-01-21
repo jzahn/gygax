@@ -26,5 +26,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />
   }
 
+  if (!user.emailVerified) {
+    return <Navigate to="/verify-pending" replace />
+  }
+
   return <>{children}</>
 }

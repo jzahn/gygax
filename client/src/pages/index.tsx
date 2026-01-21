@@ -1,3 +1,7 @@
 export { HomePage } from './HomePage'
 export { LoginPage } from './LoginPage'
 export { RegisterPage } from './RegisterPage'
+export { VerifyEmailPage } from './VerifyEmailPage'
+export { UnverifiedPage } from './UnverifiedPage'
+export { ForgotPasswordPage } from './ForgotPasswordPage'
+export { ResetPasswordPage } from './ResetPasswordPage'

@@ -15,6 +15,15 @@ services:
       timeout: 5s
       retries: 5
 
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - '8025:8025'
+      - '1025:1025'
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
   server:
     build:
       context: .
@@ -24,6 +33,11 @@ services:
       PORT: 3000
       CLIENT_URL: http://localhost:5173
       JWT_SECRET: dev-jwt-secret-key-minimum-32-characters-long
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_FROM: noreply@gygax.local
+      SMTP_SECURE: 'false'
+      APP_URL: http://localhost:5173
     ports:
       - '3000:3000'
     volumes:
@@ -34,6 +48,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     command: ['npm', 'run', 'dev:server']
 
   client:

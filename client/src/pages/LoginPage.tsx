@@ -95,6 +95,14 @@ export function LoginPage() {
                   required
                   autoComplete="current-password"
                 />
+                <div className="text-right">
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs font-body text-ink-faded hover:text-seal-wax transition-colors"
+                  >
+                    Forgot your secret word?
+                  </Link>
+                </div>
               </div>
 
               <div className="animate-ink-reveal pt-2">

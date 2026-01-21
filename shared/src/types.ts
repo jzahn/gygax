@@ -20,6 +20,7 @@ export interface User {
   email: string
   name: string
   avatarUrl: string | null
+  emailVerified: boolean
   createdAt: string
 }
 
@@ -44,5 +45,24 @@ export interface LogoutResponse {
 
 export interface AuthError {
   error: string
+  message: string
+}
+
+// Email verification types
+export interface VerifyEmailRequest {
+  token: string
+}
+
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  password: string
+}
+
+export interface MessageResponse {
+  success: boolean
   message: string
 }
