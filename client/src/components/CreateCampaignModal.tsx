@@ -16,7 +16,7 @@ import { ImageUpload } from './ImageUpload'
 interface CreateCampaignModalProps {
   open: boolean
   onClose: () => void
-  onSubmit: (data: { name: string; description: string; coverImage: File | null }) => Promise<void>
+  onSubmit: (data: { name: string; description: string; coverImage: File | null | undefined }) => Promise<void>
   campaign?: Campaign | null
 }
 
@@ -83,11 +83,19 @@ export function CreateCampaignModal({
 
     setIsSubmitting(true)
     try {
-      const imageToSubmit = coverImage instanceof File ? coverImage : null
+      // undefined = no change, null = explicitly remove, File = new upload
+      let imageToSubmit: File | null | undefined
+      if (removeCoverImage) {
+        imageToSubmit = null
+      } else if (coverImage instanceof File) {
+        imageToSubmit = coverImage
+      } else {
+        imageToSubmit = undefined
+      }
       await onSubmit({
         name: name.trim(),
         description: description.trim(),
-        coverImage: removeCoverImage ? null : imageToSubmit,
+        coverImage: imageToSubmit,
       })
       onClose()
     } catch {

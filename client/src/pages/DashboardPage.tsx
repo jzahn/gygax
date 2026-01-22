@@ -89,7 +89,7 @@ export function DashboardPage() {
   const handleEditCampaign = async (data: {
     name: string
     description: string
-    coverImage: File | null
+    coverImage: File | null | undefined
   }) => {
     if (!editingCampaign) return
 
@@ -107,7 +107,7 @@ export function DashboardPage() {
     const result: CampaignResponse = await response.json()
     let campaign = result.campaign
 
-    if (data.coverImage) {
+    if (data.coverImage instanceof File) {
       const formData = new FormData()
       formData.append('image', data.coverImage)
 
@@ -132,6 +132,7 @@ export function DashboardPage() {
         campaign = coverResult.campaign
       }
     }
+    // When coverImage is undefined, keep existing image (no API call)
 
     setCampaigns((prev) => prev.map((c) => (c.id === campaign.id ? campaign : c)))
     setEditingCampaign(null)

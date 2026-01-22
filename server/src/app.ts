@@ -17,10 +17,15 @@ export async function buildApp() {
   await fastify.register(cors, {
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   })
 
   // Register multipart for file uploads
-  await fastify.register(multipart)
+  await fastify.register(multipart, {
+    limits: {
+      fileSize: 5 * 1024 * 1024, // 5MB
+    },
+  })
 
   // Register plugins
   await fastify.register(prismaPlugin)

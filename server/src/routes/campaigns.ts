@@ -372,17 +372,17 @@ export async function campaignRoutes(fastify: FastifyInstance) {
 
       // Read file into buffer
       const chunks: Buffer[] = []
-      let totalSize = 0
 
       for await (const chunk of data.file) {
-        totalSize += chunk.length
-        if (totalSize > MAX_FILE_SIZE) {
-          return reply.status(400).send({
-            error: 'Bad Request',
-            message: 'File too large. Maximum size is 5MB',
-          })
-        }
         chunks.push(chunk)
+      }
+
+      // Check if file was truncated due to size limit
+      if (data.file.truncated) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'File too large. Maximum size is 5MB',
+        })
       }
 
       const buffer = Buffer.concat(chunks)

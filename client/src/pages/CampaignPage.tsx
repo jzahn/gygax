@@ -52,7 +52,7 @@ export function CampaignPage() {
   const handleEditCampaign = async (data: {
     name: string
     description: string
-    coverImage: File | null
+    coverImage: File | null | undefined
   }) => {
     if (!campaign) return
 
@@ -70,7 +70,7 @@ export function CampaignPage() {
     const result: CampaignResponse = await response.json()
     let updatedCampaign = result.campaign
 
-    if (data.coverImage) {
+    if (data.coverImage instanceof File) {
       const formData = new FormData()
       formData.append('image', data.coverImage)
 
@@ -95,6 +95,7 @@ export function CampaignPage() {
         updatedCampaign = coverResult.campaign
       }
     }
+    // When coverImage is undefined, keep existing image (no API call)
 
     setCampaign(updatedCampaign)
     setIsEditModalOpen(false)
