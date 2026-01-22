@@ -66,3 +66,31 @@ export interface MessageResponse {
   success: boolean
   message: string
 }
+
+// Campaign types
+export interface Campaign {
+  id: string
+  name: string
+  description: string | null
+  coverImageUrl: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CampaignListResponse {
+  campaigns: Campaign[]
+}
+
+export interface CampaignResponse {
+  campaign: Campaign
+}
+
+export interface CreateCampaignRequest {
+  name: string
+  description?: string
+}
+
+export interface UpdateCampaignRequest {
+  name?: string
+  description?: string | null
+}

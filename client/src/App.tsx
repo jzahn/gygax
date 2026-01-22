@@ -2,7 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router'
 import { AuthProvider } from './contexts'
 import { ProtectedRoute } from './components'
 import {
-  HomePage,
+  DashboardPage,
+  CampaignPage,
   LoginPage,
   RegisterPage,
   VerifyEmailPage,
@@ -20,7 +21,15 @@ export function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <HomePage />
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/campaigns/:id"
+            element={
+              <ProtectedRoute>
+                <CampaignPage />
               </ProtectedRoute>
             }
           />

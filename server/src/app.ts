@@ -1,9 +1,12 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import multipart from '@fastify/multipart'
 import { prismaPlugin } from './plugins/prisma'
 import { authPlugin } from './plugins/auth'
 import { healthRoutes } from './routes/health'
 import { authRoutes } from './routes/auth'
+import { campaignRoutes } from './routes/campaigns'
+import { initializeBucket } from './services/storage'
 
 export async function buildApp() {
   const fastify = Fastify({
@@ -16,13 +19,25 @@ export async function buildApp() {
     credentials: true,
   })
 
+  // Register multipart for file uploads
+  await fastify.register(multipart)
+
   // Register plugins
   await fastify.register(prismaPlugin)
   await fastify.register(authPlugin)
 
+  // Initialize S3 bucket
+  try {
+    await initializeBucket()
+    fastify.log.info('S3 bucket initialized')
+  } catch (error) {
+    fastify.log.error(error, 'Failed to initialize S3 bucket')
+  }
+
   // Register routes
   await fastify.register(healthRoutes)
   await fastify.register(authRoutes)
+  await fastify.register(campaignRoutes)
 
   return fastify
 }

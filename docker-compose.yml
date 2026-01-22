@@ -24,6 +24,23 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
+  minio:
+    image: minio/minio
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   server:
     build:
       context: .
@@ -38,6 +55,11 @@ services:
       SMTP_FROM: noreply@gygax.local
       SMTP_SECURE: 'false'
       APP_URL: http://localhost:5173
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_BUCKET: gygax-uploads
+      S3_PUBLIC_URL: http://localhost:9000/gygax-uploads
     ports:
       - '3000:3000'
     volumes:
@@ -50,6 +72,8 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+      minio:
+        condition: service_healthy
     command: ['npm', 'run', 'dev:server']
 
   client:
@@ -70,3 +94,4 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:

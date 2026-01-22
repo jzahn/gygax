@@ -1,0 +1,174 @@
+import * as React from 'react'
+import type { Campaign } from '@gygax/shared'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from './ui/dialog'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
+import { Textarea } from './ui/textarea'
+import { ImageUpload } from './ImageUpload'
+
+interface CreateCampaignModalProps {
+  open: boolean
+  onClose: () => void
+  onSubmit: (data: { name: string; description: string; coverImage: File | null }) => Promise<void>
+  campaign?: Campaign | null
+}
+
+const MAX_NAME_LENGTH = 100
+const MAX_DESCRIPTION_LENGTH = 1000
+
+export function CreateCampaignModal({
+  open,
+  onClose,
+  onSubmit,
+  campaign,
+}: CreateCampaignModalProps) {
+  const [name, setName] = React.useState('')
+  const [description, setDescription] = React.useState('')
+  const [coverImage, setCoverImage] = React.useState<File | string | null>(null)
+  const [removeCoverImage, setRemoveCoverImage] = React.useState(false)
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [errors, setErrors] = React.useState<{ name?: string; description?: string }>({})
+
+  const isEditing = !!campaign
+
+  React.useEffect(() => {
+    if (open) {
+      if (campaign) {
+        setName(campaign.name)
+        setDescription(campaign.description || '')
+        setCoverImage(campaign.coverImageUrl)
+        setRemoveCoverImage(false)
+      } else {
+        setName('')
+        setDescription('')
+        setCoverImage(null)
+        setRemoveCoverImage(false)
+      }
+      setErrors({})
+    }
+  }, [open, campaign])
+
+  const validateForm = (): boolean => {
+    const newErrors: { name?: string; description?: string } = {}
+
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      newErrors.name = 'Name is required'
+    } else if (trimmedName.length > MAX_NAME_LENGTH) {
+      newErrors.name = `Name must be ${MAX_NAME_LENGTH} characters or less`
+    }
+
+    const trimmedDescription = description.trim()
+    if (trimmedDescription.length > MAX_DESCRIPTION_LENGTH) {
+      newErrors.description = `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!validateForm()) {
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const imageToSubmit = coverImage instanceof File ? coverImage : null
+      await onSubmit({
+        name: name.trim(),
+        description: description.trim(),
+        coverImage: removeCoverImage ? null : imageToSubmit,
+      })
+      onClose()
+    } catch {
+      // Error handling is done in parent component
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleCoverImageChange = (file: File | null) => {
+    setCoverImage(file)
+    setRemoveCoverImage(false)
+  }
+
+  const handleRemoveCoverImage = () => {
+    setCoverImage(null)
+    setRemoveCoverImage(true)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? 'Edit Realm' : 'Forge a New Realm'}</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label className="font-display text-xs uppercase tracking-wide">
+              Cover Art <span className="font-body text-ink-faded">(optional)</span>
+            </Label>
+            <ImageUpload
+              value={coverImage}
+              onChange={handleCoverImageChange}
+              onRemove={handleRemoveCoverImage}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="name" className="font-display text-xs uppercase tracking-wide">
+              Campaign Name
+            </Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="What shall this realm be called?"
+              error={!!errors.name}
+              maxLength={MAX_NAME_LENGTH + 10}
+            />
+            {errors.name && <p className="font-body text-sm text-blood-red">{errors.name}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description" className="font-display text-xs uppercase tracking-wide">
+              Description <span className="font-body text-ink-faded">(optional)</span>
+            </Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe the nature of this adventure..."
+              rows={4}
+              error={!!errors.description}
+              maxLength={MAX_DESCRIPTION_LENGTH + 10}
+            />
+            {errors.description && (
+              <p className="font-body text-sm text-blood-red">{errors.description}</p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 pt-4">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" loading={isSubmitting}>
+              {isEditing ? 'Save' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
