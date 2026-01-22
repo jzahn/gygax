@@ -16,5 +16,30 @@ export default defineConfig({
     watch: {
       usePolling: true,
     },
+    proxy: {
+      '/api': {
+        target: process.env.API_PROXY_TARGET || 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: '',
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            // Remove secure flag from cookies for local dev
+            const cookies = proxyRes.headers['set-cookie']
+            if (cookies) {
+              proxyRes.headers['set-cookie'] = cookies.map((cookie: string) =>
+                cookie.replace(/; secure/gi, '').replace(/; samesite=none/gi, '; samesite=lax')
+              )
+            }
+          })
+        },
+      },
+      '/uploads': {
+        target: process.env.MINIO_PROXY_TARGET || 'http://localhost:9000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/uploads/, '/gygax-uploads'),
+      },
+    },
   },
 })

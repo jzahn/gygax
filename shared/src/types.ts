@@ -73,6 +73,8 @@ export interface Campaign {
   name: string
   description: string | null
   coverImageUrl: string | null
+  coverImageFocusX: number | null
+  coverImageFocusY: number | null
   createdAt: string
   updatedAt: string
 }

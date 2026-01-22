@@ -41,12 +41,14 @@ model PasswordReset {
 }
 
 model Campaign {
-  id            String   @id @default(cuid())
-  name          String
-  description   String?
-  coverImageUrl String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String
+  description        String?
+  coverImageUrl      String?
+  coverImageFocusX   Float?
+  coverImageFocusY   Float?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)

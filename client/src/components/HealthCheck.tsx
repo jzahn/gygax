@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { HealthCheckResponse } from '@gygax/shared'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL || ''
 
 export function HealthCheck() {
   const [health, setHealth] = useState<HealthCheckResponse | null>(null)

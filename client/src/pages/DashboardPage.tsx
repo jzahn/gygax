@@ -4,10 +4,10 @@ import type { Campaign, CampaignListResponse, CampaignResponse } from '@gygax/sh
 import { useAuth } from '../hooks'
 import { Button, Divider } from '../components/ui'
 import { CampaignCard } from '../components/CampaignCard'
-import { CreateCampaignModal } from '../components/CreateCampaignModal'
+import { CreateCampaignModal, CampaignFormData } from '../components/CreateCampaignModal'
 import { DeleteCampaignDialog } from '../components/DeleteCampaignDialog'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL || ''
 
 export function DashboardPage() {
   const navigate = useNavigate()
@@ -48,11 +48,7 @@ export function DashboardPage() {
     navigate('/login')
   }
 
-  const handleCreateCampaign = async (data: {
-    name: string
-    description: string
-    coverImage: File | null
-  }) => {
+  const handleCreateCampaign = async (data: CampaignFormData) => {
     const response = await fetch(`${API_URL}/api/campaigns`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -70,6 +66,8 @@ export function DashboardPage() {
     if (data.coverImage) {
       const formData = new FormData()
       formData.append('image', data.coverImage)
+      formData.append('focusX', data.focusX.toString())
+      formData.append('focusY', data.focusY.toString())
 
       const coverResponse = await fetch(`${API_URL}/api/campaigns/${campaign.id}/cover`, {
         method: 'POST',
@@ -86,11 +84,7 @@ export function DashboardPage() {
     setCampaigns((prev) => [campaign, ...prev])
   }
 
-  const handleEditCampaign = async (data: {
-    name: string
-    description: string
-    coverImage: File | null | undefined
-  }) => {
+  const handleEditCampaign = async (data: CampaignFormData) => {
     if (!editingCampaign) return
 
     const response = await fetch(`${API_URL}/api/campaigns/${editingCampaign.id}`, {
@@ -108,8 +102,11 @@ export function DashboardPage() {
     let campaign = result.campaign
 
     if (data.coverImage instanceof File) {
+      // Uploading new image with focal point
       const formData = new FormData()
       formData.append('image', data.coverImage)
+      formData.append('focusX', data.focusX.toString())
+      formData.append('focusY', data.focusY.toString())
 
       const coverResponse = await fetch(`${API_URL}/api/campaigns/${campaign.id}/cover`, {
         method: 'POST',
@@ -122,6 +119,7 @@ export function DashboardPage() {
         campaign = coverResult.campaign
       }
     } else if (data.coverImage === null && editingCampaign.coverImageUrl) {
+      // Explicitly removing cover image
       const coverResponse = await fetch(`${API_URL}/api/campaigns/${campaign.id}/cover`, {
         method: 'DELETE',
         credentials: 'include',
@@ -131,8 +129,29 @@ export function DashboardPage() {
         const coverResult: CampaignResponse = await coverResponse.json()
         campaign = coverResult.campaign
       }
+    } else if (data.coverImage === undefined && editingCampaign.coverImageUrl) {
+      // Check if focal point changed for existing image
+      const focusChanged =
+        data.focusX !== (editingCampaign.coverImageFocusX ?? 50) ||
+        data.focusY !== (editingCampaign.coverImageFocusY ?? 50)
+
+      if (focusChanged) {
+        const focusResponse = await fetch(
+          `${API_URL}/api/campaigns/${campaign.id}/cover/focus`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ focusX: data.focusX, focusY: data.focusY }),
+          }
+        )
+
+        if (focusResponse.ok) {
+          const focusResult: CampaignResponse = await focusResponse.json()
+          campaign = focusResult.campaign
+        }
+      }
     }
-    // When coverImage is undefined, keep existing image (no API call)
 
     setCampaigns((prev) => prev.map((c) => (c.id === campaign.id ? campaign : c)))
     setEditingCampaign(null)

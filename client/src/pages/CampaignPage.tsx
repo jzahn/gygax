@@ -2,10 +2,10 @@ import * as React from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
 import type { Campaign, CampaignResponse } from '@gygax/shared'
 import { Button, Divider } from '../components/ui'
-import { CreateCampaignModal } from '../components/CreateCampaignModal'
+import { CreateCampaignModal, CampaignFormData } from '../components/CreateCampaignModal'
 import { DeleteCampaignDialog } from '../components/DeleteCampaignDialog'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL || ''
 
 export function CampaignPage() {
   const { id } = useParams<{ id: string }>()
@@ -51,11 +51,7 @@ export function CampaignPage() {
     fetchCampaign()
   }, [fetchCampaign])
 
-  const handleEditCampaign = async (data: {
-    name: string
-    description: string
-    coverImage: File | null | undefined
-  }) => {
+  const handleEditCampaign = async (data: CampaignFormData) => {
     if (!campaign) return
 
     const response = await fetch(`${API_URL}/api/campaigns/${campaign.id}`, {
@@ -73,8 +69,11 @@ export function CampaignPage() {
     let updatedCampaign = result.campaign
 
     if (data.coverImage instanceof File) {
+      // Uploading new image with focal point
       const formData = new FormData()
       formData.append('image', data.coverImage)
+      formData.append('focusX', data.focusX.toString())
+      formData.append('focusY', data.focusY.toString())
 
       const coverResponse = await fetch(`${API_URL}/api/campaigns/${campaign.id}/cover`, {
         method: 'POST',
@@ -87,6 +86,7 @@ export function CampaignPage() {
         updatedCampaign = coverResult.campaign
       }
     } else if (data.coverImage === null && campaign.coverImageUrl) {
+      // Explicitly removing cover image
       const coverResponse = await fetch(`${API_URL}/api/campaigns/${campaign.id}/cover`, {
         method: 'DELETE',
         credentials: 'include',
@@ -96,8 +96,29 @@ export function CampaignPage() {
         const coverResult: CampaignResponse = await coverResponse.json()
         updatedCampaign = coverResult.campaign
       }
+    } else if (data.coverImage === undefined && campaign.coverImageUrl) {
+      // Check if focal point changed for existing image
+      const focusChanged =
+        data.focusX !== (campaign.coverImageFocusX ?? 50) ||
+        data.focusY !== (campaign.coverImageFocusY ?? 50)
+
+      if (focusChanged) {
+        const focusResponse = await fetch(
+          `${API_URL}/api/campaigns/${campaign.id}/cover/focus`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ focusX: data.focusX, focusY: data.focusY }),
+          }
+        )
+
+        if (focusResponse.ok) {
+          const focusResult: CampaignResponse = await focusResponse.json()
+          updatedCampaign = focusResult.campaign
+        }
+      }
     }
-    // When coverImage is undefined, keep existing image (no API call)
 
     setCampaign(updatedCampaign)
     setIsEditModalOpen(false)
@@ -154,6 +175,9 @@ export function CampaignPage() {
             src={campaign.coverImageUrl}
             alt={campaign.name}
             className="h-full w-full object-cover"
+            style={{
+              objectPosition: `${campaign.coverImageFocusX ?? 50}% ${campaign.coverImageFocusY ?? 50}%`,
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-ink/80 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">

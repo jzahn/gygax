@@ -19,6 +19,8 @@ function formatCampaign(campaign: {
   name: string
   description: string | null
   coverImageUrl: string | null
+  coverImageFocusX: number | null
+  coverImageFocusY: number | null
   createdAt: Date
   updatedAt: Date
 }): Campaign {
@@ -27,6 +29,8 @@ function formatCampaign(campaign: {
     name: campaign.name,
     description: campaign.description,
     coverImageUrl: campaign.coverImageUrl,
+    coverImageFocusX: campaign.coverImageFocusX,
+    coverImageFocusY: campaign.coverImageFocusY,
     createdAt: campaign.createdAt.toISOString(),
     updatedAt: campaign.updatedAt.toISOString(),
   }
@@ -352,10 +356,41 @@ export async function campaignRoutes(fastify: FastifyInstance) {
         })
       }
 
-      // Get the uploaded file
-      const data = await request.file()
+      // Parse multipart form data
+      const parts = request.parts()
+      let fileBuffer: Buffer | null = null
+      let fileMimetype: string | null = null
+      let fileTruncated = false
+      let focusX: number | null = null
+      let focusY: number | null = null
 
-      if (!data) {
+      for await (const part of parts) {
+        if (part.type === 'file') {
+          if (part.fieldname === 'image') {
+            fileMimetype = part.mimetype
+            const chunks: Buffer[] = []
+            for await (const chunk of part.file) {
+              chunks.push(chunk)
+            }
+            fileTruncated = part.file.truncated
+            fileBuffer = Buffer.concat(chunks)
+          }
+        } else if (part.type === 'field') {
+          if (part.fieldname === 'focusX' && typeof part.value === 'string') {
+            const parsed = parseFloat(part.value)
+            if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+              focusX = parsed
+            }
+          } else if (part.fieldname === 'focusY' && typeof part.value === 'string') {
+            const parsed = parseFloat(part.value)
+            if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+              focusY = parsed
+            }
+          }
+        }
+      }
+
+      if (!fileBuffer || !fileMimetype) {
         return reply.status(400).send({
           error: 'Bad Request',
           message: 'No file provided',
@@ -363,32 +398,23 @@ export async function campaignRoutes(fastify: FastifyInstance) {
       }
 
       // Validate mime type
-      if (!ALLOWED_MIME_TYPES.includes(data.mimetype)) {
+      if (!ALLOWED_MIME_TYPES.includes(fileMimetype)) {
         return reply.status(400).send({
           error: 'Bad Request',
           message: 'Invalid file type. Allowed types: JPEG, PNG, WebP',
         })
       }
 
-      // Read file into buffer
-      const chunks: Buffer[] = []
-
-      for await (const chunk of data.file) {
-        chunks.push(chunk)
-      }
-
       // Check if file was truncated due to size limit
-      if (data.file.truncated) {
+      if (fileTruncated) {
         return reply.status(400).send({
           error: 'Bad Request',
           message: 'File too large. Maximum size is 5MB',
         })
       }
 
-      const buffer = Buffer.concat(chunks)
-
       // Generate unique filename
-      const ext = data.mimetype.split('/')[1] === 'jpeg' ? 'jpg' : data.mimetype.split('/')[1]
+      const ext = fileMimetype.split('/')[1] === 'jpeg' ? 'jpg' : fileMimetype.split('/')[1]
       const filename = `${crypto.randomUUID()}.${ext}`
       const key = `campaigns/${id}/${filename}`
 
@@ -406,12 +432,16 @@ export async function campaignRoutes(fastify: FastifyInstance) {
       }
 
       // Upload new image
-      const imageUrl = await uploadFile(key, buffer, data.mimetype)
+      const imageUrl = await uploadFile(key, fileBuffer, fileMimetype)
 
-      // Update campaign
+      // Update campaign with image URL and focal point
       const updatedCampaign = await fastify.prisma.campaign.update({
         where: { id },
-        data: { coverImageUrl: imageUrl },
+        data: {
+          coverImageUrl: imageUrl,
+          coverImageFocusX: focusX,
+          coverImageFocusY: focusY,
+        },
       })
 
       const response: CampaignResponse = {
@@ -462,10 +492,83 @@ export async function campaignRoutes(fastify: FastifyInstance) {
         }
       }
 
-      // Update campaign
+      // Update campaign - clear image and focal point
       const updatedCampaign = await fastify.prisma.campaign.update({
         where: { id },
-        data: { coverImageUrl: null },
+        data: {
+          coverImageUrl: null,
+          coverImageFocusX: null,
+          coverImageFocusY: null,
+        },
+      })
+
+      const response: CampaignResponse = {
+        campaign: formatCampaign(updatedCampaign),
+      }
+
+      return reply.status(200).send(response)
+    }
+  )
+
+  // PATCH /api/campaigns/:id/cover/focus - Update cover image focal point
+  fastify.patch<{ Params: { id: string }; Body: { focusX: number; focusY: number } }>(
+    '/api/campaigns/:id/cover/focus',
+    async (
+      request: FastifyRequest<{ Params: { id: string }; Body: { focusX: number; focusY: number } }>,
+      reply: FastifyReply
+    ) => {
+      const user = await requireVerifiedUser(fastify, request, reply)
+      if (!user) return
+
+      const { id } = request.params
+      const { focusX, focusY } = request.body
+
+      // Validate focal point values
+      if (
+        typeof focusX !== 'number' ||
+        typeof focusY !== 'number' ||
+        focusX < 0 ||
+        focusX > 100 ||
+        focusY < 0 ||
+        focusY > 100
+      ) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Focal point values must be numbers between 0 and 100',
+        })
+      }
+
+      const campaign = await fastify.prisma.campaign.findUnique({
+        where: { id },
+      })
+
+      if (!campaign) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Campaign not found',
+        })
+      }
+
+      if (campaign.ownerId !== user.id) {
+        return reply.status(403).send({
+          error: 'Forbidden',
+          message: 'Not authorized to modify this campaign',
+        })
+      }
+
+      if (!campaign.coverImageUrl) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Campaign has no cover image',
+        })
+      }
+
+      const updatedCampaign = await fastify.prisma.campaign.update({
+        where: { id },
+        data: {
+          coverImageFocusX: focusX,
+          coverImageFocusY: focusY,
+        },
       })
 
       const response: CampaignResponse = {

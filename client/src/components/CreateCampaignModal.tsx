@@ -13,10 +13,18 @@ import { Label } from './ui/label'
 import { Textarea } from './ui/textarea'
 import { ImageUpload } from './ImageUpload'
 
+export interface CampaignFormData {
+  name: string
+  description: string
+  coverImage: File | null | undefined
+  focusX: number
+  focusY: number
+}
+
 interface CreateCampaignModalProps {
   open: boolean
   onClose: () => void
-  onSubmit: (data: { name: string; description: string; coverImage: File | null | undefined }) => Promise<void>
+  onSubmit: (data: CampaignFormData) => Promise<void>
   onDelete?: () => void
   campaign?: Campaign | null
 }
@@ -34,6 +42,8 @@ export function CreateCampaignModal({
   const [name, setName] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [coverImage, setCoverImage] = React.useState<File | string | null>(null)
+  const [focusX, setFocusX] = React.useState(50)
+  const [focusY, setFocusY] = React.useState(50)
   const [removeCoverImage, setRemoveCoverImage] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [errors, setErrors] = React.useState<{ name?: string; description?: string }>({})
@@ -46,11 +56,15 @@ export function CreateCampaignModal({
         setName(campaign.name)
         setDescription(campaign.description || '')
         setCoverImage(campaign.coverImageUrl)
+        setFocusX(campaign.coverImageFocusX ?? 50)
+        setFocusY(campaign.coverImageFocusY ?? 50)
         setRemoveCoverImage(false)
       } else {
         setName('')
         setDescription('')
         setCoverImage(null)
+        setFocusX(50)
+        setFocusY(50)
         setRemoveCoverImage(false)
       }
       setErrors({})
@@ -98,6 +112,8 @@ export function CreateCampaignModal({
         name: name.trim(),
         description: description.trim(),
         coverImage: imageToSubmit,
+        focusX,
+        focusY,
       })
       onClose()
     } catch {
@@ -110,11 +126,23 @@ export function CreateCampaignModal({
   const handleCoverImageChange = (file: File | null) => {
     setCoverImage(file)
     setRemoveCoverImage(false)
+    // Reset focal point to center when selecting a new image
+    if (file) {
+      setFocusX(50)
+      setFocusY(50)
+    }
   }
 
   const handleRemoveCoverImage = () => {
     setCoverImage(null)
     setRemoveCoverImage(true)
+    setFocusX(50)
+    setFocusY(50)
+  }
+
+  const handleFocusChange = (x: number, y: number) => {
+    setFocusX(x)
+    setFocusY(y)
   }
 
   return (
@@ -133,6 +161,9 @@ export function CreateCampaignModal({
               value={coverImage}
               onChange={handleCoverImageChange}
               onRemove={handleRemoveCoverImage}
+              focusX={focusX}
+              focusY={focusY}
+              onFocusChange={handleFocusChange}
             />
           </div>
 

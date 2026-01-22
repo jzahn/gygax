@@ -1,10 +1,14 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { FocalPointPicker } from './FocalPointPicker'
 
 interface ImageUploadProps {
   value?: File | string | null
   onChange: (file: File | null) => void
   onRemove?: () => void
+  focusX?: number
+  focusY?: number
+  onFocusChange?: (focusX: number, focusY: number) => void
   accept?: string
   maxSize?: number
   error?: string
@@ -17,6 +21,9 @@ export function ImageUpload({
   value,
   onChange,
   onRemove,
+  focusX = 50,
+  focusY = 50,
+  onFocusChange,
   accept = 'image/jpeg,image/png,image/webp',
   maxSize = MAX_FILE_SIZE,
   error,
@@ -102,14 +109,22 @@ export function ImageUpload({
         )}
       >
         {previewUrl ? (
-          <div className="relative w-full">
-            <div className="mx-auto aspect-[2/3] w-32 overflow-hidden border-2 border-ink shadow-brutal-sm">
-              <img src={previewUrl} alt="Cover preview" className="h-full w-full object-cover" />
-            </div>
-            <div className="mt-3 flex items-center justify-center gap-2">
-              {value instanceof File && (
-                <span className="font-body text-sm text-ink-soft">{value.name}</span>
-              )}
+          <div className="relative w-full" onClick={(e) => e.stopPropagation()}>
+            <FocalPointPicker
+              imageUrl={previewUrl}
+              focusX={focusX}
+              focusY={focusY}
+              onChange={onFocusChange ?? (() => {})}
+              className="mx-auto max-w-xs"
+            />
+            <div className="mt-3 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleClick}
+                className="font-body text-sm text-ink underline underline-offset-2 hover:text-ink-soft"
+              >
+                Change
+              </button>
               <button
                 type="button"
                 onClick={handleRemove}
