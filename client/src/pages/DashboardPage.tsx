@@ -245,6 +245,12 @@ export function DashboardPage() {
         open={!!editingCampaign}
         onClose={() => setEditingCampaign(null)}
         onSubmit={handleEditCampaign}
+        onDelete={() => {
+          if (editingCampaign) {
+            setDeletingCampaign(editingCampaign)
+            setEditingCampaign(null)
+          }
+        }}
         campaign={editingCampaign}
       />
 

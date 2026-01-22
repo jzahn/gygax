@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router'
 import type { Campaign, CampaignResponse } from '@gygax/shared'
 import { Button, Divider } from '../components/ui'
 import { CreateCampaignModal } from '../components/CreateCampaignModal'
+import { DeleteCampaignDialog } from '../components/DeleteCampaignDialog'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -13,6 +14,7 @@ export function CampaignPage() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
 
   const fetchCampaign = React.useCallback(async () => {
     if (!id) return
@@ -99,6 +101,21 @@ export function CampaignPage() {
 
     setCampaign(updatedCampaign)
     setIsEditModalOpen(false)
+  }
+
+  const handleDeleteCampaign = async () => {
+    if (!campaign) return
+
+    const response = await fetch(`${API_URL}/api/campaigns/${campaign.id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to delete campaign')
+    }
+
+    navigate('/')
   }
 
   if (isLoading) {
@@ -199,6 +216,17 @@ export function CampaignPage() {
         open={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         onSubmit={handleEditCampaign}
+        onDelete={() => {
+          setIsEditModalOpen(false)
+          setIsDeleteDialogOpen(true)
+        }}
+        campaign={campaign}
+      />
+
+      <DeleteCampaignDialog
+        open={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleDeleteCampaign}
         campaign={campaign}
       />
     </div>

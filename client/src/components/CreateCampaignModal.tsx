@@ -17,6 +17,7 @@ interface CreateCampaignModalProps {
   open: boolean
   onClose: () => void
   onSubmit: (data: { name: string; description: string; coverImage: File | null | undefined }) => Promise<void>
+  onDelete?: () => void
   campaign?: Campaign | null
 }
 
@@ -27,6 +28,7 @@ export function CreateCampaignModal({
   open,
   onClose,
   onSubmit,
+  onDelete,
   campaign,
 }: CreateCampaignModalProps) {
   const [name, setName] = React.useState('')
@@ -167,13 +169,29 @@ export function CreateCampaignModal({
             )}
           </div>
 
-          <DialogFooter className="gap-2 pt-4">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" loading={isSubmitting}>
-              {isEditing ? 'Save' : 'Create'}
-            </Button>
+          <DialogFooter className="pt-4">
+            <div className="flex w-full items-center justify-between">
+              {isEditing && onDelete ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={onDelete}
+                  disabled={isSubmitting}
+                >
+                  Delete
+                </Button>
+              ) : (
+                <div />
+              )}
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" loading={isSubmitting}>
+                  {isEditing ? 'Save' : 'Create'}
+                </Button>
+              </div>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
