@@ -116,16 +116,19 @@ npm run build            # Production build
 
 Implementation specs in `/specs/` — build in order:
 
-| Spec           | Description                           | Status    |
-| -------------- | ------------------------------------- | --------- |
-| 001-foundation | Project setup, Docker, health check   | Complete  |
-| 002-auth       | Authentication system                 | Complete  |
-| 003-email      | Email verification & password reset   | Planned   |
-| 004-campaigns  | Campaign CRUD                         | Planned   |
-| 005-map-editor | Map drawing tools                     | Planned   |
+| Spec              | Description                           | Status    |
+| ----------------- | ------------------------------------- | --------- |
+| 001-foundation    | Project setup, Docker, health check   | Complete  |
+| 002-auth          | Authentication system                 | Complete  |
+| 003-email         | Email verification & password reset   | Complete  |
+| 004-campaigns     | Campaign CRUD                         | Complete  |
+| 005a-map-foundation | Map data model & basic canvas       | Planned   |
+| 005b-map-drawing  | Drawing tools (pen, brush, fill)      | Planned   |
+| 005c-map-stamps   | Stamps, symbols, text labels          | Planned   |
+| 005d-map-linking  | Map transitions and linking           | Planned   |
 
 ## Current Focus
 
 <!-- Update as work progresses -->
 
-- [ ] Implement spec 003-email
+- [ ] Implement spec 005a-map-foundation
