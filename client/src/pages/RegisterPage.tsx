@@ -58,8 +58,8 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen paper-texture vignette flex items-center justify-center p-4">
-      <div className="w-full max-w-md relative z-10">
+    <div className="min-h-dvh paper-texture vignette flex items-center justify-center p-4 overflow-x-hidden">
+      <div className="w-full max-w-md relative z-10 my-auto">
         <Card className="stagger-children">
           <CardHeader className="text-center">
             <CardTitle className="animate-ink-reveal">

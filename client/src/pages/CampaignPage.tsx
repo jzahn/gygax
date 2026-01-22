@@ -51,6 +51,11 @@ export function CampaignPage() {
     fetchCampaign()
   }, [fetchCampaign])
 
+  // Scroll to top when navigating to this page
+  React.useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [id])
+
   const handleEditCampaign = async (data: CampaignFormData) => {
     if (!campaign) return
 
