@@ -1,9 +1,12 @@
 import * as React from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
-import type { Campaign, CampaignResponse } from '@gygax/shared'
+import type { Campaign, CampaignResponse, Map, MapListResponse, MapResponse } from '@gygax/shared'
 import { Button, Divider } from '../components/ui'
 import { CreateCampaignModal, CampaignFormData } from '../components/CreateCampaignModal'
 import { DeleteCampaignDialog } from '../components/DeleteCampaignDialog'
+import { MapCard } from '../components/MapCard'
+import { CreateMapModal, MapFormData } from '../components/CreateMapModal'
+import { DeleteMapDialog } from '../components/DeleteMapDialog'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -15,6 +18,11 @@ export function CampaignPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
+  const [maps, setMaps] = React.useState<Map[]>([])
+  const [isLoadingMaps, setIsLoadingMaps] = React.useState(true)
+  const [isCreateMapModalOpen, setIsCreateMapModalOpen] = React.useState(false)
+  const [editingMap, setEditingMap] = React.useState<Map | null>(null)
+  const [deletingMap, setDeletingMap] = React.useState<Map | null>(null)
 
   const fetchCampaign = React.useCallback(async () => {
     if (!id) return
@@ -50,6 +58,33 @@ export function CampaignPage() {
   React.useEffect(() => {
     fetchCampaign()
   }, [fetchCampaign])
+
+  const fetchMaps = React.useCallback(async () => {
+    if (!id) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/campaigns/${id}/maps`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        return
+      }
+
+      const data: MapListResponse = await response.json()
+      setMaps(data.maps)
+    } catch {
+      // Silently fail - maps section will show empty
+    } finally {
+      setIsLoadingMaps(false)
+    }
+  }, [id])
+
+  React.useEffect(() => {
+    if (campaign) {
+      fetchMaps()
+    }
+  }, [campaign, fetchMaps])
 
   // Scroll to top when navigating to this page
   React.useEffect(() => {
@@ -144,6 +179,71 @@ export function CampaignPage() {
     navigate('/')
   }
 
+  const handleCreateMap = async (data: MapFormData) => {
+    if (!campaign) return
+
+    const response = await fetch(`${API_URL}/api/campaigns/${campaign.id}/maps`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        name: data.name,
+        description: data.description || null,
+        gridType: data.gridType,
+        width: data.width,
+        height: data.height,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to create map')
+    }
+
+    const result: MapResponse = await response.json()
+    setMaps((prev) => [result.map, ...prev])
+    setIsCreateMapModalOpen(false)
+  }
+
+  const handleEditMap = async (data: MapFormData) => {
+    if (!editingMap) return
+
+    const response = await fetch(`${API_URL}/api/maps/${editingMap.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        name: data.name,
+        description: data.description || null,
+        width: data.width,
+        height: data.height,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update map')
+    }
+
+    const result: MapResponse = await response.json()
+    setMaps((prev) => prev.map((m) => (m.id === result.map.id ? result.map : m)))
+    setEditingMap(null)
+  }
+
+  const handleDeleteMap = async () => {
+    if (!deletingMap) return
+
+    const response = await fetch(`${API_URL}/api/maps/${deletingMap.id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to delete map')
+    }
+
+    setMaps((prev) => prev.filter((m) => m.id !== deletingMap.id))
+    setDeletingMap(null)
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center paper-texture">
@@ -232,11 +332,55 @@ export function CampaignPage() {
 
         <Divider className="my-8" />
 
+        {/* Maps Section */}
+        <div className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg uppercase tracking-wide text-ink">Maps</h2>
+            <Button variant="default" size="sm" onClick={() => setIsCreateMapModalOpen(true)}>
+              + New Map
+            </Button>
+          </div>
+
+          {isLoadingMaps ? (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <span className="animate-quill-scratch text-2xl">&#9998;</span>
+              <p className="mt-2 font-body text-ink-soft">Loading maps...</p>
+            </div>
+          ) : maps.length === 0 ? (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <div className="mb-4 text-2xl text-ink-soft">&#128506;</div>
+              <p className="font-body text-ink">No maps yet</p>
+              <p className="mt-1 font-body text-sm text-ink-soft">
+                Create your first map to begin charting this realm.
+              </p>
+              <Button
+                variant="default"
+                className="mt-4"
+                onClick={() => setIsCreateMapModalOpen(true)}
+              >
+                Create Map
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {maps.map((map) => (
+                <MapCard
+                  key={map.id}
+                  map={map}
+                  onEdit={() => setEditingMap(map)}
+                  onDelete={() => setDeletingMap(map)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Coming Soon Section */}
         <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
           <div className="mb-4 text-2xl text-ink-soft">&#128506;</div>
           <h2 className="font-display text-lg uppercase tracking-wide text-ink">Coming Soon</h2>
           <p className="mt-2 font-body text-ink-soft">
-            Maps, encounters, and session tools will appear here in future updates.
+            Encounters and session tools will appear here in future updates.
           </p>
         </div>
       </div>
@@ -257,6 +401,26 @@ export function CampaignPage() {
         onClose={() => setIsDeleteDialogOpen(false)}
         onConfirm={handleDeleteCampaign}
         campaign={campaign}
+      />
+
+      <CreateMapModal
+        open={isCreateMapModalOpen}
+        onClose={() => setIsCreateMapModalOpen(false)}
+        onSubmit={handleCreateMap}
+      />
+
+      <CreateMapModal
+        open={!!editingMap}
+        onClose={() => setEditingMap(null)}
+        onSubmit={handleEditMap}
+        map={editingMap}
+      />
+
+      <DeleteMapDialog
+        open={!!deletingMap}
+        onClose={() => setDeletingMap(null)}
+        onConfirm={handleDeleteMap}
+        map={deletingMap}
       />
     </div>
   )

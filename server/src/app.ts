@@ -6,6 +6,7 @@ import { authPlugin } from './plugins/auth'
 import { healthRoutes } from './routes/health'
 import { authRoutes } from './routes/auth'
 import { campaignRoutes } from './routes/campaigns'
+import { mapRoutes } from './routes/maps'
 import { initializeBucket } from './services/storage'
 
 export async function buildApp() {
@@ -43,6 +44,7 @@ export async function buildApp() {
   await fastify.register(healthRoutes)
   await fastify.register(authRoutes)
   await fastify.register(campaignRoutes)
+  await fastify.register(mapRoutes)
 
   return fastify
 }

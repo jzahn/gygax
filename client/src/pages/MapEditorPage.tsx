@@ -1,0 +1,225 @@
+import * as React from 'react'
+import { useParams, useNavigate, Link } from 'react-router'
+import type { Map, MapResponse } from '@gygax/shared'
+import { Button } from '../components/ui'
+import { MapCanvas } from '../components/MapCanvas'
+import { CreateMapModal, MapFormData } from '../components/CreateMapModal'
+import { DeleteMapDialog } from '../components/DeleteMapDialog'
+
+const API_URL = import.meta.env.VITE_API_URL || ''
+
+export function MapEditorPage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const [map, setMap] = React.useState<Map | null>(null)
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
+  const [menuOpen, setMenuOpen] = React.useState(false)
+  const menuRef = React.useRef<HTMLDivElement>(null)
+
+  // Close menu when clicking outside
+  React.useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [menuOpen])
+
+  const fetchMap = React.useCallback(async () => {
+    if (!id) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/maps/${id}`, {
+        credentials: 'include',
+      })
+
+      if (response.status === 404) {
+        setError('Map not found')
+        return
+      }
+
+      if (response.status === 403) {
+        setError('You do not have access to this map')
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch map')
+      }
+
+      const data: MapResponse = await response.json()
+      setMap(data.map)
+    } catch {
+      setError('Failed to load map')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [id])
+
+  React.useEffect(() => {
+    fetchMap()
+  }, [fetchMap])
+
+  const handleEditMap = async (data: MapFormData) => {
+    if (!map) return
+
+    const response = await fetch(`${API_URL}/api/maps/${map.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        name: data.name,
+        description: data.description || null,
+        width: data.width,
+        height: data.height,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update map')
+    }
+
+    const result: MapResponse = await response.json()
+    setMap(result.map)
+    setIsEditModalOpen(false)
+  }
+
+  const handleDeleteMap = async () => {
+    if (!map) return
+
+    const response = await fetch(`${API_URL}/api/maps/${map.id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to delete map')
+    }
+
+    navigate(`/campaigns/${map.campaignId}`)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center paper-texture">
+        <span className="animate-quill-scratch text-4xl">&#9998;</span>
+        <span className="ml-4 font-body text-ink-soft">Loading map...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen paper-texture">
+        <div className="mx-auto max-w-2xl p-6 md:p-8">
+          <div className="rounded border-3 border-blood-red bg-parchment-100 p-6 text-center">
+            <p className="font-body text-blood-red">{error}</p>
+            <Button variant="ghost" onClick={() => navigate('/')} className="mt-4">
+              Return to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!map) {
+    return null
+  }
+
+  return (
+    <div className="flex h-screen flex-col paper-texture">
+      {/* Header */}
+      <header className="flex items-center justify-between border-b-3 border-ink bg-parchment-100 px-4 py-3">
+        <div className="flex items-center gap-4">
+          <Link
+            to={`/campaigns/${map.campaignId}`}
+            className="font-body text-sm text-ink-soft hover:text-ink"
+          >
+            &larr; Back to Campaign
+          </Link>
+          <div className="h-4 w-px bg-ink-faded" />
+          <h1 className="font-display text-lg uppercase tracking-wide text-ink">{map.name}</h1>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setIsEditModalOpen(true)}>
+            Edit
+          </Button>
+          <div className="relative" ref={menuRef}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Map options"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="rotate-90"
+              >
+                <circle cx="3" cy="8" r="1.5" />
+                <circle cx="8" cy="8" r="1.5" />
+                <circle cx="13" cy="8" r="1.5" />
+              </svg>
+            </Button>
+
+            {menuOpen && (
+              <div className="absolute right-0 top-full z-10 mt-1 min-w-[120px] rounded border-2 border-ink bg-parchment-100 py-1 shadow-brutal">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setIsDeleteDialogOpen(true)
+                  }}
+                  className="block w-full px-3 py-1.5 text-left font-body text-sm text-blood-red hover:bg-parchment-200"
+                >
+                  Delete Map
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Canvas */}
+      <main className="flex-1 overflow-hidden p-4">
+        <MapCanvas map={map} className="h-full w-full" />
+      </main>
+
+      {/* Footer/Status Bar */}
+      <footer className="flex items-center justify-between border-t-3 border-ink bg-parchment-100 px-4 py-2">
+        <div className="font-body text-xs text-ink-soft">
+          {map.description && <span className="mr-4">{map.description}</span>}
+        </div>
+        <div className="font-body text-xs text-ink-soft">
+          {map.width}&times;{map.height} &bull; {map.gridType === 'SQUARE' ? 'Square' : 'Hex'} grid
+        </div>
+      </footer>
+
+      {/* Modals */}
+      <CreateMapModal
+        open={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSubmit={handleEditMap}
+        map={map}
+      />
+
+      <DeleteMapDialog
+        open={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleDeleteMap}
+        map={map}
+      />
+    </div>
+  )
+}

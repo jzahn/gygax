@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components'
 import {
   DashboardPage,
   CampaignPage,
+  MapEditorPage,
   LoginPage,
   RegisterPage,
   VerifyEmailPage,
@@ -30,6 +31,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <CampaignPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/maps/:id"
+            element={
+              <ProtectedRoute>
+                <MapEditorPage />
               </ProtectedRoute>
             }
           />

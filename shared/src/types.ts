@@ -96,3 +96,42 @@ export interface UpdateCampaignRequest {
   name?: string
   description?: string | null
 }
+
+// Map types
+export type GridType = 'SQUARE' | 'HEX'
+
+export interface Map {
+  id: string
+  name: string
+  description: string | null
+  gridType: GridType
+  width: number
+  height: number
+  cellSize: number
+  campaignId: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MapListResponse {
+  maps: Map[]
+}
+
+export interface MapResponse {
+  map: Map
+}
+
+export interface CreateMapRequest {
+  name: string
+  description?: string
+  gridType?: GridType
+  width?: number
+  height?: number
+}
+
+export interface UpdateMapRequest {
+  name?: string
+  description?: string
+  width?: number
+  height?: number
+}
