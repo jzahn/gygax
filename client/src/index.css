@@ -48,6 +48,10 @@
 body {
   font-family: var(--font-body);
   background-color: var(--color-parchment-200);
+  background-image: var(--paper-grain);
+  background-blend-mode: multiply;
+  background-size: 200px 200px;
+  background-repeat: repeat;
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

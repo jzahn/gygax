@@ -294,7 +294,7 @@ interface MapCanvasProps {
 1. **Grid Rendering**
    - Square grid: Simple perpendicular lines
    - Hex grid: Pointy-top hexagons (flat edge at top/bottom)
-   - Thin gray lines (#ccc) on parchment background
+   - Black ink lines (#1a1a1a) on pure white background
    - Grid cells numbered along edges (optional, for DM reference)
 
 2. **Pan**
@@ -314,11 +314,16 @@ interface MapCanvasProps {
    - Maintains crisp rendering at all zoom levels
    - Centers map initially
 
-**Visual Style (B/X Aesthetic):**
-- Background: Parchment/cream color (#F5F5DC or similar)
-- Grid lines: Thin, dark gray (#666), 1px at 1x zoom
-- No anti-aliasing on grid lines (crisp, hand-drawn feel)
-- Subtle paper texture overlay (optional CSS)
+**Visual Style (B/X Rulebook Aesthetic):**
+
+The map should look like an illustration from the Moldvay B/X rulebook or an adventure module - crisp black ink on white paper.
+
+- **Canvas background**: Pure white (#FFFFFF) - like a page from the rulebook
+- **Grid lines**: Black ink (#1a1a1a), thin (1px at 1x zoom)
+- **Line style**: Crisp, no anti-aliasing (hand-drawn pen-and-ink feel)
+- **Container**: The canvas sits within a parchment-background container with thick black border (3px, like campaign cards), creating contrast between the white map and the textured page surround
+
+This creates a visual hierarchy: the map is a "document" sitting on the parchment desk/page of the application.
 
 **Implementation Notes:**
 - Use `requestAnimationFrame` for smooth rendering
@@ -501,7 +506,9 @@ A full-screen map viewing/editing page.
 
 **Canvas Area:**
 - MapCanvas component fills available space
-- Parchment background extends beyond map bounds
+- White canvas with thick black border (3px)
+- Parchment page background visible around/behind the map container
+- Creates "rulebook illustration" appearance
 
 **Footer/Status Bar:**
 - Current zoom level
@@ -546,6 +553,26 @@ client/src/pages/index.ts   # Export MapEditorPage
 
 ## Design Details
 
+### Map Aesthetic Philosophy
+
+The map canvas should evoke the look of illustrations from the 1981 Moldvay Basic/Expert D&D rulebooks:
+
+**Core principle**: Black ink on white paper, framed by the parchment application background.
+
+**Visual layers (front to back):**
+1. **Map content** (future): Black pen-and-ink walls, symbols, and annotations
+2. **Grid**: Thin black lines forming the underlying structure
+3. **Canvas**: Pure white background (#FFFFFF)
+4. **Border**: Thick black border (3px) framing the map
+5. **Page surround**: Parchment texture visible around the map
+
+**Reference style**:
+- Sample dungeon from Moldvay Basic (B/X) page B59
+- Module maps from B1, B2, X1
+- Dyson Logos-style clean dungeon cartography
+
+This creates contrast: the stark white/black map "pops" against the warm parchment background, just like the campaign cover art cards on the dashboard.
+
 ### Grid Type Visual Distinction
 
 **Square Grid Indicator:**
@@ -572,13 +599,14 @@ For the card preview (not the actual canvas), use a simple CSS or SVG pattern:
 
 **Square Preview:**
 - 5x5 mini grid
-- Thin gray lines
-- Parchment background
+- Thin black lines
+- White background (matching actual map style)
+- Thick black border around preview
 
 **Hex Preview:**
 - Simplified hex pattern
 - ~3-4 hexes visible
-- Same styling
+- Same white background with black border treatment
 
 ### Canvas Interaction States
 
