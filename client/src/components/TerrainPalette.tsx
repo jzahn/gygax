@@ -10,17 +10,18 @@ import {
 interface TerrainPaletteProps {
   selectedTerrain: TerrainType
   onTerrainChange: (terrain: TerrainType) => void
+  onHover?: (terrain: TerrainType | null) => void
 }
 
 interface TerrainButtonProps {
   terrain: TerrainType
   isSelected: boolean
   onClick: () => void
+  onHover?: (terrain: TerrainType | null) => void
 }
 
-function TerrainButton({ terrain, isSelected, onClick }: TerrainButtonProps) {
+function TerrainButton({ terrain, isSelected, onClick, onHover }: TerrainButtonProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
-  const info = TERRAIN_INFO[terrain]
 
   // Draw terrain icon on canvas
   React.useEffect(() => {
@@ -52,7 +53,8 @@ function TerrainButton({ terrain, isSelected, onClick }: TerrainButtonProps) {
   return (
     <button
       onClick={onClick}
-      title={info.name}
+      onMouseEnter={() => onHover?.(terrain)}
+      onMouseLeave={() => onHover?.(null)}
       className={`
         flex items-center justify-center border-2 transition-all
         ${
@@ -67,7 +69,7 @@ function TerrainButton({ terrain, isSelected, onClick }: TerrainButtonProps) {
   )
 }
 
-export function TerrainPalette({ selectedTerrain, onTerrainChange }: TerrainPaletteProps) {
+export function TerrainPalette({ selectedTerrain, onTerrainChange, onHover }: TerrainPaletteProps) {
   return (
     <div className="flex max-h-[400px] flex-col overflow-y-auto">
       {/* Natural terrain section */}
@@ -79,6 +81,7 @@ export function TerrainPalette({ selectedTerrain, onTerrainChange }: TerrainPale
               terrain={terrain}
               isSelected={selectedTerrain === terrain}
               onClick={() => onTerrainChange(terrain)}
+              onHover={onHover}
             />
           ))}
         </div>
@@ -93,6 +96,7 @@ export function TerrainPalette({ selectedTerrain, onTerrainChange }: TerrainPale
               terrain={terrain}
               isSelected={selectedTerrain === terrain}
               onClick={() => onTerrainChange(terrain)}
+              onHover={onHover}
             />
           ))}
         </div>

@@ -2,6 +2,7 @@ import * as React from 'react'
 import type { TerrainType, GridType } from '@gygax/shared'
 import type { DrawingTool } from '../hooks/useMapDrawing'
 import { TerrainPalette } from './TerrainPalette'
+import { TERRAIN_INFO } from '../utils/terrainIcons'
 
 interface MapToolbarProps {
   tool: DrawingTool
@@ -16,25 +17,26 @@ interface ToolButtonProps {
   currentTool: DrawingTool
   onClick: () => void
   disabled?: boolean
-  shortcut: string
+  onHover?: (tool: DrawingTool | null) => void
   children: React.ReactNode
 }
 
-function ToolButton({ tool, currentTool, onClick, disabled, shortcut, children }: ToolButtonProps) {
+function ToolButton({ tool, currentTool, onClick, disabled, onHover, children }: ToolButtonProps) {
   const isActive = tool === currentTool
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      title={`${tool.charAt(0).toUpperCase() + tool.slice(1)} (${shortcut})`}
+      onMouseEnter={() => onHover?.(tool)}
+      onMouseLeave={() => onHover?.(null)}
       className={`
-        flex h-9 w-9 items-center justify-center rounded border-2 transition-colors
+        flex h-9 w-9 items-center justify-center border-2 transition-all
         ${
           isActive
-            ? 'border-ink bg-ink text-parchment-100'
+            ? '-translate-y-0.5 border-ink bg-white text-ink shadow-brutal'
             : disabled
-              ? 'cursor-not-allowed border-ink-faded bg-parchment-100 text-ink-faded'
-              : 'border-ink bg-parchment-100 text-ink hover:bg-parchment-200'
+              ? 'cursor-not-allowed border-ink-faded bg-parchment-100 text-ink-faded shadow-brutal-sm'
+              : 'border-ink bg-parchment-100 text-ink shadow-brutal-sm hover:-translate-y-0.5 hover:shadow-brutal'
         }
       `}
     >
@@ -85,14 +87,22 @@ export function MapToolbar({
   onToolChange,
   onTerrainChange,
 }: MapToolbarProps) {
+  const [hoveredTerrain, setHoveredTerrain] = React.useState<TerrainType | null>(null)
+  const [hoveredTool, setHoveredTool] = React.useState<DrawingTool | null>(null)
   const isHexGrid = gridType === 'HEX'
   const terrainDisabled = !isHexGrid
+
+  const toolNames: Record<DrawingTool, string> = {
+    pan: 'Pan',
+    terrain: 'Terrain',
+    erase: 'Erase',
+  }
 
   return (
     <div className="flex w-[88px] flex-shrink-0 flex-col border-l-3 border-ink bg-parchment-100">
       {/* Tool buttons */}
       <div className="flex flex-col items-center gap-1 border-b-2 border-ink-faded p-2">
-        <ToolButton tool="pan" currentTool={tool} onClick={() => onToolChange('pan')} shortcut="P">
+        <ToolButton tool="pan" currentTool={tool} onClick={() => onToolChange('pan')} onHover={setHoveredTool}>
           <PanIcon />
         </ToolButton>
         <ToolButton
@@ -100,7 +110,7 @@ export function MapToolbar({
           currentTool={tool}
           onClick={() => onToolChange('terrain')}
           disabled={terrainDisabled}
-          shortcut="T"
+          onHover={setHoveredTool}
         >
           <TerrainIcon />
         </ToolButton>
@@ -109,7 +119,7 @@ export function MapToolbar({
           currentTool={tool}
           onClick={() => onToolChange('erase')}
           disabled={terrainDisabled}
-          shortcut="E"
+          onHover={setHoveredTool}
         >
           <EraserIcon />
         </ToolButton>
@@ -117,7 +127,11 @@ export function MapToolbar({
 
       {/* Terrain palette - only show for hex grids when terrain tool selected */}
       {isHexGrid && tool === 'terrain' && (
-        <TerrainPalette selectedTerrain={selectedTerrain} onTerrainChange={onTerrainChange} />
+        <TerrainPalette
+          selectedTerrain={selectedTerrain}
+          onTerrainChange={onTerrainChange}
+          onHover={setHoveredTerrain}
+        />
       )}
 
       {/* Message for non-hex grids */}
@@ -132,9 +146,11 @@ export function MapToolbar({
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Space hint */}
+      {/* Hover hint */}
       <div className="border-t-2 border-ink-faded p-2">
-        <p className="text-center font-body text-xs text-ink-soft">Space: Pan</p>
+        <p className="text-center font-body text-xs text-ink-soft">
+          {hoveredTool ? toolNames[hoveredTool] : hoveredTerrain ? TERRAIN_INFO[hoveredTerrain].name : '\u00A0'}
+        </p>
       </div>
     </div>
   )
