@@ -369,6 +369,8 @@ export function MapCanvas({
   )
 
   const [isPanningState, setIsPanningState] = React.useState(false)
+  const isPaintingRef = React.useRef(false)
+  const lastPaintedHexRef = React.useRef<string | null>(null)
 
   const handleMouseDown = React.useCallback(
     (e: React.MouseEvent) => {
@@ -384,11 +386,14 @@ export function MapCanvas({
           y: e.clientY - viewport.offsetY,
         }
       } else if (isHexGrid && onHexClick) {
-        // Stamp terrain
+        // Start painting
+        isPaintingRef.current = true
         const mapPos = screenToMap(e.clientX, e.clientY)
         if (mapPos) {
           const hex = pixelToHex(mapPos.x, mapPos.y, map.cellSize)
           if (isHexInBounds(hex, map)) {
+            const hexKey = `${hex.col},${hex.row}`
+            lastPaintedHexRef.current = hexKey
             onHexClick(hex)
           }
         }
@@ -404,29 +409,45 @@ export function MapCanvas({
         viewport.offsetX = e.clientX - panStartRef.current.x
         viewport.offsetY = e.clientY - panStartRef.current.y
         scheduleRender()
-      } else if (isHexGrid && onHexHover && tool !== 'pan') {
-        // Update hover hex
+      } else if (isHexGrid && tool !== 'pan') {
         const mapPos = screenToMap(e.clientX, e.clientY)
         if (mapPos) {
           const hex = pixelToHex(mapPos.x, mapPos.y, map.cellSize)
           if (isHexInBounds(hex, map)) {
-            onHexHover(hex)
+            // Update hover
+            if (onHexHover) {
+              onHexHover(hex)
+            }
+            // Paint while dragging
+            if (isPaintingRef.current && onHexClick) {
+              const hexKey = `${hex.col},${hex.row}`
+              if (hexKey !== lastPaintedHexRef.current) {
+                lastPaintedHexRef.current = hexKey
+                onHexClick(hex)
+              }
+            }
           } else {
-            onHexHover(null)
+            if (onHexHover) {
+              onHexHover(null)
+            }
           }
         }
       }
     },
-    [scheduleRender, isHexGrid, onHexHover, tool, screenToMap, map]
+    [scheduleRender, isHexGrid, onHexHover, onHexClick, tool, screenToMap, map]
   )
 
   const handleMouseUp = React.useCallback(() => {
     isPanningRef.current = false
+    isPaintingRef.current = false
+    lastPaintedHexRef.current = null
     setIsPanningState(false)
   }, [])
 
   const handleMouseLeave = React.useCallback(() => {
     isPanningRef.current = false
+    isPaintingRef.current = false
+    lastPaintedHexRef.current = null
     setIsPanningState(false)
     if (onHexHover) {
       onHexHover(null)

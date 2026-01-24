@@ -42,17 +42,11 @@ function TerrainButton({ terrain, isSelected, onClick }: TerrainButtonProps) {
     ctx.scale(dpr, dpr)
 
     // Clear
-    ctx.fillStyle = isSelected ? '#1a1a1a' : '#faf5eb'
+    ctx.fillStyle = isSelected ? '#ffffff' : '#faf5eb'
     ctx.fillRect(0, 0, size, size)
 
-    // Draw icon
-    ctx.save()
-    if (isSelected) {
-      ctx.strokeStyle = '#faf5eb'
-      ctx.fillStyle = '#faf5eb'
-    }
+    // Draw icon (always black)
     renderTerrainIcon(ctx, size / 2, size / 2, terrain, size * 0.8)
-    ctx.restore()
   }, [terrain, isSelected])
 
   return (
@@ -63,7 +57,7 @@ function TerrainButton({ terrain, isSelected, onClick }: TerrainButtonProps) {
         flex items-center justify-center rounded border-2 transition-colors
         ${
           isSelected
-            ? 'border-ink bg-ink'
+            ? 'border-ink bg-white'
             : 'border-ink bg-parchment-100 hover:bg-parchment-200'
         }
       `}

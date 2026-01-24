@@ -43,7 +43,7 @@ export const TERRAIN_INFO: Record<TerrainType, { name: string; group: 'natural' 
   caves: { name: 'Caves', group: 'natural' },
 }
 
-// Terrains with 3 variants
+// Terrains with 3 variants (images)
 const MULTI_VARIANT_TERRAINS: TerrainType[] = [
   'forest',
   'jungle',
@@ -51,7 +51,6 @@ const MULTI_VARIANT_TERRAINS: TerrainType[] = [
   'mountains',
   'hills',
   'swamp',
-  'water',
   'volcano',
   'grasslands',
   'barren',
@@ -177,6 +176,12 @@ export function renderTerrainIcon(
     return
   }
 
+  // Water is just a 50% grey fill (no image needed)
+  if (terrain === 'water') {
+    drawWaterFill(ctx, cx, cy, hexSize)
+    return
+  }
+
   const key = getImageKey(terrain, variant)
   const img = imageCache.get(key)
 
@@ -191,6 +196,38 @@ export function renderTerrainIcon(
 
   ctx.save()
   ctx.drawImage(img, cx - drawSize / 2, cy - drawSize / 2, drawSize, drawSize)
+  ctx.restore()
+}
+
+/**
+ * Draw water as a 50% grey hexagon fill
+ */
+function drawWaterFill(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  hexSize: number
+) {
+  const size = hexSize / 2
+
+  ctx.save()
+  ctx.fillStyle = '#808080' // 50% grey
+  ctx.beginPath()
+
+  // Draw hexagon path (flat-top)
+  for (let i = 0; i < 6; i++) {
+    const angleDeg = 60 * i
+    const angleRad = (Math.PI / 180) * angleDeg
+    const x = cx + size * Math.cos(angleRad)
+    const y = cy + size * Math.sin(angleRad)
+    if (i === 0) {
+      ctx.moveTo(x, y)
+    } else {
+      ctx.lineTo(x, y)
+    }
+  }
+  ctx.closePath()
+  ctx.fill()
   ctx.restore()
 }
 
