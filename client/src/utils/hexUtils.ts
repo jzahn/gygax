@@ -131,13 +131,15 @@ export function getHexEdgeMidpoints(col: number, row: number, cellSize: number):
  * Find the nearest snap point (center, corner, or edge midpoint) to a given position.
  * Searches hexes near the given position.
  * Returns the snap point and its distance, or null if no snap point within threshold.
+ * @param cornersOnly - If true, only snap to hex corners (for border paths)
  */
 export function findNearestSnapPoint(
   position: MapPoint,
   cellSize: number,
   mapWidth: number,
   mapHeight: number,
-  snapThreshold: number
+  snapThreshold: number,
+  cornersOnly: boolean = false
 ): { point: MapPoint; distance: number } | null {
   // Find the hex at the current position
   const centerHex = pixelToHex(position.x, position.y, cellSize)
@@ -163,12 +165,14 @@ export function findNearestSnapPoint(
       continue
     }
 
-    // Check hex center
-    const center = getHexCenter(hex.col, hex.row, cellSize)
-    const centerDist = Math.hypot(position.x - center.x, position.y - center.y)
-    if (centerDist < nearestDistance) {
-      nearestDistance = centerDist
-      nearestPoint = center
+    // Check hex center (unless cornersOnly)
+    if (!cornersOnly) {
+      const center = getHexCenter(hex.col, hex.row, cellSize)
+      const centerDist = Math.hypot(position.x - center.x, position.y - center.y)
+      if (centerDist < nearestDistance) {
+        nearestDistance = centerDist
+        nearestPoint = center
+      }
     }
 
     // Check corners
@@ -181,13 +185,15 @@ export function findNearestSnapPoint(
       }
     }
 
-    // Check edge midpoints
-    const midpoints = getHexEdgeMidpoints(hex.col, hex.row, cellSize)
-    for (const midpoint of midpoints) {
-      const dist = Math.hypot(position.x - midpoint.x, position.y - midpoint.y)
-      if (dist < nearestDistance) {
-        nearestDistance = dist
-        nearestPoint = midpoint
+    // Check edge midpoints (unless cornersOnly)
+    if (!cornersOnly) {
+      const midpoints = getHexEdgeMidpoints(hex.col, hex.row, cellSize)
+      for (const midpoint of midpoints) {
+        const dist = Math.hypot(position.x - midpoint.x, position.y - midpoint.y)
+        if (dist < nearestDistance) {
+          nearestDistance = dist
+          nearestPoint = midpoint
+        }
       }
     }
   }

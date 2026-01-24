@@ -287,7 +287,7 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
             if (s.labelEditingId) return s
             const num = parseInt(e.key, 10)
             if (s.tool === 'path') {
-              const pathTypes: PathType[] = ['road', 'river', 'stream', 'border', 'trail']
+              const pathTypes: PathType[] = ['road', 'trail', 'river', 'stream', 'border']
               if (num >= 1 && num <= 5) {
                 return { ...s, selectedPathType: pathTypes[num - 1] }
               }

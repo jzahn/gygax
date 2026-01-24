@@ -124,8 +124,8 @@ export function renderPath(
 
   const style = getPathStyle(path.type)
 
-  // Get smooth curve points
-  const curvePoints = catmullRomSpline(path.points)
+  // Borders use straight line segments, other paths use smooth curves
+  const drawPoints = path.type === 'border' ? path.points : catmullRomSpline(path.points)
 
   ctx.save()
 
@@ -146,9 +146,9 @@ export function renderPath(
 
   // Draw the path
   ctx.beginPath()
-  ctx.moveTo(curvePoints[0].x, curvePoints[0].y)
-  for (let i = 1; i < curvePoints.length; i++) {
-    ctx.lineTo(curvePoints[i].x, curvePoints[i].y)
+  ctx.moveTo(drawPoints[0].x, drawPoints[0].y)
+  for (let i = 1; i < drawPoints.length; i++) {
+    ctx.lineTo(drawPoints[i].x, drawPoints[i].y)
   }
 
   if (path.closed) {
@@ -219,12 +219,13 @@ export function renderPathPreview(
   }
 
   if (allPoints.length >= 2) {
-    const curvePoints = catmullRomSpline(allPoints)
+    // Borders use straight line segments, other paths use smooth curves
+    const drawPoints = pathType === 'border' ? allPoints : catmullRomSpline(allPoints)
 
     ctx.beginPath()
-    ctx.moveTo(curvePoints[0].x, curvePoints[0].y)
-    for (let i = 1; i < curvePoints.length; i++) {
-      ctx.lineTo(curvePoints[i].x, curvePoints[i].y)
+    ctx.moveTo(drawPoints[0].x, drawPoints[0].y)
+    for (let i = 1; i < drawPoints.length; i++) {
+      ctx.lineTo(drawPoints[i].x, drawPoints[i].y)
     }
     ctx.stroke()
   }
@@ -298,10 +299,11 @@ function pointToSegmentDistance(point: MapPoint, a: MapPoint, b: MapPoint): numb
 export function hitTestPath(point: MapPoint, path: MapPath, hitDistance: number): boolean {
   if (path.points.length < 2) return false
 
-  const curvePoints = catmullRomSpline(path.points)
+  // Borders use straight line segments, other paths use smooth curves
+  const testPoints = path.type === 'border' ? path.points : catmullRomSpline(path.points)
 
-  for (let i = 0; i < curvePoints.length - 1; i++) {
-    const dist = pointToSegmentDistance(point, curvePoints[i], curvePoints[i + 1])
+  for (let i = 0; i < testPoints.length - 1; i++) {
+    const dist = pointToSegmentDistance(point, testPoints[i], testPoints[i + 1])
     if (dist <= hitDistance) {
       return true
     }

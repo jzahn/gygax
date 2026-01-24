@@ -541,12 +541,15 @@ export function MapCanvas({
         }
 
         // Get snap point or use cursor position
+        // Borders only snap to corners
+        const cornersOnly = drawingState?.selectedPathType === 'border'
         const snapResult = findNearestSnapPoint(
           mapPos,
           map.cellSize,
           map.width,
           map.height,
-          SNAP_THRESHOLD / viewport.zoom
+          SNAP_THRESHOLD / viewport.zoom,
+          cornersOnly
         )
         const point = snapResult?.point ?? mapPos
 
@@ -699,12 +702,16 @@ export function MapCanvas({
         drawingState?.draggingVertexIndex !== undefined &&
         drawingState?.selectedPathId
       ) {
+        // Check if the selected path is a border (corners only)
+        const selectedPath = drawingState.paths.find((p) => p.id === drawingState.selectedPathId)
+        const cornersOnly = selectedPath?.type === 'border'
         const snapResult = findNearestSnapPoint(
           mapPos,
           map.cellSize,
           map.width,
           map.height,
-          SNAP_THRESHOLD / viewport.zoom
+          SNAP_THRESHOLD / viewport.zoom,
+          cornersOnly
         )
         const point = snapResult?.point ?? mapPos
         setSnapPoint(snapResult?.point ?? null)
@@ -720,12 +727,15 @@ export function MapCanvas({
 
       // Update snap point for path tool
       if (tool === 'path' && isHexGrid) {
+        // Borders only snap to corners
+        const cornersOnly = drawingState?.selectedPathType === 'border'
         const snapResult = findNearestSnapPoint(
           mapPos,
           map.cellSize,
           map.width,
           map.height,
-          SNAP_THRESHOLD / viewport.zoom
+          SNAP_THRESHOLD / viewport.zoom,
+          cornersOnly
         )
         setSnapPoint(snapResult?.point ?? null)
       } else {

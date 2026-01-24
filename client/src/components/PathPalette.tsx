@@ -2,7 +2,7 @@ import * as React from 'react'
 import type { PathType } from '@gygax/shared'
 import { getPathStyle } from '../utils/pathUtils'
 
-const PATH_TYPES: PathType[] = ['road', 'river', 'stream', 'border', 'trail']
+const PATH_TYPES: PathType[] = ['road', 'trail', 'river', 'stream', 'border']
 
 interface PathPaletteProps {
   selectedPath: PathType
