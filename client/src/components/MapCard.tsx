@@ -108,7 +108,7 @@ export function MapCard({ map, onEdit, onDelete }: MapCardProps) {
   return (
     <div
       onClick={handleCardClick}
-      className="group cursor-pointer rounded border-3 border-ink bg-parchment-100 transition-transform hover:-translate-y-1 hover:shadow-brutal"
+      className="group cursor-pointer border-3 border-ink bg-parchment-100 shadow-brutal transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
     >
       {/* Grid Preview */}
       <div className="border-b-3 border-ink bg-white p-4">

@@ -54,11 +54,11 @@ function TerrainButton({ terrain, isSelected, onClick }: TerrainButtonProps) {
       onClick={onClick}
       title={info.name}
       className={`
-        flex items-center justify-center rounded border-2 transition-colors
+        flex items-center justify-center border-2 transition-all
         ${
           isSelected
-            ? 'border-ink bg-white'
-            : 'border-ink bg-parchment-100 hover:bg-parchment-200'
+            ? '-translate-y-0.5 border-ink bg-white shadow-brutal'
+            : 'border-ink bg-parchment-100 shadow-brutal-sm hover:-translate-y-0.5 hover:shadow-brutal'
         }
       `}
     >
@@ -72,9 +72,6 @@ export function TerrainPalette({ selectedTerrain, onTerrainChange }: TerrainPale
     <div className="flex max-h-[400px] flex-col overflow-y-auto">
       {/* Natural terrain section */}
       <div className="border-b-2 border-ink-faded p-2">
-        <p className="mb-1 text-center font-body text-xs font-semibold uppercase tracking-wide text-ink-soft">
-          Natural
-        </p>
         <div className="grid grid-cols-2 gap-1">
           {NATURAL_TERRAIN_TYPES.map((terrain) => (
             <TerrainButton
@@ -89,9 +86,6 @@ export function TerrainPalette({ selectedTerrain, onTerrainChange }: TerrainPale
 
       {/* Settlements section */}
       <div className="p-2">
-        <p className="mb-1 text-center font-body text-xs font-semibold uppercase tracking-wide text-ink-soft">
-          Settlements
-        </p>
         <div className="grid grid-cols-2 gap-1">
           {SETTLEMENT_TERRAIN_TYPES.map((terrain) => (
             <TerrainButton
