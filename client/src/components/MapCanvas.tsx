@@ -10,9 +10,13 @@ import {
   renderSnapIndicator,
   hitTestPath,
   hitTestPathVertex,
+  getPathBounds,
 } from '../utils/pathUtils'
-import { renderLabel, hitTestLabel } from '../utils/labelUtils'
+import { renderLabel, hitTestLabel, getLabelFontSize } from '../utils/labelUtils'
 import { LabelEditor } from './LabelEditor'
+
+// Spline cache to avoid recalculating curves on every render
+const splineCache = new Map<string, { points: string; spline: MapPoint[] }>()
 
 interface MapCanvasProps {
   map: Map
@@ -113,16 +117,26 @@ function drawHexGrid(ctx: CanvasRenderingContext2D, map: Map) {
   ctx.stroke()
 }
 
-// Draw terrain icons for hex grids
-function drawTerrain(
+// Draw terrain icons for hex grids (with viewport culling)
+function drawTerrainCulled(
   ctx: CanvasRenderingContext2D,
-  terrain: Map<string, StoredTerrain>,
-  cellSize: number
+  terrain: globalThis.Map<string, StoredTerrain>,
+  cellSize: number,
+  visibleBounds: { minX: number; minY: number; maxX: number; maxY: number }
 ) {
+  const padding = cellSize / 2
   terrain.forEach((stored, key) => {
     const [col, row] = key.split(',').map(Number)
     const { x, y } = hexToPixel({ col, row }, cellSize)
-    renderTerrainIcon(ctx, x, y, stored.terrain, cellSize, stored.variant)
+    // Cull terrain icons outside visible bounds
+    if (
+      x + padding >= visibleBounds.minX &&
+      x - padding <= visibleBounds.maxX &&
+      y + padding >= visibleBounds.minY &&
+      y - padding <= visibleBounds.maxY
+    ) {
+      renderTerrainIcon(ctx, x, y, stored.terrain, cellSize, stored.variant)
+    }
   })
 }
 
@@ -178,6 +192,30 @@ function getCursorForTool(
     default:
       return 'default'
   }
+}
+
+// Calculate visible bounds in map coordinates
+function getVisibleBounds(
+  viewport: ViewportState,
+  containerWidth: number,
+  containerHeight: number
+): { minX: number; minY: number; maxX: number; maxY: number } {
+  const minX = -viewport.offsetX / viewport.zoom
+  const minY = -viewport.offsetY / viewport.zoom
+  const maxX = (containerWidth - viewport.offsetX) / viewport.zoom
+  const maxY = (containerHeight - viewport.offsetY) / viewport.zoom
+  return { minX, minY, maxX, maxY }
+}
+
+// Check if a bounding box intersects the visible bounds
+function isInViewport(
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  visible: { minX: number; minY: number; maxX: number; maxY: number }
+): boolean {
+  return bounds.maxX >= visible.minX &&
+    bounds.minX <= visible.maxX &&
+    bounds.maxY >= visible.minY &&
+    bounds.minY <= visible.maxY
 }
 
 export function MapCanvas({
@@ -282,6 +320,9 @@ export function MapCanvas({
     ctx.translate(viewport.offsetX, viewport.offsetY)
     ctx.scale(viewport.zoom, viewport.zoom)
 
+    // Calculate visible bounds for culling
+    const visibleBounds = getVisibleBounds(viewport, displayWidth, displayHeight)
+
     // 1. Draw grid lines (lowest layer)
     ctx.strokeStyle = '#1a1a1a'
     ctx.lineWidth = 1 / viewport.zoom
@@ -292,24 +333,43 @@ export function MapCanvas({
       drawHexGrid(ctx, map)
     }
 
-    // 2. Draw all paths
+    // 2. Draw all paths (with viewport culling)
     if (drawingState?.paths) {
       for (const path of drawingState.paths) {
-        renderPath(ctx, path, viewport.zoom)
+        const bounds = getPathBounds(path)
+        // Add padding for line width
+        const padding = 10
+        if (isInViewport(
+          { minX: bounds.minX - padding, minY: bounds.minY - padding, maxX: bounds.maxX + padding, maxY: bounds.maxY + padding },
+          visibleBounds
+        )) {
+          renderPath(ctx, path, viewport.zoom, splineCache)
+        }
       }
     }
 
-    // 3. Draw terrain icons (on top of paths)
+    // 3. Draw terrain icons (on top of paths, with viewport culling)
     if (isHexGrid && drawingState?.terrain) {
-      drawTerrain(ctx, drawingState.terrain, map.cellSize)
+      drawTerrainCulled(ctx, drawingState.terrain, map.cellSize, visibleBounds)
     }
 
-    // 4. Draw labels
+    // 4. Draw labels (with viewport culling)
     if (drawingState?.labels) {
       for (const label of drawingState.labels) {
         // Don't render label being edited (it will be shown as input)
         if (label.id !== drawingState.labelEditingId) {
-          renderLabel(ctx, label, viewport.zoom, label.id === drawingState.selectedLabelId)
+          // Estimate label bounds for culling
+          const fontSize = getLabelFontSize(label.size)
+          const padding = fontSize * 2 // Generous padding for text width
+          const labelBounds = {
+            minX: label.position.x - padding,
+            minY: label.position.y - padding,
+            maxX: label.position.x + padding,
+            maxY: label.position.y + padding,
+          }
+          if (isInViewport(labelBounds, visibleBounds)) {
+            renderLabel(ctx, label, viewport.zoom, label.id === drawingState.selectedLabelId)
+          }
         }
       }
     }

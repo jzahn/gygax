@@ -112,20 +112,55 @@ export function catmullRomSpline(
   return result
 }
 
+// Cache type for spline calculations
+type SplineCache = Map<string, { points: string; spline: MapPoint[] }>
+
+/**
+ * Get cached spline or compute and cache it
+ */
+function getCachedSpline(
+  path: MapPath,
+  cache?: SplineCache
+): MapPoint[] {
+  // Borders don't use splines
+  if (path.type === 'border') {
+    return path.points
+  }
+
+  // If no cache, just compute
+  if (!cache) {
+    return catmullRomSpline(path.points)
+  }
+
+  // Create a key from points for cache invalidation
+  const pointsKey = JSON.stringify(path.points)
+  const cached = cache.get(path.id)
+
+  if (cached && cached.points === pointsKey) {
+    return cached.spline
+  }
+
+  // Compute and cache
+  const spline = catmullRomSpline(path.points)
+  cache.set(path.id, { points: pointsKey, spline })
+  return spline
+}
+
 /**
  * Render a path on the canvas
  */
 export function renderPath(
   ctx: CanvasRenderingContext2D,
   path: MapPath,
-  zoom: number
+  zoom: number,
+  splineCache?: SplineCache
 ): void {
   if (path.points.length < 2) return
 
   const style = getPathStyle(path.type)
 
-  // Borders use straight line segments, other paths use smooth curves
-  const drawPoints = path.type === 'border' ? path.points : catmullRomSpline(path.points)
+  // Get cached spline (or straight segments for borders)
+  const drawPoints = getCachedSpline(path, splineCache)
 
   ctx.save()
 
