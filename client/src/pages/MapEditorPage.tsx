@@ -249,14 +249,39 @@ export function MapEditorPage() {
             drawingState={drawing.state}
             onHexClick={drawing.stampTerrain}
             onHexHover={drawing.setHoveredHex}
+            // Path callbacks
+            onStartPath={drawing.startPath}
+            onAddPathPoint={drawing.addPathPoint}
+            onFinishPath={drawing.finishPath}
+            onSelectPath={drawing.selectPath}
+            onDeletePath={drawing.deletePath}
+            onUpdatePathVertex={drawing.updatePathVertex}
+            onStartDraggingVertex={drawing.startDraggingVertex}
+            onStopDraggingVertex={drawing.stopDraggingVertex}
+            // Label callbacks
+            onCreateLabel={drawing.createLabel}
+            onStartEditingLabel={drawing.startEditingLabel}
+            onFinishEditingLabel={drawing.finishEditingLabel}
+            onCancelEditingLabel={drawing.cancelEditingLabel}
+            onSelectLabel={drawing.selectLabel}
+            onDeleteLabel={drawing.deleteLabel}
+            onUpdateLabelPosition={drawing.updateLabelPosition}
+            onStartDraggingLabel={drawing.startDraggingLabel}
+            onStopDraggingLabel={drawing.stopDraggingLabel}
+            // Selection
+            onClearSelection={drawing.clearSelection}
           />
         </div>
         <MapToolbar
           tool={drawing.state.tool}
           selectedTerrain={drawing.state.selectedTerrain}
+          selectedPathType={drawing.state.selectedPathType}
+          selectedLabelSize={drawing.state.selectedLabelSize}
           gridType={map.gridType}
           onToolChange={drawing.setTool}
           onTerrainChange={drawing.setSelectedTerrain}
+          onPathTypeChange={drawing.setSelectedPathType}
+          onLabelSizeChange={drawing.setSelectedLabelSize}
         />
       </main>
 

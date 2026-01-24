@@ -138,10 +138,42 @@ export interface TerrainStamp {
   variant: 0 | 1 | 2  // Each terrain has 3 visual variants
 }
 
+// Path types
+export type PathType = 'road' | 'river' | 'stream' | 'border' | 'trail'
+
+// Point in map pixel coordinates
+export interface MapPoint {
+  x: number
+  y: number
+}
+
+// A path element (road, river, border, trail)
+export interface MapPath {
+  id: string
+  type: PathType
+  points: MapPoint[]
+  closed?: boolean  // For closed border regions (optional future use)
+}
+
+// Text label sizes
+export type TextSize = 'small' | 'medium' | 'large' | 'xlarge'
+
+// A text label
+export interface MapLabel {
+  id: string
+  text: string
+  position: MapPoint
+  size: TextSize
+}
+
 // Complete map drawing content
+// Version 1: terrain only (backwards compatible)
+// Version 2: terrain + paths + labels
 export interface MapContent {
   version: number
   terrain: TerrainStamp[]
+  paths?: MapPath[]    // Optional for backwards compatibility
+  labels?: MapLabel[]  // Optional for backwards compatibility
 }
 
 export interface Map {

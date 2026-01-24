@@ -1,27 +1,34 @@
 import * as React from 'react'
-import type { TerrainType, GridType } from '@gygax/shared'
+import type { TerrainType, GridType, PathType, TextSize } from '@gygax/shared'
 import type { DrawingTool } from '../hooks/useMapDrawing'
 import { TerrainPalette } from './TerrainPalette'
+import { PathPalette } from './PathPalette'
+import { TextSizeSelector } from './TextSizeSelector'
 import { TERRAIN_INFO } from '../utils/terrainIcons'
 
 interface MapToolbarProps {
   tool: DrawingTool
   selectedTerrain: TerrainType
+  selectedPathType: PathType
+  selectedLabelSize: TextSize
   gridType: GridType
   onToolChange: (tool: DrawingTool) => void
   onTerrainChange: (terrain: TerrainType) => void
+  onPathTypeChange: (pathType: PathType) => void
+  onLabelSizeChange: (size: TextSize) => void
 }
 
 interface ToolButtonProps {
   tool: DrawingTool
   currentTool: DrawingTool
+  shortcut?: string
   onClick: () => void
   disabled?: boolean
   onHover?: (tool: DrawingTool | null) => void
   children: React.ReactNode
 }
 
-function ToolButton({ tool, currentTool, onClick, disabled, onHover, children }: ToolButtonProps) {
+function ToolButton({ tool, currentTool, shortcut, onClick, disabled, onHover, children }: ToolButtonProps) {
   const isActive = tool === currentTool
   return (
     <button
@@ -29,6 +36,7 @@ function ToolButton({ tool, currentTool, onClick, disabled, onHover, children }:
       disabled={disabled}
       onMouseEnter={() => onHover?.(tool)}
       onMouseLeave={() => onHover?.(null)}
+      title={shortcut ? `Shortcut: ${shortcut}` : undefined}
       className={`
         flex h-9 w-9 items-center justify-center border-2 transition-all
         ${
@@ -57,16 +65,30 @@ function PanIcon() {
   )
 }
 
-// Stamp icon for Terrain tool
+// Hex icon for Terrain/Stamp tool
 function TerrainIcon() {
+  // Flat-top hexagon centered at (12,12) with radius 9
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 3L4 9v12h16V9l-8-6z" />
-      <path d="M12 3v6" />
-      <path d="M9 14h6" />
-      <path d="M9 18h6" />
+      <path d="M21 12 L16.5 19.8 L7.5 19.8 L3 12 L7.5 4.2 L16.5 4.2 Z" strokeLinejoin="round" />
     </svg>
   )
+}
+
+// Path icon (curved line)
+function PathIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 17C5.5 17 6 14 8 14s2.5 3 5 3 3-4 5.5-4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="3" cy="17" r="1.5" fill="currentColor" />
+      <circle cx="21" cy="13" r="1.5" fill="currentColor" />
+    </svg>
+  )
+}
+
+// Label icon (uppercase T from map font)
+function LabelIcon() {
+  return <span className="font-fell text-xl leading-none">T</span>
 }
 
 // Eraser icon
@@ -80,34 +102,72 @@ function EraserIcon() {
   )
 }
 
+const PATH_TYPE_NAMES: Record<PathType, string> = {
+  road: 'Road',
+  river: 'River',
+  stream: 'Stream',
+  border: 'Border',
+  trail: 'Trail',
+}
+
+const LABEL_SIZE_NAMES: Record<TextSize, string> = {
+  small: 'Small',
+  medium: 'Medium',
+  large: 'Large',
+  xlarge: 'Extra Large',
+}
+
 export function MapToolbar({
   tool,
   selectedTerrain,
+  selectedPathType,
+  selectedLabelSize,
   gridType,
   onToolChange,
   onTerrainChange,
+  onPathTypeChange,
+  onLabelSizeChange,
 }: MapToolbarProps) {
   const [hoveredTerrain, setHoveredTerrain] = React.useState<TerrainType | null>(null)
+  const [hoveredPathType, setHoveredPathType] = React.useState<PathType | null>(null)
+  const [hoveredLabelSize, setHoveredLabelSize] = React.useState<TextSize | null>(null)
   const [hoveredTool, setHoveredTool] = React.useState<DrawingTool | null>(null)
   const isHexGrid = gridType === 'HEX'
   const terrainDisabled = !isHexGrid
 
   const toolNames: Record<DrawingTool, string> = {
-    pan: 'Pan',
-    terrain: 'Terrain',
-    erase: 'Erase',
+    pan: 'Pan (P)',
+    terrain: 'Terrain (T)',
+    path: 'Path (R)',
+    label: 'Label (L)',
+    erase: 'Erase (E)',
+  }
+
+  const getHintText = (): string => {
+    if (hoveredTool) return toolNames[hoveredTool]
+    if (hoveredTerrain) return TERRAIN_INFO[hoveredTerrain].name
+    if (hoveredPathType) return PATH_TYPE_NAMES[hoveredPathType]
+    if (hoveredLabelSize) return LABEL_SIZE_NAMES[hoveredLabelSize]
+    return '\u00A0'
   }
 
   return (
     <div className="flex w-[88px] flex-shrink-0 flex-col border-l-3 border-ink bg-parchment-100">
       {/* Tool buttons */}
       <div className="flex flex-col items-center gap-1 border-b-2 border-ink-faded p-2">
-        <ToolButton tool="pan" currentTool={tool} onClick={() => onToolChange('pan')} onHover={setHoveredTool}>
+        <ToolButton
+          tool="pan"
+          currentTool={tool}
+          shortcut="P"
+          onClick={() => onToolChange('pan')}
+          onHover={setHoveredTool}
+        >
           <PanIcon />
         </ToolButton>
         <ToolButton
           tool="terrain"
           currentTool={tool}
+          shortcut="T"
           onClick={() => onToolChange('terrain')}
           disabled={terrainDisabled}
           onHover={setHoveredTool}
@@ -115,8 +175,29 @@ export function MapToolbar({
           <TerrainIcon />
         </ToolButton>
         <ToolButton
+          tool="path"
+          currentTool={tool}
+          shortcut="R"
+          onClick={() => onToolChange('path')}
+          disabled={terrainDisabled}
+          onHover={setHoveredTool}
+        >
+          <PathIcon />
+        </ToolButton>
+        <ToolButton
+          tool="label"
+          currentTool={tool}
+          shortcut="L"
+          onClick={() => onToolChange('label')}
+          disabled={terrainDisabled}
+          onHover={setHoveredTool}
+        >
+          <LabelIcon />
+        </ToolButton>
+        <ToolButton
           tool="erase"
           currentTool={tool}
+          shortcut="E"
           onClick={() => onToolChange('erase')}
           disabled={terrainDisabled}
           onHover={setHoveredTool}
@@ -134,11 +215,29 @@ export function MapToolbar({
         />
       )}
 
+      {/* Path palette - show when path tool selected */}
+      {isHexGrid && tool === 'path' && (
+        <PathPalette
+          selectedPath={selectedPathType}
+          onPathChange={onPathTypeChange}
+          onHover={setHoveredPathType}
+        />
+      )}
+
+      {/* Text size selector - show when label tool selected */}
+      {isHexGrid && tool === 'label' && (
+        <TextSizeSelector
+          selectedSize={selectedLabelSize}
+          onSizeChange={onLabelSizeChange}
+          onHover={setHoveredLabelSize}
+        />
+      )}
+
       {/* Message for non-hex grids */}
       {!isHexGrid && (
         <div className="flex-1 p-2">
           <p className="text-center font-body text-xs text-ink-soft">
-            Terrain stamping requires hex grid
+            Drawing tools require hex grid
           </p>
         </div>
       )}
@@ -148,9 +247,7 @@ export function MapToolbar({
 
       {/* Hover hint */}
       <div className="border-t-2 border-ink-faded p-2">
-        <p className="text-center font-body text-xs text-ink-soft">
-          {hoveredTool ? toolNames[hoveredTool] : hoveredTerrain ? TERRAIN_INFO[hoveredTerrain].name : '\u00A0'}
-        </p>
+        <p className="text-center font-body text-xs text-ink-soft">{getHintText()}</p>
       </div>
     </div>
   )

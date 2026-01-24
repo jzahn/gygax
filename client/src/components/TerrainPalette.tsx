@@ -3,7 +3,6 @@ import type { TerrainType } from '@gygax/shared'
 import {
   NATURAL_TERRAIN_TYPES,
   SETTLEMENT_TERRAIN_TYPES,
-  TERRAIN_INFO,
   renderTerrainIcon,
 } from '../utils/terrainIcons'
 

@@ -293,7 +293,7 @@ interface MapCanvasProps {
 
 1. **Grid Rendering**
    - Square grid: Simple perpendicular lines
-   - Hex grid: Pointy-top hexagons (flat edge at top/bottom)
+   - Hex grid: Flat-top hexagons (flat edge at top/bottom)
    - Black ink lines (#1a1a1a) on pure white background
    - Grid cells numbered along edges (optional, for DM reference)
 
@@ -346,19 +346,16 @@ This creates a visual hierarchy: the map is a "document" sitting on the parchmen
 - Cell size: `map.cellSize` pixels (default 40)
 - Lines extend full width/height of map
 
-**Hex Grid (Pointy-Top):**
+**Hex Grid (Flat-Top):**
 ```
-  / \   / \   / \
- /   \ /   \ /   \
-|     |     |     |
- \   / \   / \   /
-  \ /   \ /   \ /
-   |     |     |
-  / \   / \   / \
- /   \ /   \ /   \
+ ___     ___     ___
+/   \___/   \___/   \
+\___/   \___/   \___/
+/   \___/   \___/   \
+\___/   \___/   \___/
 ```
 - Hex size based on `map.cellSize` (width of hex)
-- Offset rows (odd rows shifted right)
+- Odd-q offset (odd columns shifted down)
 - Standard hex geometry calculations
 
 ### 5. Client Implementation

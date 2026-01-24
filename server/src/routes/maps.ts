@@ -8,6 +8,8 @@ import type {
   GridType,
   MapContent,
   TerrainType,
+  PathType,
+  TextSize,
 } from '@gygax/shared'
 
 const MAX_NAME_LENGTH = 100
@@ -36,6 +38,10 @@ const VALID_TERRAIN_TYPES: TerrainType[] = [
   'town',
   'caves',
 ]
+
+const VALID_PATH_TYPES: PathType[] = ['road', 'river', 'stream', 'border', 'trail']
+const VALID_TEXT_SIZES: TextSize[] = ['small', 'medium', 'large', 'xlarge']
+const MAX_LABEL_LENGTH = 200
 
 function formatMap(map: {
   id: string
@@ -68,7 +74,8 @@ function formatMap(map: {
 function validateMapContent(
   content: unknown,
   mapWidth: number,
-  mapHeight: number
+  mapHeight: number,
+  cellSize: number = 40
 ): { valid: true } | { valid: false; message: string } {
   if (content === null || content === undefined) {
     return { valid: true }
@@ -80,8 +87,9 @@ function validateMapContent(
 
   const c = content as Record<string, unknown>
 
-  if (c.version !== 1) {
-    return { valid: false, message: 'Content version must be 1' }
+  // Accept version 1 or 2 for backwards compatibility
+  if (c.version !== 1 && c.version !== 2) {
+    return { valid: false, message: 'Content version must be 1 or 2' }
   }
 
   if (!Array.isArray(c.terrain)) {
@@ -128,6 +136,129 @@ function validateMapContent(
       }
       if (s.variant < 0 || s.variant > 2) {
         return { valid: false, message: 'Variant must be 0, 1, or 2' }
+      }
+    }
+  }
+
+  // Validate paths if present
+  if (c.paths !== undefined) {
+    if (!Array.isArray(c.paths)) {
+      return { valid: false, message: 'Content paths must be an array' }
+    }
+
+    // Calculate approximate canvas dimensions for bounds checking
+    const hexSize = cellSize / 2
+    const canvasWidth = mapWidth * hexSize * 1.5 + hexSize * 0.5
+    const canvasHeight = mapHeight * hexSize * Math.sqrt(3) + hexSize * Math.sqrt(3) * 0.5
+
+    for (const path of c.paths) {
+      if (typeof path !== 'object' || path === null) {
+        return { valid: false, message: 'Each path must be an object' }
+      }
+
+      const p = path as Record<string, unknown>
+
+      if (typeof p.id !== 'string' || p.id.length === 0) {
+        return { valid: false, message: 'Path must have a valid id' }
+      }
+
+      if (typeof p.type !== 'string' || !VALID_PATH_TYPES.includes(p.type as PathType)) {
+        return { valid: false, message: `Invalid path type: ${p.type}` }
+      }
+
+      if (!Array.isArray(p.points) || p.points.length < 2) {
+        return { valid: false, message: 'Path must have at least 2 points' }
+      }
+
+      for (const point of p.points) {
+        if (typeof point !== 'object' || point === null) {
+          return { valid: false, message: 'Each path point must be an object' }
+        }
+
+        const pt = point as Record<string, unknown>
+
+        if (typeof pt.x !== 'number') {
+          return { valid: false, message: 'Path point x must be a number' }
+        }
+
+        if (typeof pt.y !== 'number') {
+          return { valid: false, message: 'Path point y must be a number' }
+        }
+
+        // Allow some margin beyond canvas for paths near edges
+        const margin = cellSize
+        if (pt.x < -margin || pt.x > canvasWidth + margin) {
+          return { valid: false, message: 'Path point x is out of bounds' }
+        }
+
+        if (pt.y < -margin || pt.y > canvasHeight + margin) {
+          return { valid: false, message: 'Path point y is out of bounds' }
+        }
+      }
+
+      // Validate optional closed property
+      if (p.closed !== undefined && typeof p.closed !== 'boolean') {
+        return { valid: false, message: 'Path closed must be a boolean' }
+      }
+    }
+  }
+
+  // Validate labels if present
+  if (c.labels !== undefined) {
+    if (!Array.isArray(c.labels)) {
+      return { valid: false, message: 'Content labels must be an array' }
+    }
+
+    // Calculate approximate canvas dimensions for bounds checking
+    const hexSize = cellSize / 2
+    const canvasWidth = mapWidth * hexSize * 1.5 + hexSize * 0.5
+    const canvasHeight = mapHeight * hexSize * Math.sqrt(3) + hexSize * Math.sqrt(3) * 0.5
+
+    for (const label of c.labels) {
+      if (typeof label !== 'object' || label === null) {
+        return { valid: false, message: 'Each label must be an object' }
+      }
+
+      const l = label as Record<string, unknown>
+
+      if (typeof l.id !== 'string' || l.id.length === 0) {
+        return { valid: false, message: 'Label must have a valid id' }
+      }
+
+      if (typeof l.text !== 'string') {
+        return { valid: false, message: 'Label text must be a string' }
+      }
+
+      if (l.text.length === 0 || l.text.length > MAX_LABEL_LENGTH) {
+        return { valid: false, message: `Label text must be 1-${MAX_LABEL_LENGTH} characters` }
+      }
+
+      if (typeof l.size !== 'string' || !VALID_TEXT_SIZES.includes(l.size as TextSize)) {
+        return { valid: false, message: `Invalid label size: ${l.size}` }
+      }
+
+      if (typeof l.position !== 'object' || l.position === null) {
+        return { valid: false, message: 'Label must have a position' }
+      }
+
+      const pos = l.position as Record<string, unknown>
+
+      if (typeof pos.x !== 'number') {
+        return { valid: false, message: 'Label position x must be a number' }
+      }
+
+      if (typeof pos.y !== 'number') {
+        return { valid: false, message: 'Label position y must be a number' }
+      }
+
+      // Allow some margin beyond canvas for labels near edges
+      const margin = 50
+      if (pos.x < -margin || pos.x > canvasWidth + margin) {
+        return { valid: false, message: 'Label position x is out of bounds' }
+      }
+
+      if (pos.y < -margin || pos.y > canvasHeight + margin) {
+        return { valid: false, message: 'Label position y is out of bounds' }
       }
     }
   }
@@ -517,7 +648,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
         const effectiveWidth = updateData.width ?? map.width
         const effectiveHeight = updateData.height ?? map.height
 
-        const contentValidation = validateMapContent(content, effectiveWidth, effectiveHeight)
+        const contentValidation = validateMapContent(content, effectiveWidth, effectiveHeight, map.cellSize)
         if (!contentValidation.valid) {
           return reply.status(400).send({
             error: 'Bad Request',

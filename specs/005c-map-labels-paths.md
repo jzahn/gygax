@@ -10,13 +10,13 @@ Add text labels and path drawing tools (roads, rivers, borders, trails) to hex m
 
 - Text labels with free positioning and 3 size options
 - Path tools: road, river, border, trail
-- Snap-to-hex-edge behavior (vertices snap to hex corners and edge midpoints)
-- Layer ordering: rivers below terrain, roads/borders/trails above
+- Snap-to-hex behavior (vertices snap to hex centers, corners, and edge midpoints)
+- Layer ordering: all paths below terrain icons, labels on top
 - B/X aesthetic for all visual elements
 
 ### Out of Scope
 
-- Curved/bezier paths (polylines only for this spec)
+- Manual bezier control points (curves are automatic)
 - Label rotation
 - Path labels (text along path)
 - Undo/redo system (future enhancement)
@@ -38,7 +38,7 @@ Add text labels and path drawing tools (roads, rivers, borders, trails) to hex m
 
 ```typescript
 // Path types
-export type PathType = 'road' | 'river' | 'border' | 'trail'
+export type PathType = 'road' | 'river' | 'stream' | 'border' | 'trail'
 
 // Point in map pixel coordinates
 export interface MapPoint {
@@ -153,7 +153,17 @@ export function getHexEdgeMidpoints(
 ): MapPoint[]
 
 /**
- * Find the nearest snap point (corner or edge midpoint) to a given position.
+ * Get the center point of a hex at the given column/row
+ */
+export function getHexCenter(
+  col: number,
+  row: number,
+  hexWidth: number,
+  hexHeight: number
+): MapPoint
+
+/**
+ * Find the nearest snap point (center, corner, or edge midpoint) to a given position.
  * Searches hexes near the given position.
  * Returns the snap point and its distance, or null if no snap point within threshold.
  */
@@ -169,7 +179,7 @@ export function findNearestSnapPoint(
 
 **Snap Behavior:**
 - Snap threshold: 15 pixels at 100% zoom (scales with zoom)
-- Check corners and midpoints of 7 nearest hexes (center + 6 neighbors)
+- Check centers, corners, and midpoints of 7 nearest hexes (center + 6 neighbors)
 - Return closest point within threshold
 - During path drawing, show snap preview indicator
 
@@ -215,10 +225,10 @@ Appears when Path tool is selected. Shows the 4 path types.
 ┌───────────┐
 │  PATH     │
 ├───────────┤
-│ ═══ Road  │  ← Dashed brown
-│ ~~~ River │  ← Solid blue, wavy
-│ ··· Border│  ← Dotted black
-│ --- Trail │  ← Dashed brown (thin)
+│ ═══ Road  │  ← Dashed, thick
+│ ~~~ River │  ← Solid, thickest
+│ ··· Border│  ← Dotted, thin
+│ --- Trail │  ← Dashed, thin
 └───────────┘
 ```
 
@@ -284,28 +294,56 @@ interface LabelEditorProps {
 
 ```
 1. White background
-2. Rivers (paths where type === 'river')
-3. Terrain icons
-4. Roads, borders, trails (paths where type !== 'river')
+2. Grid lines (lowest layer - everything renders on top)
+3. All paths (roads, rivers, borders, trails)
+4. Terrain icons
 5. Labels
 6. Hover previews (snap point indicator, path preview, label preview)
-7. Grid lines
-8. Selection indicators (selected path vertices, selected label highlight)
+7. Selection indicators (selected path vertices, selected label highlight)
 ```
 
 **Path Rendering Styles:**
 
-| Type | Color | Width | Style | Details |
+Most paths use black ink (`#1a1a1a`) to match B/X aesthetic. Rivers and streams use grey (`#808080`) to match water terrain.
+
+| Type | Width | Style | Color | Details |
 |------|-------|-------|-------|---------|
-| Road | `#5C4033` (brown) | 4px | Dashed `[12, 6]` | setLineDash([12, 6]) |
-| River | `#4A90A4` (muted blue) | 5px | Solid | Single line, slight wave |
-| Border | `#1a1a1a` (black) | 2px | Dotted `[4, 4]` | setLineDash([4, 4]) |
-| Trail | `#5C4033` (brown) | 2px | Dashed `[6, 4]` | setLineDash([6, 4]) |
+| Road | 4px | Dashed `[12, 6]` | `#1a1a1a` | Long dashes - major routes |
+| River | 5px | Solid | `#808080` | Grey to match water terrain |
+| Stream | 2.5px | Solid | `#808080` | Narrower than river |
+| Border | 2px | Dotted `[4, 4]` | `#1a1a1a` | Fine dots - territory boundaries |
+| Trail | 2px | Dashed `[6, 4]` | `#1a1a1a` | Short dashes - minor paths |
 
 All paths:
 - `lineCap: 'round'`
 - `lineJoin: 'round'`
 - Line width scales with zoom (thinner when zoomed out)
+
+**Path Curve Smoothing:**
+
+Paths use Catmull-Rom spline interpolation for smooth curves between vertices:
+
+- Curves pass through all defined points (no control points needed)
+- Automatic tangent calculation creates natural-looking curves
+- 2-point paths render as straight lines
+- 3+ point paths render as smooth curves
+- Tension parameter: 0.5 (balanced smoothness)
+
+```typescript
+/**
+ * Generate points along a Catmull-Rom spline
+ * @param points - Array of control points the curve passes through
+ * @param tension - Curve tension (0.5 = standard Catmull-Rom)
+ * @param segments - Number of line segments between each pair of points
+ */
+function catmullRomSpline(
+  points: MapPoint[],
+  tension: number = 0.5,
+  segments: number = 10
+): MapPoint[]
+```
+
+This gives paths a hand-drawn, organic feel while keeping the data model simple (just vertex positions).
 
 **Label Rendering Style:**
 
@@ -350,10 +388,10 @@ function renderLabel(
 
 1. Select Path tool (R key)
 2. Select path type from palette (1-4 keys or click)
-3. Click on map to add first vertex (snaps to hex corner/midpoint)
+3. Click on map to add first vertex (snaps to hex center/corner/midpoint)
 4. Continue clicking to add more vertices
 5. Each click shows:
-   - Blue snap indicator at cursor if near snap point
+   - Snap indicator at cursor if near snap point
    - Preview line from last vertex to cursor
 6. Double-click to finish path (or Enter key)
 7. Path is created and auto-saved
@@ -450,7 +488,7 @@ function renderLabel(
 **Tool Button Icons:**
 - Pan: Hand/grab icon
 - Terrain: Stamp/brush icon
-- Path: Polyline icon (connected dots)
+- Path: Curved line icon (smooth path)
 - Label: "A" or text icon
 - Erase: Eraser icon
 
@@ -460,7 +498,17 @@ function renderLabel(
 
 ```typescript
 /**
- * Render a path on the canvas
+ * Generate points along a Catmull-Rom spline curve.
+ * Returns an array of points that form a smooth curve through all input points.
+ */
+export function catmullRomSpline(
+  points: MapPoint[],
+  tension?: number,      // Default 0.5
+  segments?: number      // Default 10 segments between each pair
+): MapPoint[]
+
+/**
+ * Render a path on the canvas (uses catmullRomSpline for smooth curves)
  */
 export function renderPath(
   ctx: CanvasRenderingContext2D,
@@ -470,7 +518,8 @@ export function renderPath(
 ): void
 
 /**
- * Check if a point is within hitDistance of any path segment
+ * Check if a point is within hitDistance of any path segment.
+ * Tests against the smoothed curve, not just the control points.
  */
 export function hitTestPath(
   point: MapPoint,
@@ -560,7 +609,7 @@ shared/src/types.ts                  # PathType, MapPath, MapLabel, TextSize, Ma
 client/src/hooks/useMapDrawing.ts    # Path/label state, drawing modes
 client/src/components/MapCanvas.tsx  # Render paths/labels, interactions
 client/src/components/MapToolbar.tsx # Path and Label tool buttons
-client/src/utils/hexUtils.ts         # Hex corner/midpoint/snap functions
+client/src/utils/hexUtils.ts         # Hex center/corner/midpoint/snap functions
 server/src/routes/maps.ts            # Validate paths/labels in content
 ```
 
@@ -568,11 +617,11 @@ server/src/routes/maps.ts            # Validate paths/labels in content
 
 ### Path Aesthetic
 
-Paths should look like they were drawn with a pen on a paper map:
+Paths should look like they were drawn with a pen on a paper map—black ink only, matching B/X rulebook style:
 
-- **Roads:** Dashed brown lines suggesting a traveled route. The brown color evokes dirt roads on classic hex maps.
-- **Rivers:** Solid blue lines with consistent width. Muted blue (#4A90A4) rather than bright blue for a hand-drawn feel.
-- **Borders:** Fine dotted black lines marking territory boundaries. Subtle and non-intrusive.
+- **Roads:** Dashed lines suggesting a traveled route. Thicker, long dashes for visibility.
+- **Rivers:** Solid lines, thickest of all path types. Distinguished by weight, not color.
+- **Borders:** Fine dotted lines marking territory boundaries. Subtle and non-intrusive.
 - **Trails:** Thinner dashed lines for minor paths, animal trails, or secret routes.
 
 ### Label Typography
@@ -587,9 +636,9 @@ Labels use "IM Fell English" or similar serif font to match B/X aesthetic:
 ### Snap Point Visualization
 
 When placing path vertices:
-- Show a small blue circle at the snap point when cursor is near
+- Show a small circle at the snap point when cursor is near
 - Circle size: 6px at 100% zoom
-- Color: `#4A90A4` (matching river blue)
+- Style: Black stroke (`#1a1a1a`), white fill
 - No snap indicator when not near any snap point
 
 ### Selection Visualization
@@ -597,17 +646,17 @@ When placing path vertices:
 **Selected Path:**
 - Vertex handles shown as 8px circles at each point
 - Handle fill: white
-- Handle stroke: `#4A90A4` (blue), 2px
+- Handle stroke: `#1a1a1a` (black), 2px
 - Path itself unchanged (no highlight color change)
 
 **Selected Label:**
-- Subtle blue border around text bounding box
-- Border: 1px `#4A90A4`
+- Subtle border around text bounding box
+- Border: 1px `#1a1a1a` (black), dashed
 - No fill change
 
 ### Layer System Note
 
-Rivers render below terrain for visual continuity—a forest hex should partially obscure the river running through it, suggesting the canopy covering the water. Roads and borders render above terrain as they are "on top of" the landscape.
+All paths render below terrain icons, allowing terrain symbols to appear "on top of" route lines. This creates visual hierarchy where paths define the underlying geography while terrain icons mark specific points of interest. Rivers use grey (`#808080`) to visually connect with water terrain hexes.
 
 ## Acceptance Criteria
 
@@ -615,7 +664,7 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 - [ ] MapPoint type added to shared types
 - [ ] MapPath type with id, type, points, closed
 - [ ] MapLabel type with id, text, position, size
-- [ ] PathType union: 'road' | 'river' | 'border' | 'trail'
+- [ ] PathType union: 'road' | 'river' | 'stream' | 'border' | 'trail'
 - [ ] TextSize union: 'small' | 'medium' | 'large'
 - [ ] MapContent updated with optional paths and labels arrays
 
@@ -628,6 +677,7 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 - [ ] Invalid label size returns 400
 
 ### Hex Utilities
+- [ ] getHexCenter returns center point of a hex
 - [ ] getHexCorners returns 6 corner points for a hex
 - [ ] getHexEdgeMidpoints returns 6 edge midpoints
 - [ ] findNearestSnapPoint finds closest snap point within threshold
@@ -637,7 +687,7 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 - [ ] Toolbar shows Path tool button (R key)
 - [ ] Path palette shows 4 path types with previews
 - [ ] Clicking adds vertices
-- [ ] Vertices snap to hex corners/midpoints
+- [ ] Vertices snap to hex centers/corners/midpoints
 - [ ] Snap indicator shows near valid snap points
 - [ ] Double-click finishes path
 - [ ] Enter key finishes path
@@ -645,12 +695,14 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 - [ ] Minimum 2 points required for path
 
 ### Path Rendering
-- [ ] Roads render as dashed brown lines
-- [ ] Rivers render as solid blue lines
-- [ ] Borders render as dotted black lines
-- [ ] Trails render as thin dashed brown lines
-- [ ] Rivers render below terrain
-- [ ] Other paths render above terrain
+- [ ] Roads render as dashed black lines (4px, long dash)
+- [ ] Rivers render as solid grey lines (5px, #808080 to match water terrain)
+- [ ] Borders render as dotted black lines (2px)
+- [ ] Trails render as dashed black lines (2px, short dash)
+- [ ] 2-point paths render as straight lines
+- [ ] 3+ point paths render as smooth Catmull-Rom curves
+- [ ] Curves pass through all vertex points
+- [ ] All paths render below terrain icons
 - [ ] Line widths scale appropriately with zoom
 
 ### Path Editing
@@ -712,11 +764,11 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 1. Open a hex map in editor
 2. Select Path tool (R key)
 3. Select Road from palette
-4. Click on hex corner - vertex appears, snaps to corner
+4. Click on hex center/corner - vertex appears, snaps to nearest snap point
 5. Click on adjacent hex midpoint - line drawn, snaps to midpoint
 6. Click on third point
 7. Double-click to finish
-8. Road renders as dashed brown line
+8. Road renders as dashed black line
 9. Wait for save indicator
 10. Refresh page - road persists
 
@@ -724,21 +776,31 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 
 1. Create one path of each type: road, river, border, trail
 2. Verify each has correct visual style:
-   - Road: dashed brown, 4px
-   - River: solid blue, 5px
+   - Road: dashed black, 4px (long dash)
+   - River: solid grey (#808080), 5px (thickest)
    - Border: dotted black, 2px
-   - Trail: dashed brown, 2px
+   - Trail: dashed black, 2px (short dash)
 3. Zoom in and out - verify styles scale appropriately
 
-### 3. River Layer Order Test
+### 3. Curve Smoothing Test
+
+1. Create a path with exactly 2 points
+2. Verify path renders as a straight line
+3. Create a path with 4+ points in a zigzag pattern
+4. Verify path renders as a smooth curve through all points
+5. Verify no sharp corners at intermediate vertices
+6. Drag a vertex handle - verify curve updates smoothly
+
+### 4. Layer Order Test
 
 1. Draw a river across several hexes
 2. Stamp forest terrain on hexes the river passes through
-3. Verify forest terrain partially covers river edges
+3. Verify terrain icons render on top of the river path
 4. Draw a road crossing the same hexes
-5. Verify road renders above the forest terrain
+5. Verify terrain icons render on top of the road path as well
+6. Verify rivers display as grey (#808080) matching water terrain
 
-### 4. Snap Behavior Test
+### 5. Snap Behavior Test
 
 1. Select Path tool
 2. Move cursor slowly toward hex corner
@@ -748,7 +810,7 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 6. Verify snap indicator appears at midpoint
 7. Click - vertex at exact midpoint
 
-### 5. Label Creation Test
+### 6. Label Creation Test
 
 1. Select Label tool (L key)
 2. Select Medium size
@@ -759,7 +821,7 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 7. Label renders with white outline
 8. Verify B/X-style font appearance
 
-### 6. Label Editing Test
+### 7. Label Editing Test
 
 1. Create a label "Old Name"
 2. Double-click the label
@@ -769,7 +831,7 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 6. Label text updates immediately
 7. Verify auto-save
 
-### 7. Drag Label Test
+### 8. Drag Label Test
 
 1. Create a label
 2. Single-click to select
@@ -778,7 +840,7 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 5. Verify auto-save
 6. Refresh - label at new position
 
-### 8. Path Editing Test
+### 9. Path Editing Test
 
 1. Create a road with 4 vertices
 2. Click road to select
@@ -787,7 +849,7 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 5. Verify path updates in real-time
 6. Verify auto-save
 
-### 9. Erase Tool Test
+### 10. Erase Tool Test
 
 1. Create several paths and labels
 2. Select Erase tool (E key)
@@ -795,7 +857,7 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 4. Click on a label - label deleted
 5. Verify each deletion triggers save
 
-### 10. Delete Key Test
+### 11. Delete Key Test
 
 1. Create a path
 2. Click to select
@@ -806,7 +868,7 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 7. Press Delete key
 8. Verify label deleted
 
-### 11. Keyboard Shortcut Test
+### 12. Keyboard Shortcut Test
 
 1. Press R - Path tool selected
 2. Press 1 - Road selected
@@ -817,7 +879,7 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 7. Press T - Terrain tool (existing)
 8. Press E - Erase tool
 
-### 12. Cancel Operations Test
+### 13. Cancel Operations Test
 
 1. Select Path tool, start drawing vertices
 2. Press Escape - path cancelled, no path created
@@ -828,14 +890,13 @@ Rivers render below terrain for visual continuity—a forest hex should partiall
 
 ## Future Considerations
 
-This spec establishes linear path features and text labels. Future enhancements could include:
+This spec establishes smooth curved paths and text labels. Future enhancements could include:
 
-- **Curved Paths:** Bezier curves for more natural river/road shapes
+- **Manual Bezier Control:** User-adjustable control points for precise curve shaping
 - **Path Labels:** Text that follows along a path (road names)
 - **Label Rotation:** Angled labels for terrain features
 - **Multi-segment Selection:** Select and move multiple elements
 - **Copy/Paste:** Duplicate paths and labels
-- **Path Smoothing:** Automatic curve fitting for hand-drawn paths
 
 ## References
 

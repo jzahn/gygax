@@ -122,13 +122,13 @@ Implementation specs in `/specs/` — build in order:
 | 002-auth          | Authentication system                 | Complete  |
 | 003-email         | Email verification & password reset   | Complete  |
 | 004-campaigns     | Campaign CRUD                         | Complete  |
-| 005a-map-foundation | Map data model & basic canvas       | Planned   |
-| 005b-map-drawing  | Drawing tools (pen, brush, fill)      | Planned   |
-| 005c-map-stamps   | Stamps, symbols, text labels          | Planned   |
+| 005a-map-foundation | Map data model & basic canvas       | Complete  |
+| 005b-map-drawing  | Terrain stamping tools                | Complete  |
+| 005c-map-labels-paths | Text labels & path drawing        | Complete  |
 | 005d-map-linking  | Map transitions and linking           | Planned   |
 
 ## Current Focus
 
 <!-- Update as work progresses -->
 
-- [ ] Implement spec 005a-map-foundation
+- [ ] Implement spec 005d-map-linking
