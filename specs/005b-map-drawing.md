@@ -12,7 +12,7 @@ Implement terrain stamping tools that allow DMs to create wilderness hex maps di
 - Terrain toolbar UI with icon-based terrain selector
 - Click-to-stamp terrain application
 - Eraser tool for clearing hexes
-- 17 terrain types matching B/X Expert Set style (11 natural + 6 settlements)
+- 17 terrain types matching B/X Expert Set style (12 natural + 5 settlements)
 - Real-time canvas rendering of terrain icons
 - Auto-save of map content
 - B/X pen-and-ink aesthetic for all terrain icons
@@ -61,6 +61,7 @@ export interface HexCoord {
 export interface TerrainStamp {
   hex: HexCoord
   terrain: TerrainType
+  variant: 0 | 1 | 2  // Each terrain has 3 visual variants
 }
 
 // Natural terrain types
@@ -76,6 +77,7 @@ export type NaturalTerrain =
   | 'water'      // Stippled/wave pattern
   | 'volcano'    // Mountain with smoke plume
   | 'barren'     // Jagged broken terrain lines
+  | 'caves'      // Eye-shaped cave entrance
 
 // Settlement/POI types
 export type SettlementTerrain =
@@ -84,7 +86,6 @@ export type SettlementTerrain =
   | 'capitol'    // Large city silhouette with star
   | 'city'       // City silhouette with circle
   | 'town'       // Smaller city with circle
-  | 'caves'      // Eye-shaped cave entrance
 
 export type TerrainType = NaturalTerrain | SettlementTerrain
 
@@ -145,7 +146,7 @@ The map editor toolbar provides mutually exclusive tool modes:
 
 | Type | Icon Description |
 |------|------------------|
-| **Natural Terrain (11)** | |
+| **Natural Terrain (12)** | |
 | Clear | Empty hex (removes any terrain) |
 | Grasslands | 2-3 small tufts of short vertical grass strokes |
 | Forest | 3 clustered deciduous tree shapes (cloud-like circles) |
@@ -157,13 +158,13 @@ The map editor toolbar provides mutually exclusive tool modes:
 | Water | Stippled dot pattern filling the hex |
 | Volcano | Single mountain peak with smoke plume rising |
 | Barren | Jagged wavy lines suggesting broken/rocky terrain |
-| **Settlements (6)** | |
+| Caves | Eye-shaped opening with concentric arcs |
+| **Settlements (5)** | |
 | Castle | Small square with crenellated top |
 | Ruins | Broken/partial castle shape |
 | Capitol | City silhouette (spires) with star marker |
 | City | City silhouette with circle marker |
 | Town | Smaller city silhouette with circle marker |
-| Caves | Eye-shaped opening with concentric arcs |
 
 All icons use B/X aesthetic: black ink on white, hand-drawn feel, no color.
 
@@ -208,7 +209,7 @@ All icons use B/X aesthetic: black ink on white, hand-drawn feel, no color.
 **Terrain Palette:**
 - Only visible when Terrain tool is selected
 - Scrollable list within the toolbar
-- Organized into two groups: Natural (11) and Settlements (6)
+- Organized into two groups: Natural (12) and Settlements (5)
 - Small canvas previews of each terrain icon
 - Selected terrain has active state
 
@@ -232,62 +233,57 @@ Update MapCanvas component to render terrain stamps:
 
 **Terrain Icon Rendering:**
 
-Each terrain type has a procedurally-drawn icon function:
+Each terrain type uses pre-rendered PNG images for visual variety and B/X aesthetic authenticity. Images are organized by terrain name and variant:
+
+```
+/terrain/{terrain}-{variant}.png
+```
+
+For example: `forest-0.png`, `forest-1.png`, `forest-2.png`
+
+**Terrain Variants:**
+
+Each terrain type has 3 visual variants (0, 1, 2) providing natural variety across the map. When stamping terrain, a random variant is selected automatically.
 
 ```typescript
+// Preload all terrain images at startup
+const terrainImages: Map<string, HTMLImageElement> = new Map()
+
+async function preloadTerrainImages() {
+  const terrains: TerrainType[] = ['forest', 'mountains', ...]
+  const variants = [0, 1, 2]
+
+  for (const terrain of terrains) {
+    for (const variant of variants) {
+      const img = new Image()
+      img.src = `/terrain/${terrain}-${variant}.png`
+      await img.decode()
+      terrainImages.set(`${terrain}-${variant}`, img)
+    }
+  }
+}
+
 function renderTerrainIcon(
   ctx: CanvasRenderingContext2D,
   centerX: number,
   centerY: number,
   terrain: TerrainType,
+  variant: 0 | 1 | 2,
   hexSize: number
 ) {
+  const key = `${terrain}-${variant}`
+  const img = terrainImages.get(key)
+  if (!img || terrain === 'clear') return
+
   // Icon should fit within ~60% of hex size
   const iconScale = hexSize * 0.6
-
-  ctx.strokeStyle = '#1a1a1a'
-  ctx.fillStyle = '#1a1a1a'
-  ctx.lineWidth = 1.5
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-
-  switch (terrain) {
-    case 'forest':
-      drawForestIcon(ctx, centerX, centerY, iconScale)
-      break
-    case 'mountains':
-      drawMountainsIcon(ctx, centerX, centerY, iconScale)
-      break
-    // ... etc for each terrain type
-  }
-}
-```
-
-**Example Icon Functions:**
-
-```typescript
-function drawForestIcon(ctx, cx, cy, scale) {
-  // 3 clustered tree circles
-  const r = scale * 0.2
-  ctx.beginPath()
-  ctx.arc(cx - r, cy + r * 0.5, r, 0, Math.PI * 2)
-  ctx.arc(cx + r, cy + r * 0.5, r, 0, Math.PI * 2)
-  ctx.arc(cx, cy - r * 0.5, r * 1.1, 0, Math.PI * 2)
-  ctx.stroke()
-}
-
-function drawMountainsIcon(ctx, cx, cy, scale) {
-  // 2-3 triangular peaks
-  ctx.beginPath()
-  // Large center peak
-  ctx.moveTo(cx - scale * 0.4, cy + scale * 0.3)
-  ctx.lineTo(cx, cy - scale * 0.4)
-  ctx.lineTo(cx + scale * 0.4, cy + scale * 0.3)
-  // Smaller side peak
-  ctx.moveTo(cx + scale * 0.1, cy + scale * 0.3)
-  ctx.lineTo(cx + scale * 0.35, cy - scale * 0.1)
-  ctx.lineTo(cx + scale * 0.55, cy + scale * 0.3)
-  ctx.stroke()
+  ctx.drawImage(
+    img,
+    centerX - iconScale / 2,
+    centerY - iconScale / 2,
+    iconScale,
+    iconScale
+  )
 }
 ```
 
@@ -330,7 +326,7 @@ function terrainToArray(terrain: Map<string, TerrainType>): TerrainStamp[] {
 client/src/components/MapToolbar.tsx      # Tool selection bar (Pan/Terrain/Erase)
 client/src/components/TerrainPalette.tsx  # Terrain type selector with icons
 client/src/hooks/useMapDrawing.ts         # Drawing state and logic
-client/src/utils/terrainIcons.ts          # Procedural terrain icon drawing functions
+client/src/utils/terrainIcons.ts          # Terrain icon image loading and rendering
 client/src/utils/hexUtils.ts              # Hex coordinate/pixel conversion helpers
 ```
 
@@ -347,13 +343,13 @@ client/src/pages/MapEditorPage.tsx        # Add toolbar, manage drawing state
 
 ### Icon Aesthetic
 
-All terrain icons should look like they were drawn with a fine-tip pen on paper, matching the B/X Expert Set style:
+All terrain icons are pre-rendered PNG images that look like they were drawn with a fine-tip pen on paper, matching the B/X Expert Set style:
 
-- **Line weight:** Consistent 1.5-2px strokes at 100% zoom
 - **Style:** Simple, iconic shapes—not detailed illustrations
 - **Color:** Black ink only (#1a1a1a), no fills or shading
 - **Scale:** Icons fill ~60% of hex, leaving clear border space
 - **Overall:** Clean, readable at small sizes, instantly recognizable
+- **Variants:** 3 visual variants per terrain type provide natural map variety
 
 ### Icon Design Principles
 
@@ -363,6 +359,7 @@ All terrain icons should look like they were drawn with a fine-tip pen on paper,
 - Reference the small hex icons in the B/X reference, not the large detailed ones
 - Natural terrain icons use abstract patterns (dots, strokes, shapes)
 - Settlement icons use silhouettes with simple identifying features
+- Variants provide visual variety while maintaining recognizable terrain types
 
 ### Hex-Only Design
 
@@ -392,8 +389,9 @@ This spec is designed specifically for hex wilderness maps:
 - [ ] Releasing Space returns to previous tool
 
 ### Terrain Tool
-- [ ] Terrain palette shows all 17 terrain types (11 natural + 6 settlements)
+- [ ] Terrain palette shows all 17 terrain types (12 natural + 5 settlements)
 - [ ] Palette organized into Natural and Settlements groups
+- [ ] Each terrain stamp stores a variant (0, 1, or 2) for visual variety
 - [ ] Clicking hex applies selected terrain
 - [ ] Clicking stamped hex replaces terrain
 - [ ] Hover shows terrain preview on target hex
@@ -418,8 +416,8 @@ This spec is designed specifically for hex wilderness maps:
 - [ ] Error state shows if save fails
 
 ### Hex-Only
-- [ ] Terrain tool only available for hex grid maps
-- [ ] Square grid maps show message that terrain stamping requires hex grid
+- [ ] Terrain tool only visible for hex grid maps
+- [ ] Terrain tool hidden from toolbar for square grid maps
 
 ## Verification Steps
 
@@ -464,11 +462,11 @@ This spec is designed specifically for hex wilderness maps:
 3. Pan and zoom around the map
 4. Verify smooth performance (no lag)
 
-### 6. Square Grid Restriction Test
+### 6. Square Grid Tool Visibility Test
 
 1. Open or create a square grid map
-2. Verify Terrain tool is disabled or shows message
-3. Only Pan tool should be available
+2. Verify Terrain tool is not visible in toolbar
+3. Verify Pan, Path, Label, Erase tools are visible
 
 ### 7. Space Bar Pan Test
 

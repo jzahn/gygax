@@ -8,7 +8,7 @@ Add text labels and path drawing tools (roads, rivers, borders, trails) to hex m
 
 ### In Scope
 
-- Text labels with free positioning and 3 size options
+- Text labels with free positioning and 4 size options
 - Path tools: road, river, border, trail
 - Snap-to-hex behavior (vertices snap to hex centers, corners, and edge midpoints)
 - Layer ordering: all paths below terrain icons, labels on top
@@ -55,7 +55,7 @@ export interface MapPath {
 }
 
 // Text sizes
-export type TextSize = 'small' | 'medium' | 'large'
+export type TextSize = 'small' | 'medium' | 'large' | 'xlarge'
 
 // A text label
 export interface MapLabel {
@@ -125,7 +125,7 @@ Update content validation to accept paths and labels.
 - `labels[].id`: Required string
 - `labels[].text`: Required string, 1-200 characters
 - `labels[].position`: Required MapPoint
-- `labels[].size`: Required, must be 'small' | 'medium' | 'large'
+- `labels[].size`: Required, must be 'small' | 'medium' | 'large' | 'xlarge'
 
 ### 3. Hex Utilities
 
@@ -239,7 +239,7 @@ Appears when Path tool is selected. Shows the 4 path types.
 
 #### Text Size Selector (client/src/components/TextSizeSelector.tsx)
 
-Appears when Label tool is selected. Three size buttons.
+Appears when Label tool is selected. Four size buttons.
 
 **Layout:**
 ```
@@ -249,6 +249,7 @@ Appears when Label tool is selected. Three size buttons.
 │  [S]      │  ← 12px
 │  [M]      │  ← 16px (default)
 │  [L]      │  ← 24px
+│  [XL]     │  ← 32px
 └───────────┘
 ```
 
@@ -256,7 +257,8 @@ Appears when Label tool is selected. Three size buttons.
 - S = Small (12px)
 - M = Medium (16px, default)
 - L = Large (24px)
-- Keyboard shortcuts: 1=S, 2=M, 3=L (when Label tool active)
+- XL = Extra Large (32px)
+- Keyboard shortcuts: 1=S, 2=M, 3=L, 4=XL (when Label tool active)
 
 ### 6. Label Editor Component
 
@@ -381,6 +383,7 @@ function renderLabel(
 - Small: 12px at 100% zoom
 - Medium: 16px at 100% zoom
 - Large: 24px at 100% zoom
+- Extra Large: 32px at 100% zoom
 
 ### 8. Interaction Design
 
@@ -457,6 +460,7 @@ function renderLabel(
 | 1 | Small size |
 | 2 | Medium size |
 | 3 | Large size |
+| 4 | Extra Large size |
 
 **General:**
 | Key | Action |
@@ -665,7 +669,7 @@ All paths render below terrain icons, allowing terrain symbols to appear "on top
 - [ ] MapPath type with id, type, points, closed
 - [ ] MapLabel type with id, text, position, size
 - [ ] PathType union: 'road' | 'river' | 'stream' | 'border' | 'trail'
-- [ ] TextSize union: 'small' | 'medium' | 'large'
+- [ ] TextSize union: 'small' | 'medium' | 'large' | 'xlarge'
 - [ ] MapContent updated with optional paths and labels arrays
 
 ### API
@@ -715,7 +719,7 @@ All paths render below terrain icons, allowing terrain symbols to appear "on top
 
 ### Label Tool
 - [ ] Toolbar shows Label tool button (L key)
-- [ ] Size selector shows S/M/L options
+- [ ] Size selector shows S/M/L/XL options
 - [ ] Clicking opens inline text editor
 - [ ] Editor positioned at click location
 - [ ] Enter confirms label
@@ -740,7 +744,7 @@ All paths render below terrain icons, allowing terrain symbols to appear "on top
 - [ ] R key selects Path tool
 - [ ] L key selects Label tool
 - [ ] 1-4 select path types (when Path tool active)
-- [ ] 1-3 select label sizes (when Label tool active)
+- [ ] 1-4 select label sizes (when Label tool active)
 - [ ] Delete removes selected element
 - [ ] Escape cancels/deselects
 
@@ -876,8 +880,10 @@ All paths render below terrain icons, allowing terrain symbols to appear "on top
 4. Press L - Label tool selected
 5. Press 1 - Small size selected
 6. Press 2 - Medium size selected
-7. Press T - Terrain tool (existing)
-8. Press E - Erase tool
+7. Press 3 - Large size selected
+8. Press 4 - Extra Large size selected
+9. Press T - Terrain tool (existing)
+10. Press E - Erase tool
 
 ### 13. Cancel Operations Test
 

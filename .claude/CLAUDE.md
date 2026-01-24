@@ -123,12 +123,17 @@ Implementation specs in `/specs/` — build in order:
 | 003-email         | Email verification & password reset   | Complete  |
 | 004-campaigns     | Campaign CRUD                         | Complete  |
 | 005a-map-foundation | Map data model & basic canvas       | Complete  |
-| 005b-map-drawing  | Terrain stamping tools                | Complete  |
+| 005b-map-drawing  | Terrain stamping tools (hex/wilderness) | Complete  |
 | 005c-map-labels-paths | Text labels & path drawing        | Complete  |
-| 005d-map-linking  | Map transitions and linking           | Planned   |
+| 005d-map-indoor   | Indoor/dungeon maps (square grid)     | Planned   |
+| 006-sessions      | Live game sessions & player joining   | Planned   |
+| 007-fog-of-war    | Fog of war system                     | Planned   |
+| 008-chat          | Real-time chat with dice rolling      | Planned   |
+
+*Note: Map linking/transitions deferred to Phase 2 (single-player with NPCs)*
 
 ## Current Focus
 
 <!-- Update as work progresses -->
 
-- [ ] Implement spec 005d-map-linking
+- [ ] Spec and implement indoor/dungeon maps (005d)

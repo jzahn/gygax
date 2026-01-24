@@ -29,7 +29,7 @@ Currently most pen and paper D&D games are played via Discord, which lacks purpo
 | **Campaign**            | A DM's saved world containing maps, encounters, notes, and session history. Persists between sessions.  |
 | **Session**             | A live game instance that players join via invite code. Real-time sync of map, chat, and audio.         |
 | **Map**                 | A drawable grid (hex for outdoor/wilderness, square for indoor/dungeon) in B/X black-and-white style.   |
-| **Transition**          | A link between maps (doors, stairs, cave entrances, town gates) enabling navigation between areas.      |
+| **Transition**          | Moving between maps. In Phase 1, DM manually switches the displayed map. Phase 2 adds formal linking.   |
 | **Encounter**           | A meeting with creatures/NPCs. Can be **static** (placed on map) or **random** (triggered from tables). |
 | **Fog of War**          | Unexplored areas hidden from players. Revealed by DM as party explores. State persists per-map.         |
 | **DM (Dungeon Master)** | The user who creates campaigns, draws maps, runs sessions, and controls the game world.                 |
@@ -93,7 +93,7 @@ Web application (SPA frontend + API backend)
 22. The DM should be able to place static encounters on the map in addition to the random encounters.
 23. Encounters can be both friendly or hostile.
 24. Players and the DM should be able to input their character name and an avatar image.
-25. Maps can link to other maps via transition points (doors, stairs, cave entrances, town gates, building entrances, etc.).
+25. DM can switch between campaign maps during a session, displaying any map to players.
 
 ### Nice-to-Have Features
 
@@ -143,7 +143,6 @@ Web application (SPA frontend + API backend)
 1. DM creates a new campaign or opens an existing one from the dashboard
 2. DM works on campaign content at their own pace:
    - Create and edit maps (see Flow 6)
-   - Link maps together (see Flow 7)
    - Design random encounter tables
    - Place static encounters on maps
    - Add notes and descriptions
@@ -192,22 +191,15 @@ Web application (SPA frontend + API backend)
 7. DM adds text labels for room names or notes
 8. Map auto-saves; DM can return to edit it anytime
 
-#### Flow 7: DM Links Maps Together
+#### Flow 7: DM Switches Maps During Session
 
-1. DM opens an existing map in the editor
-2. DM selects the transition tool
-3. DM places a transition marker (e.g., on a door, staircase, or cave entrance)
-4. DM selects the destination map from a list of campaign maps
-5. DM clicks the arrival point on the destination map
-6. Transition is saved; marker shows link icon in editor view
-
-#### Flow 8: Players Travel Between Maps
-
-1. Party reaches a transition point on the current map
-2. DM confirms the transition (click transition or use a command)
-3. All players' views switch to the destination map at the arrival point
+1. Party reaches a point where they should move to a different map (door, stairs, cave entrance, etc.)
+2. DM selects a different campaign map from the map list
+3. All players' views switch to the selected map
 4. Fog of war loads from saved state (previously explored areas remain visible)
 5. Gameplay continues on the new map
+
+*Note: Phase 2 will add formal map linking with transition markers and destination points for single-player experiences.*
 
 #### Flow 9: DM Edits Map Mid-Session
 
@@ -515,30 +507,28 @@ DMs draw maps directly in the application using:
 - **Brush/pen tools** for walls, corridors, and terrain boundaries
 - **Fill tools** with preset patterns (stone floor, dirt, water, grass, forest, etc.)
 - **Stamp tools** for common dungeon features (doors, secret doors, stairs, pillars, statues)
-- **Transition tool** for linking maps together (see Map Transitions below)
 - **Text tool** for room labels and annotations
 - **Eraser** for corrections
 - **Grid toggle** between hex (outdoor) and square (indoor) modes
 
 ### Map Transitions
 
-Maps can be linked together via transition points, enabling seamless navigation between areas:
+**Phase 1 (VTT Sessions):**
 
-**Transition Types:**
+During live sessions, the DM controls which map is displayed to players. When the party reaches a transition point (door, stairs, cave entrance, etc.), the DM manually switches to the appropriate map. This keeps the DM in full control of pacing and narrative.
 
-- **Doors** - Enter a building from outdoors, or move between indoor areas
-- **Stairs** - Move between dungeon levels (up/down)
-- **Cave entrances** - Enter underground areas from wilderness
-- **Town/city gates** - Enter a settlement from the overland map
-- **Portals/teleporters** - Magical transport between distant locations
+- DM selects any campaign map to display during a session
+- All connected players see the same map
+- Fog of war state is preserved per-map (returning to a map shows previously explored areas)
 
-**How it works:**
+**Phase 2 (Single-Player with NPCs):**
 
-1. DM places a transition marker on the source map
-2. DM links it to a destination map and specifies the arrival point
-3. When players reach a transition, DM can trigger the map change
-4. Players are transported to the linked map at the designated arrival location
-5. Fog of war state is preserved per-map (returning to a map shows previously explored areas)
+Future phase will add formal map linking for single-player experiences:
+
+- Transition markers placed on maps (doors, stairs, cave entrances, town gates, portals)
+- Each marker links to a destination map and arrival point
+- Players can navigate between maps independently
+- NPCs can guide players through linked areas
 
 ### Reference Style
 
@@ -606,16 +596,16 @@ Modular monolith with clear separation between:
 - [ ] DM can create random encounter tables and assign to map regions
 - [ ] Random encounters trigger during exploration
 - [ ] DM can place static encounters on the map
-- [ ] DM can link maps together via transition points (doors, stairs, cave entrances, etc.)
-- [ ] DM can trigger map transitions; all players move to the linked map
-- [ ] Fog of war state persists per-map when transitioning
+- [ ] DM can switch between campaign maps during a session
+- [ ] All players see the map the DM has selected
+- [ ] Fog of war state persists per-map when switching
 - [ ] Voice chat works between all participants
 - [ ] DM can pause session; state persists and can be resumed
 - [ ] Application handles 1 DM + 6 players without performance issues
 
 ### Testing Requirements
 
-- **Unit tests:** Dice parser, encounter logic, fog of war calculations, map transition linking
+- **Unit tests:** Dice parser, encounter logic, fog of war calculations
 - **Integration tests:** Auth flow, WebSocket message handling, database operations
 - **E2E tests:** Full user flows (create game, join game, chat, map interaction)
 - **Manual testing:** Voice chat quality, map rendering performance, cross-browser compatibility
