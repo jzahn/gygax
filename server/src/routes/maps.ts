@@ -6,6 +6,8 @@ import type {
   CreateMapRequest,
   UpdateMapRequest,
   GridType,
+  MapContent,
+  TerrainType,
 } from '@gygax/shared'
 
 const MAX_NAME_LENGTH = 100
@@ -15,6 +17,26 @@ const MAX_DIMENSION = 100
 const DEFAULT_DIMENSION = 30
 const DEFAULT_CELL_SIZE = 40
 
+const VALID_TERRAIN_TYPES: TerrainType[] = [
+  'clear',
+  'grasslands',
+  'forest',
+  'jungle',
+  'hills',
+  'mountains',
+  'desert',
+  'swamp',
+  'water',
+  'volcano',
+  'barren',
+  'castle',
+  'ruins',
+  'capitol',
+  'city',
+  'town',
+  'caves',
+]
+
 function formatMap(map: {
   id: string
   name: string
@@ -23,6 +45,7 @@ function formatMap(map: {
   width: number
   height: number
   cellSize: number
+  content: unknown
   campaignId: string
   createdAt: Date
   updatedAt: Date
@@ -35,10 +58,71 @@ function formatMap(map: {
     width: map.width,
     height: map.height,
     cellSize: map.cellSize,
+    content: map.content as MapContent | null,
     campaignId: map.campaignId,
     createdAt: map.createdAt.toISOString(),
     updatedAt: map.updatedAt.toISOString(),
   }
+}
+
+function validateMapContent(
+  content: unknown,
+  mapWidth: number,
+  mapHeight: number
+): { valid: true } | { valid: false; message: string } {
+  if (content === null || content === undefined) {
+    return { valid: true }
+  }
+
+  if (typeof content !== 'object') {
+    return { valid: false, message: 'Content must be an object' }
+  }
+
+  const c = content as Record<string, unknown>
+
+  if (c.version !== 1) {
+    return { valid: false, message: 'Content version must be 1' }
+  }
+
+  if (!Array.isArray(c.terrain)) {
+    return { valid: false, message: 'Content terrain must be an array' }
+  }
+
+  for (const stamp of c.terrain) {
+    if (typeof stamp !== 'object' || stamp === null) {
+      return { valid: false, message: 'Each terrain stamp must be an object' }
+    }
+
+    const s = stamp as Record<string, unknown>
+
+    if (typeof s.hex !== 'object' || s.hex === null) {
+      return { valid: false, message: 'Terrain stamp must have a hex coordinate' }
+    }
+
+    const hex = s.hex as Record<string, unknown>
+
+    if (typeof hex.col !== 'number' || !Number.isInteger(hex.col)) {
+      return { valid: false, message: 'Hex col must be an integer' }
+    }
+
+    if (typeof hex.row !== 'number' || !Number.isInteger(hex.row)) {
+      return { valid: false, message: 'Hex row must be an integer' }
+    }
+
+    if (hex.col < 0 || hex.col >= mapWidth) {
+      return { valid: false, message: `Hex col must be between 0 and ${mapWidth - 1}` }
+    }
+
+    if (hex.row < 0 || hex.row >= mapHeight) {
+      return { valid: false, message: `Hex row must be between 0 and ${mapHeight - 1}` }
+    }
+
+    if (typeof s.terrain !== 'string' || !VALID_TERRAIN_TYPES.includes(s.terrain as TerrainType)) {
+      return { valid: false, message: `Invalid terrain type: ${s.terrain}` }
+    }
+  }
+
+  return { valid: true }
 }
 
 async function requireVerifiedUser(
@@ -309,7 +393,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
       if (!user) return
 
       const { id } = request.params
-      const { name, description, width, height } = request.body
+      const { name, description, width, height, content } = request.body
 
       const map = await fastify.prisma.map.findUnique({
         where: { id },
@@ -330,7 +414,13 @@ export async function mapRoutes(fastify: FastifyInstance) {
         })
       }
 
-      const updateData: { name?: string; description?: string | null; width?: number; height?: number } = {}
+      const updateData: {
+        name?: string
+        description?: string | null
+        width?: number
+        height?: number
+        content?: MapContent
+      } = {}
 
       // Validate and set name if provided
       if (name !== undefined) {
@@ -409,6 +499,22 @@ export async function mapRoutes(fastify: FastifyInstance) {
           })
         }
         updateData.height = height
+      }
+
+      // Validate and set content if provided
+      if (content !== undefined) {
+        // Use potentially updated dimensions, or fall back to existing
+        const effectiveWidth = updateData.width ?? map.width
+        const effectiveHeight = updateData.height ?? map.height
+
+        const contentValidation = validateMapContent(content, effectiveWidth, effectiveHeight)
+        if (!contentValidation.valid) {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: contentValidation.message,
+          })
+        }
+        updateData.content = content as MapContent
       }
 
       const updatedMap = await fastify.prisma.map.update({

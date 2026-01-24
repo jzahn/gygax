@@ -178,31 +178,46 @@ All icons use B/X aesthetic: black ink on white, hand-drawn feel, no color.
 
 #### Drawing Toolbar (client/src/components/MapToolbar.tsx)
 
-**Layout (horizontal bar above canvas):**
+**Layout (vertical bar on RIGHT side of canvas):**
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  [Pan] [Terrain] [Erase]  │  Natural: [🌲][⛰][🏜]...  │  Settlements: [🏰]...│
-└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────┐
+│   [Pan]   │
+│ [Terrain] │
+│  [Erase]  │
+├───────────┤
+│  Natural  │
+│   [🌲]    │
+│   [⛰]    │
+│   [🏜]    │
+│    ...    │
+├───────────┤
+│Settlements│
+│   [🏰]    │
+│    ...    │
+├───────────┤
+│ Space:Pan │
+└───────────┘
 ```
 
 **Tool Buttons:**
-- Icon buttons with tooltip labels
+- Icon buttons stacked vertically with tooltip labels
 - Selected tool has active state (darker background, border)
 - Keyboard shortcuts: P (Pan), T (Terrain), E (Erase)
 - **Space bar:** Hold to temporarily enable Pan tool, release to return to previous tool
 
 **Terrain Palette:**
 - Only visible when Terrain tool is selected
+- Scrollable list within the toolbar
 - Organized into two groups: Natural (11) and Settlements (6)
-- Small square buttons showing terrain icon preview
+- Small canvas previews of each terrain icon
 - Selected terrain has active state
-- Scrollable if needed, or use dropdown/popover for settlements
 
 #### Toolbar Styling
 
 - Matches existing UI: parchment background, black borders
-- Sits inside the map editor page header area
+- Thin vertical bar positioned on the RIGHT side of the canvas
 - Does not overlap the canvas
+- "Space: Pan" hint at bottom of toolbar
 
 ### 5. Canvas Rendering Updates
 

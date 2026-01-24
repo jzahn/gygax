@@ -100,6 +100,49 @@ export interface UpdateCampaignRequest {
 // Map types
 export type GridType = 'SQUARE' | 'HEX'
 
+// Hex coordinate (column, row)
+export interface HexCoord {
+  col: number
+  row: number
+}
+
+// Natural terrain types
+export type NaturalTerrain =
+  | 'clear'
+  | 'grasslands'
+  | 'forest'
+  | 'jungle'
+  | 'hills'
+  | 'mountains'
+  | 'desert'
+  | 'swamp'
+  | 'water'
+  | 'volcano'
+  | 'barren'
+
+// Settlement/POI types
+export type SettlementTerrain =
+  | 'castle'
+  | 'ruins'
+  | 'capitol'
+  | 'city'
+  | 'town'
+  | 'caves'
+
+export type TerrainType = NaturalTerrain | SettlementTerrain
+
+// A terrain stamp applied to a hex
+export interface TerrainStamp {
+  hex: HexCoord
+  terrain: TerrainType
+}
+
+// Complete map drawing content
+export interface MapContent {
+  version: number
+  terrain: TerrainStamp[]
+}
+
 export interface Map {
   id: string
   name: string
@@ -108,6 +151,7 @@ export interface Map {
   width: number
   height: number
   cellSize: number
+  content: MapContent | null
   campaignId: string
   createdAt: string
   updatedAt: string
@@ -134,4 +178,5 @@ export interface UpdateMapRequest {
   description?: string
   width?: number
   height?: number
+  content?: MapContent
 }

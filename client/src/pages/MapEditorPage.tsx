@@ -1,12 +1,30 @@
 import * as React from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
-import type { Map, MapResponse } from '@gygax/shared'
+import type { Map, MapResponse, MapContent } from '@gygax/shared'
 import { Button } from '../components/ui'
 import { MapCanvas } from '../components/MapCanvas'
+import { MapToolbar } from '../components/MapToolbar'
 import { CreateMapModal, MapFormData } from '../components/CreateMapModal'
 import { DeleteMapDialog } from '../components/DeleteMapDialog'
+import { useMapDrawing, SaveStatus } from '../hooks/useMapDrawing'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
+
+function SaveStatusIndicator({ status }: { status: SaveStatus }) {
+  if (status === 'idle') return null
+
+  return (
+    <span
+      className={`font-body text-xs ${
+        status === 'error' ? 'text-blood-red' : 'text-ink-soft'
+      }`}
+    >
+      {status === 'saving' && 'Saving...'}
+      {status === 'saved' && 'Saved'}
+      {status === 'error' && 'Save failed'}
+    </span>
+  )
+}
 
 export function MapEditorPage() {
   const { id } = useParams<{ id: string }>()
@@ -18,6 +36,31 @@ export function MapEditorPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [menuOpen, setMenuOpen] = React.useState(false)
   const menuRef = React.useRef<HTMLDivElement>(null)
+
+  // Save content to API
+  const handleSaveContent = React.useCallback(
+    async (content: MapContent) => {
+      if (!map) return
+
+      const response = await fetch(`${API_URL}/api/maps/${map.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ content }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save map content')
+      }
+    },
+    [map]
+  )
+
+  // Initialize drawing hook
+  const drawing = useMapDrawing({
+    initialContent: map?.content ?? null,
+    onSave: handleSaveContent,
+  })
 
   // Close menu when clicking outside
   React.useEffect(() => {
@@ -191,15 +234,31 @@ export function MapEditorPage() {
         </div>
       </header>
 
-      {/* Canvas */}
-      <main className="flex-1 overflow-hidden p-4">
-        <MapCanvas map={map} className="h-full w-full" />
+      {/* Main content - Canvas + Toolbar */}
+      <main className="flex flex-1 overflow-hidden">
+        <div className="min-w-0 flex-1 p-4">
+          <MapCanvas
+            map={map}
+            className="h-full w-full"
+            drawingState={drawing.state}
+            onHexClick={drawing.stampTerrain}
+            onHexHover={drawing.setHoveredHex}
+          />
+        </div>
+        <MapToolbar
+          tool={drawing.state.tool}
+          selectedTerrain={drawing.state.selectedTerrain}
+          gridType={map.gridType}
+          onToolChange={drawing.setTool}
+          onTerrainChange={drawing.setSelectedTerrain}
+        />
       </main>
 
       {/* Footer/Status Bar */}
       <footer className="flex items-center justify-between border-t-3 border-ink bg-parchment-100 px-4 py-2">
-        <div className="font-body text-xs text-ink-soft">
-          {map.description && <span className="mr-4">{map.description}</span>}
+        <div className="flex items-center gap-4 font-body text-xs text-ink-soft">
+          {map.description && <span>{map.description}</span>}
+          <SaveStatusIndicator status={drawing.state.saveStatus} />
         </div>
         <div className="font-body text-xs text-ink-soft">
           {map.width}&times;{map.height} &bull; {map.gridType === 'SQUARE' ? 'Square' : 'Hex'} grid

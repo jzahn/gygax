@@ -1,9 +1,15 @@
 import * as React from 'react'
-import type { Map } from '@gygax/shared'
+import type { Map, HexCoord, TerrainType } from '@gygax/shared'
+import type { DrawingState, DrawingTool } from '../hooks/useMapDrawing'
+import { hexToPixel, pixelToHex, isHexInBounds } from '../utils/hexUtils'
+import { renderTerrainIcon } from '../utils/terrainIcons'
 
 interface MapCanvasProps {
   map: Map
   className?: string
+  drawingState?: DrawingState
+  onHexClick?: (hex: HexCoord) => void
+  onHexHover?: (hex: HexCoord | null) => void
 }
 
 interface ViewportState {
@@ -14,8 +20,8 @@ interface ViewportState {
 
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 5
-const ZOOM_STEP_SMALL = 0.1  // 10% when below 100%
-const ZOOM_STEP_LARGE = 0.25 // 25% when at or above 100%
+const ZOOM_STEP_SMALL = 0.1
+const ZOOM_STEP_LARGE = 0.25
 
 // Draw square grid
 function drawSquareGrid(ctx: CanvasRenderingContext2D, map: Map) {
@@ -23,13 +29,11 @@ function drawSquareGrid(ctx: CanvasRenderingContext2D, map: Map) {
 
   ctx.beginPath()
 
-  // Vertical lines
   for (let x = 0; x <= width; x++) {
     ctx.moveTo(x * cellSize, 0)
     ctx.lineTo(x * cellSize, height * cellSize)
   }
 
-  // Horizontal lines
   for (let y = 0; y <= height; y++) {
     ctx.moveTo(0, y * cellSize)
     ctx.lineTo(width * cellSize, y * cellSize)
@@ -39,24 +43,16 @@ function drawSquareGrid(ctx: CanvasRenderingContext2D, map: Map) {
 }
 
 // Draw hex grid (flat-top orientation, odd-q offset)
-// Reference: https://www.redblobgames.com/grids/hexagons/
 function drawHexGrid(ctx: CanvasRenderingContext2D, map: Map) {
   const { width, height, cellSize } = map
 
-  // For flat-top hexagons:
-  // - size = distance from center to corner (circumradius)
-  // - width (point-to-point) = 2 * size
-  // - height (flat-to-flat) = sqrt(3) * size
   const size = cellSize / 2
   const hexHeight = Math.sqrt(3) * size
-
-  // Spacing between hex centers (flat-top, odd-q offset)
-  const horizSpacing = size * 1.5 // 3/4 of width
+  const horizSpacing = size * 1.5
   const vertSpacing = hexHeight
 
   ctx.beginPath()
 
-  // Get hex corner position (flat-top: corner 0 points right at angle 0)
   function hexCorner(cx: number, cy: number, i: number) {
     const angleDeg = 60 * i
     const angleRad = (Math.PI / 180) * angleDeg
@@ -66,16 +62,11 @@ function drawHexGrid(ctx: CanvasRenderingContext2D, map: Map) {
     }
   }
 
-  // Draw each hex - we draw all 6 edges but structure it to minimize overdraw
-  // For a proper tessellation, each edge is shared by two hexes
-  // We'll draw each hex completely - canvas handles overlapping lines fine
   for (let col = 0; col < width; col++) {
     for (let row = 0; row < height; row++) {
-      // Calculate hex center (odd-q offset: odd columns shifted down)
       const cx = size + col * horizSpacing
       const cy = hexHeight / 2 + row * vertSpacing + (col % 2 === 1 ? vertSpacing / 2 : 0)
 
-      // Draw hexagon outline
       const start = hexCorner(cx, cy, 0)
       ctx.moveTo(start.x, start.y)
       for (let i = 1; i <= 6; i++) {
@@ -88,13 +79,76 @@ function drawHexGrid(ctx: CanvasRenderingContext2D, map: Map) {
   ctx.stroke()
 }
 
-export function MapCanvas({ map, className = '' }: MapCanvasProps) {
+// Draw terrain icons for hex grids
+function drawTerrain(
+  ctx: CanvasRenderingContext2D,
+  terrain: Map<string, TerrainType>,
+  cellSize: number
+) {
+  terrain.forEach((terrainType, key) => {
+    const [col, row] = key.split(',').map(Number)
+    const { x, y } = hexToPixel({ col, row }, cellSize)
+    renderTerrainIcon(ctx, x, y, terrainType, cellSize)
+  })
+}
+
+// Draw hover preview
+function drawHoverPreview(
+  ctx: CanvasRenderingContext2D,
+  hex: HexCoord,
+  tool: DrawingTool,
+  selectedTerrain: TerrainType,
+  cellSize: number
+) {
+  const { x, y } = hexToPixel(hex, cellSize)
+
+  ctx.save()
+  ctx.globalAlpha = 0.5
+
+  if (tool === 'terrain' && selectedTerrain !== 'clear') {
+    renderTerrainIcon(ctx, x, y, selectedTerrain, cellSize)
+  } else if (tool === 'erase') {
+    // Draw an X for eraser preview
+    const size = cellSize * 0.3
+    ctx.strokeStyle = '#d32f2f'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.moveTo(x - size, y - size)
+    ctx.lineTo(x + size, y + size)
+    ctx.moveTo(x + size, y - size)
+    ctx.lineTo(x - size, y + size)
+    ctx.stroke()
+  }
+
+  ctx.restore()
+}
+
+function getCursorForTool(tool: DrawingTool, isPanning: boolean): string {
+  if (isPanning) return 'grabbing'
+  switch (tool) {
+    case 'pan':
+      return 'grab'
+    case 'terrain':
+      return 'crosshair'
+    case 'erase':
+      return 'crosshair'
+    default:
+      return 'default'
+  }
+}
+
+export function MapCanvas({
+  map,
+  className = '',
+  drawingState,
+  onHexClick,
+  onHexHover,
+}: MapCanvasProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const [containerSize, setContainerSize] = React.useState({ width: 0, height: 0 })
   const [zoomDisplay, setZoomDisplay] = React.useState(100)
 
-  // Use refs for viewport state to avoid re-renders during pan/zoom
   const viewportRef = React.useRef<ViewportState>({
     offsetX: 0,
     offsetY: 0,
@@ -103,8 +157,11 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
   const isPanningRef = React.useRef(false)
   const panStartRef = React.useRef({ x: 0, y: 0 })
   const rafIdRef = React.useRef<number | null>(null)
+  const hasInitializedRef = React.useRef(false)
 
-  // Calculate map dimensions in pixels
+  const tool = drawingState?.tool ?? 'pan'
+  const isHexGrid = map.gridType === 'HEX'
+
   const getMapDimensions = React.useCallback(() => {
     if (map.gridType === 'SQUARE') {
       return {
@@ -112,12 +169,9 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
         height: map.height * map.cellSize,
       }
     } else {
-      // Flat-top hex grid dimensions
       const size = map.cellSize / 2
       const hexHeight = Math.sqrt(3) * size
       const horizSpacing = size * 1.5
-      // Width: first hex is full width (2*size), subsequent hexes add 1.5*size each
-      // Height: depends on whether last column is odd (extends down by half)
       const totalWidth = size * 2 + (map.width - 1) * horizSpacing
       const hasOddLastCol = (map.width - 1) % 2 === 1
       const totalHeight = map.height * hexHeight + (hasOddLastCol ? hexHeight / 2 : 0)
@@ -128,7 +182,6 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
     }
   }, [map])
 
-  // Render function
   const render = React.useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -143,7 +196,6 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
 
     if (displayWidth === 0 || displayHeight === 0) return
 
-    // Set canvas size accounting for device pixel ratio
     if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
       canvas.width = displayWidth * dpr
       canvas.height = displayHeight * dpr
@@ -151,18 +203,31 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
       canvas.style.height = `${displayHeight}px`
     }
 
-    // Reset transform and clear
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
 
-    // Clear canvas
     ctx.fillStyle = '#FFFFFF'
     ctx.fillRect(0, 0, displayWidth, displayHeight)
 
-    // Apply viewport transform
     ctx.save()
     ctx.translate(viewport.offsetX, viewport.offsetY)
     ctx.scale(viewport.zoom, viewport.zoom)
+
+    // Draw terrain icons BEFORE grid lines (so grid lines are on top)
+    if (isHexGrid && drawingState?.terrain) {
+      drawTerrain(ctx, drawingState.terrain, map.cellSize)
+    }
+
+    // Draw hover preview
+    if (isHexGrid && drawingState?.hoveredHex && tool !== 'pan') {
+      drawHoverPreview(
+        ctx,
+        drawingState.hoveredHex,
+        tool,
+        drawingState.selectedTerrain,
+        map.cellSize
+      )
+    }
 
     // Draw grid
     ctx.strokeStyle = '#1a1a1a'
@@ -175,9 +240,8 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
     }
 
     ctx.restore()
-  }, [map, containerSize])
+  }, [map, containerSize, drawingState, tool, isHexGrid])
 
-  // Schedule a render
   const scheduleRender = React.useCallback(() => {
     if (rafIdRef.current !== null) {
       cancelAnimationFrame(rafIdRef.current)
@@ -188,7 +252,6 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
     })
   }, [render])
 
-  // Observe container size changes
   React.useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -207,9 +270,10 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
     return () => resizeObserver.disconnect()
   }, [])
 
-  // Center map initially when container size changes
+  // Center map only on initial load
   React.useEffect(() => {
-    if (containerSize.width > 0 && containerSize.height > 0) {
+    if (containerSize.width > 0 && containerSize.height > 0 && !hasInitializedRef.current) {
+      hasInitializedRef.current = true
       const dims = getMapDimensions()
       const viewport = viewportRef.current
       viewport.offsetX = (containerSize.width - dims.width * viewport.zoom) / 2
@@ -218,12 +282,10 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
     }
   }, [containerSize.width, containerSize.height, getMapDimensions, scheduleRender])
 
-  // Initial render when map changes
   React.useEffect(() => {
     scheduleRender()
-  }, [map, scheduleRender])
+  }, [map, scheduleRender, drawingState?.terrain, drawingState?.hoveredHex])
 
-  // Cleanup RAF on unmount
   React.useEffect(() => {
     return () => {
       if (rafIdRef.current !== null) {
@@ -232,20 +294,15 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
     }
   }, [])
 
-  // Get zoom step based on current zoom level and direction
   const getZoomStep = React.useCallback((currentZoom: number, zoomingIn: boolean) => {
-    // Use larger steps (25%) at or above 100%, smaller steps (10%) below 100%
-    // Use rounded percentage to avoid floating point issues
     const zoomPercent = Math.round(currentZoom * 100)
     if (zoomingIn) {
       return zoomPercent >= 100 ? ZOOM_STEP_LARGE : ZOOM_STEP_SMALL
     } else {
-      // When zooming out, use large step if above 100%
       return zoomPercent > 100 ? ZOOM_STEP_LARGE : ZOOM_STEP_SMALL
     }
   }, [])
 
-  // Zoom toward a point (used by wheel and button zoom)
   const zoomToward = React.useCallback(
     (centerX: number, centerY: number, zoomingIn: boolean) => {
       const viewport = viewportRef.current
@@ -266,7 +323,6 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
     [scheduleRender, getZoomStep]
   )
 
-  // Handle mouse wheel zoom
   const handleWheel = React.useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault()
@@ -283,7 +339,6 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
     [zoomToward]
   )
 
-  // Handle button zoom (zooms toward center of canvas)
   const handleZoomIn = React.useCallback(() => {
     const centerX = containerSize.width / 2
     const centerY = containerSize.height / 2
@@ -296,35 +351,89 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
     zoomToward(centerX, centerY, false)
   }, [containerSize, zoomToward])
 
-  // Handle pan start
-  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return
-    isPanningRef.current = true
-    const viewport = viewportRef.current
-    panStartRef.current = {
-      x: e.clientX - viewport.offsetX,
-      y: e.clientY - viewport.offsetY,
-    }
-  }, [])
-
-  // Handle pan move
-  const handleMouseMove = React.useCallback(
-    (e: React.MouseEvent) => {
-      if (!isPanningRef.current) return
+  // Convert screen coordinates to map coordinates
+  const screenToMap = React.useCallback(
+    (screenX: number, screenY: number) => {
       const viewport = viewportRef.current
-      viewport.offsetX = e.clientX - panStartRef.current.x
-      viewport.offsetY = e.clientY - panStartRef.current.y
-      scheduleRender()
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return null
+
+      const canvasX = screenX - rect.left
+      const canvasY = screenY - rect.top
+      const mapX = (canvasX - viewport.offsetX) / viewport.zoom
+      const mapY = (canvasY - viewport.offsetY) / viewport.zoom
+
+      return { x: mapX, y: mapY }
     },
-    [scheduleRender]
+    []
   )
 
-  // Handle pan end
+  const [isPanningState, setIsPanningState] = React.useState(false)
+
+  const handleMouseDown = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (e.button !== 0) return
+
+      // Check if we should pan or interact
+      if (tool === 'pan' || drawingState?.isSpaceHeld) {
+        isPanningRef.current = true
+        setIsPanningState(true)
+        const viewport = viewportRef.current
+        panStartRef.current = {
+          x: e.clientX - viewport.offsetX,
+          y: e.clientY - viewport.offsetY,
+        }
+      } else if (isHexGrid && onHexClick) {
+        // Stamp terrain
+        const mapPos = screenToMap(e.clientX, e.clientY)
+        if (mapPos) {
+          const hex = pixelToHex(mapPos.x, mapPos.y, map.cellSize)
+          if (isHexInBounds(hex, map)) {
+            onHexClick(hex)
+          }
+        }
+      }
+    },
+    [tool, drawingState?.isSpaceHeld, isHexGrid, onHexClick, screenToMap, map]
+  )
+
+  const handleMouseMove = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (isPanningRef.current) {
+        const viewport = viewportRef.current
+        viewport.offsetX = e.clientX - panStartRef.current.x
+        viewport.offsetY = e.clientY - panStartRef.current.y
+        scheduleRender()
+      } else if (isHexGrid && onHexHover && tool !== 'pan') {
+        // Update hover hex
+        const mapPos = screenToMap(e.clientX, e.clientY)
+        if (mapPos) {
+          const hex = pixelToHex(mapPos.x, mapPos.y, map.cellSize)
+          if (isHexInBounds(hex, map)) {
+            onHexHover(hex)
+          } else {
+            onHexHover(null)
+          }
+        }
+      }
+    },
+    [scheduleRender, isHexGrid, onHexHover, tool, screenToMap, map]
+  )
+
   const handleMouseUp = React.useCallback(() => {
     isPanningRef.current = false
+    setIsPanningState(false)
   }, [])
 
-  // Handle touch events for mobile
+  const handleMouseLeave = React.useCallback(() => {
+    isPanningRef.current = false
+    setIsPanningState(false)
+    if (onHexHover) {
+      onHexHover(null)
+    }
+  }, [onHexHover])
+
+  // Touch handlers
   const touchStateRef = React.useRef<{
     x: number
     y: number
@@ -364,14 +473,21 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
         viewport.offsetX = e.touches[0].clientX - touchStateRef.current.x
         viewport.offsetY = e.touches[0].clientY - touchStateRef.current.y
         scheduleRender()
-      } else if (e.touches.length === 2 && touchStateRef.current.distance && touchStateRef.current.initialZoom) {
+      } else if (
+        e.touches.length === 2 &&
+        touchStateRef.current.distance &&
+        touchStateRef.current.initialZoom
+      ) {
         const newDistance = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         )
 
         const scale = newDistance / touchStateRef.current.distance
-        const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, touchStateRef.current.initialZoom * scale))
+        const newZoom = Math.max(
+          MIN_ZOOM,
+          Math.min(MAX_ZOOM, touchStateRef.current.initialZoom * scale)
+        )
 
         const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2
         const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2
@@ -393,36 +509,22 @@ export function MapCanvas({ map, className = '' }: MapCanvasProps) {
     touchStateRef.current = { x: 0, y: 0 }
   }, [])
 
-  // Track panning state for cursor
-  const [isPanningState, setIsPanningState] = React.useState(false)
-
-  const handleMouseDownWithState = React.useCallback(
-    (e: React.MouseEvent) => {
-      handleMouseDown(e)
-      if (e.button === 0) setIsPanningState(true)
-    },
-    [handleMouseDown]
-  )
-
-  const handleMouseUpWithState = React.useCallback(() => {
-    handleMouseUp()
-    setIsPanningState(false)
-  }, [handleMouseUp])
+  const cursor = getCursorForTool(tool, isPanningState)
 
   return (
     <div className={`relative ${className}`}>
       <div
         ref={containerRef}
         className="h-full w-full overflow-hidden border-3 border-ink bg-white"
-        style={{ cursor: isPanningState ? 'grabbing' : 'grab' }}
+        style={{ cursor }}
       >
         <canvas
           ref={canvasRef}
           onWheel={handleWheel}
-          onMouseDown={handleMouseDownWithState}
+          onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUpWithState}
-          onMouseLeave={handleMouseUpWithState}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
