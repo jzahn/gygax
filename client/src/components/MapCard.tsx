@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useNavigate } from 'react-router'
 import type { Map } from '@gygax/shared'
+import { MapPreview } from './MapPreview'
 
 interface MapCardProps {
   map: Map
@@ -21,45 +22,6 @@ function SquareGridPreview() {
       ))}
       {[0, 12, 24, 36, 48, 60].map((y) => (
         <line key={`h${y}`} x1={0} y1={y} x2={60} y2={y} />
-      ))}
-    </svg>
-  )
-}
-
-function HexGridPreview() {
-  // Flat-top hex grid (matching MapCanvas algorithm)
-  const size = 8 // circumradius
-  const hexHeight = Math.sqrt(3) * size
-  const horizSpacing = size * 1.5
-  const vertSpacing = hexHeight
-
-  const hexPoints = (cx: number, cy: number) => {
-    const points = []
-    for (let i = 0; i < 6; i++) {
-      const angleDeg = 60 * i
-      const angleRad = (Math.PI / 180) * angleDeg
-      points.push(`${cx + size * Math.cos(angleRad)},${cy + size * Math.sin(angleRad)}`)
-    }
-    return points.join(' ')
-  }
-
-  const hexes: { cx: number; cy: number }[] = []
-  for (let col = 0; col < 5; col++) {
-    for (let row = 0; row < 4; row++) {
-      const cx = size + col * horizSpacing
-      const cy = hexHeight / 2 + row * vertSpacing + (col % 2 === 1 ? vertSpacing / 2 : 0)
-      hexes.push({ cx, cy })
-    }
-  }
-
-  return (
-    <svg
-      viewBox="0 0 60 50"
-      className="h-full w-full"
-      style={{ stroke: '#1a1a1a', strokeWidth: 1, fill: 'none' }}
-    >
-      {hexes.map((hex, i) => (
-        <polygon key={i} points={hexPoints(hex.cx, hex.cy)} />
       ))}
     </svg>
   )
@@ -110,10 +72,16 @@ export function MapCard({ map, onEdit, onDelete }: MapCardProps) {
       onClick={handleCardClick}
       className="group cursor-pointer border-3 border-ink bg-parchment-100 shadow-brutal transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
     >
-      {/* Grid Preview */}
-      <div className="border-b-3 border-ink bg-white p-4">
+      {/* Map Preview */}
+      <div className="border-b-3 border-ink bg-white">
         <div className="aspect-video w-full">
-          {map.gridType === 'SQUARE' ? <SquareGridPreview /> : <HexGridPreview />}
+          {map.gridType === 'SQUARE' ? (
+            <div className="flex h-full items-center justify-center p-4">
+              <SquareGridPreview />
+            </div>
+          ) : (
+            <MapPreview map={map} />
+          )}
         </div>
       </div>
 
