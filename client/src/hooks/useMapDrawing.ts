@@ -1,15 +1,22 @@
 import * as React from 'react'
 import type { HexCoord, TerrainType, MapContent, TerrainStamp } from '@gygax/shared'
 import { hexKey, parseHexKey } from '../utils/hexUtils'
+import { getRandomVariant } from '../utils/terrainIcons'
 
 export type DrawingTool = 'pan' | 'terrain' | 'erase'
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
+// Stored terrain data includes the variant
+export interface StoredTerrain {
+  terrain: TerrainType
+  variant: 0 | 1 | 2
+}
 
 export interface DrawingState {
   tool: DrawingTool
   previousTool: DrawingTool
   selectedTerrain: TerrainType
-  terrain: Map<string, TerrainType>
+  terrain: Map<string, StoredTerrain>
   hoveredHex: HexCoord | null
   saveStatus: SaveStatus
   isSpaceHeld: boolean
@@ -30,18 +37,22 @@ interface UseMapDrawingReturn {
   handleSpaceUp: () => void
 }
 
-function terrainArrayToMap(stamps: TerrainStamp[]): Map<string, TerrainType> {
-  const map = new Map<string, TerrainType>()
+function terrainArrayToMap(stamps: TerrainStamp[]): Map<string, StoredTerrain> {
+  const map = new Map<string, StoredTerrain>()
   for (const stamp of stamps) {
-    map.set(hexKey(stamp.hex), stamp.terrain)
+    map.set(hexKey(stamp.hex), {
+      terrain: stamp.terrain,
+      variant: stamp.variant ?? 0,
+    })
   }
   return map
 }
 
-function terrainMapToArray(terrain: Map<string, TerrainType>): TerrainStamp[] {
-  return Array.from(terrain.entries()).map(([key, type]) => ({
+function terrainMapToArray(terrain: Map<string, StoredTerrain>): TerrainStamp[] {
+  return Array.from(terrain.entries()).map(([key, stored]) => ({
     hex: parseHexKey(key),
-    terrain: type,
+    terrain: stored.terrain,
+    variant: stored.variant,
   }))
 }
 
@@ -187,7 +198,10 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
           if (s.selectedTerrain === 'clear') {
             newTerrain.delete(key)
           } else {
-            newTerrain.set(key, s.selectedTerrain)
+            newTerrain.set(key, {
+              terrain: s.selectedTerrain,
+              variant: getRandomVariant(),
+            })
           }
         } else {
           return s // Pan tool doesn't stamp

@@ -119,6 +119,7 @@ export type NaturalTerrain =
   | 'water'
   | 'volcano'
   | 'barren'
+  | 'caves'
 
 // Settlement/POI types
 export type SettlementTerrain =
@@ -127,7 +128,6 @@ export type SettlementTerrain =
   | 'capitol'
   | 'city'
   | 'town'
-  | 'caves'
 
 export type TerrainType = NaturalTerrain | SettlementTerrain
 
@@ -135,6 +135,7 @@ export type TerrainType = NaturalTerrain | SettlementTerrain
 export interface TerrainStamp {
   hex: HexCoord
   terrain: TerrainType
+  variant: 0 | 1 | 2  // Each terrain has 3 visual variants
 }
 
 // Complete map drawing content

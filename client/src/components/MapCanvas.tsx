@@ -1,6 +1,6 @@
 import * as React from 'react'
 import type { Map, HexCoord, TerrainType } from '@gygax/shared'
-import type { DrawingState, DrawingTool } from '../hooks/useMapDrawing'
+import type { DrawingState, DrawingTool, StoredTerrain } from '../hooks/useMapDrawing'
 import { hexToPixel, pixelToHex, isHexInBounds } from '../utils/hexUtils'
 import { renderTerrainIcon } from '../utils/terrainIcons'
 
@@ -82,13 +82,13 @@ function drawHexGrid(ctx: CanvasRenderingContext2D, map: Map) {
 // Draw terrain icons for hex grids
 function drawTerrain(
   ctx: CanvasRenderingContext2D,
-  terrain: Map<string, TerrainType>,
+  terrain: Map<string, StoredTerrain>,
   cellSize: number
 ) {
-  terrain.forEach((terrainType, key) => {
+  terrain.forEach((stored, key) => {
     const [col, row] = key.split(',').map(Number)
     const { x, y } = hexToPixel({ col, row }, cellSize)
-    renderTerrainIcon(ctx, x, y, terrainType, cellSize)
+    renderTerrainIcon(ctx, x, y, stored.terrain, cellSize, stored.variant)
   })
 }
 

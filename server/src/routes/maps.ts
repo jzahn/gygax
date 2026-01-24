@@ -120,6 +120,16 @@ function validateMapContent(
     if (typeof s.terrain !== 'string' || !VALID_TERRAIN_TYPES.includes(s.terrain as TerrainType)) {
       return { valid: false, message: `Invalid terrain type: ${s.terrain}` }
     }
+
+    // Validate variant (0, 1, or 2)
+    if (s.variant !== undefined) {
+      if (typeof s.variant !== 'number' || !Number.isInteger(s.variant)) {
+        return { valid: false, message: 'Variant must be an integer' }
+      }
+      if (s.variant < 0 || s.variant > 2) {
+        return { valid: false, message: 'Variant must be 0, 1, or 2' }
+      }
+    }
   }
 
   return { valid: true }

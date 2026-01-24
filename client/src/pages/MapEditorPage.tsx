@@ -7,6 +7,7 @@ import { MapToolbar } from '../components/MapToolbar'
 import { CreateMapModal, MapFormData } from '../components/CreateMapModal'
 import { DeleteMapDialog } from '../components/DeleteMapDialog'
 import { useMapDrawing, SaveStatus } from '../hooks/useMapDrawing'
+import { preloadTerrainImages } from '../utils/terrainIcons'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -110,6 +111,11 @@ export function MapEditorPage() {
   React.useEffect(() => {
     fetchMap()
   }, [fetchMap])
+
+  // Preload terrain images
+  React.useEffect(() => {
+    preloadTerrainImages()
+  }, [])
 
   const handleEditMap = async (data: MapFormData) => {
     if (!map) return
