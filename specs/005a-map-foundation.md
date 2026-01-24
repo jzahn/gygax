@@ -318,10 +318,11 @@ interface MapCanvasProps {
 
 The map should look like an illustration from the Moldvay B/X rulebook or an adventure module - crisp black ink on white paper.
 
-- **Canvas background**: Pure white (#FFFFFF) - like a page from the rulebook
+- **Hex map background**: Black (#1a1a1a) outside the hex grid bounds, white (#FFFFFF) inside hexes. This frames the irregular hex grid edges and makes the map pop.
+- **Square map background**: Black (#1a1a1a) outside the map bounds, white (#FFFFFF) inside the map area. Consistent framing with hex maps.
 - **Grid lines**: Black ink (#1a1a1a), thin (1px at 1x zoom)
 - **Line style**: Crisp, no anti-aliasing (hand-drawn pen-and-ink feel)
-- **Container**: The canvas sits within a parchment-background container with thick black border (3px, like campaign cards), creating contrast between the white map and the textured page surround
+- **Container**: The canvas sits within a parchment-background container with thick black border (3px, like campaign cards)
 
 This creates a visual hierarchy: the map is a "document" sitting on the parchment desk/page of the application.
 
@@ -559,7 +560,9 @@ The map canvas should evoke the look of illustrations from the 1981 Moldvay Basi
 **Visual layers (front to back):**
 1. **Map content** (future): Black pen-and-ink walls, symbols, and annotations
 2. **Grid**: Thin black lines forming the underlying structure
-3. **Canvas**: Pure white background (#FFFFFF)
+3. **Canvas background**:
+   - Hex maps: Black outside hex bounds, white inside hexes
+   - Square maps: Black outside map bounds, white inside map area
 4. **Border**: Thick black border (3px) framing the map
 5. **Page surround**: Parchment texture visible around the map
 
@@ -603,7 +606,8 @@ For the card preview (not the actual canvas), use a simple CSS or SVG pattern:
 **Hex Preview:**
 - Simplified hex pattern
 - ~3-4 hexes visible
-- Same white background with black border treatment
+- Black background with white hexes (matching actual map style)
+- Thick black border around preview
 
 ### Canvas Interaction States
 

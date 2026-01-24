@@ -8,8 +8,8 @@ Add text labels and path drawing tools (roads, rivers, borders, trails) to hex m
 
 ### In Scope
 
-- Text labels with free positioning and 4 size options
-- Path tools: road, river, border, trail
+- Text labels with free positioning and 4 size options (works on both hex and square grids)
+- Path tools: road, river, stream, border, trail (hex grids only)
 - Snap-to-hex behavior (vertices snap to hex centers, corners, and edge midpoints)
 - Layer ordering: all paths below terrain icons, labels on top
 - B/X aesthetic for all visual elements
@@ -20,7 +20,7 @@ Add text labels and path drawing tools (roads, rivers, borders, trails) to hex m
 - Label rotation
 - Path labels (text along path)
 - Undo/redo system (future enhancement)
-- Dungeon paths (indoor/square grid maps)
+- Paths on square grid maps (indoor maps use walls instead)
 
 ## Dependencies
 
@@ -295,13 +295,25 @@ interface LabelEditorProps {
 **Update Render Order (client/src/components/MapCanvas.tsx):**
 
 ```
-1. White background
-2. Grid lines (lowest layer - everything renders on top)
-3. All paths (roads, rivers, borders, trails)
-4. Terrain icons
-5. Labels
-6. Hover previews (snap point indicator, path preview, label preview)
-7. Selection indicators (selected path vertices, selected label highlight)
+Hex maps:
+1. Black background (outside hex bounds)
+2. White hex fills
+3. Grid lines
+4. All paths (roads, rivers, borders, trails)
+5. Terrain icons
+6. Labels
+7. Hover previews
+8. Selection indicators
+
+Square maps:
+1. Black background (outside map bounds)
+2. White map area fill
+3. Walls (spec 005d)
+4. Grid lines
+5. Features (spec 005d)
+6. Labels
+7. Hover previews
+8. Selection indicators
 ```
 
 **Path Rendering Styles:**

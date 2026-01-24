@@ -185,9 +185,9 @@ Web application (SPA frontend + API backend)
 1. DM opens map editor from campaign workspace
 2. DM selects grid type: hex (outdoor/wilderness) or square (indoor/dungeon)
 3. DM sets map dimensions
-4. DM draws walls and corridors using pen/brush tool
-5. DM fills areas with terrain patterns (stone, dirt, water, grass, forest)
-6. DM places stamps for features (doors, secret doors, stairs, pillars, etc.)
+4. For hex maps: DM stamps terrain types (forest, mountains, water, etc.)
+5. For square maps: DM clicks cells to place walls (black), leaving white floor space
+6. DM places feature stamps (doors, secret doors, stairs, pillars, etc.)
 7. DM adds text labels for room names or notes
 8. Map auto-saves; DM can return to edit it anytime
 
@@ -493,8 +493,8 @@ Character sheets should look like the original B/X character sheet from the Mold
 Maps should evoke the classic black-and-white style of the original Moldvay Basic and Expert rulebooks (1981):
 
 - **Color palette:** Strictly black, white, and grayscale
-- **Line work:** Clean, hand-drawn appearance with solid black lines for walls and boundaries
-- **Fill patterns:** Crosshatching, stippling, and simple patterns for terrain (stone, water, forest)
+- **Line work:** Clean, hand-drawn appearance with solid black for walls (filled cells) and boundaries
+- **Terrain icons:** Simple symbolic stamps for wilderness terrain (forest, mountains, water, settlements)
 - **Typography:** Simple, utilitarian labels reminiscent of 1980s TSR cartography
 - **Grid style:** Thin lines for hex/square grids; grids should feel functional, not decorative
 - **Icons:** Simple symbolic icons for doors, stairs, traps, and features (not detailed illustrations)
@@ -504,9 +504,10 @@ Maps should evoke the classic black-and-white style of the original Moldvay Basi
 
 DMs draw maps directly in the application using:
 
-- **Brush/pen tools** for walls, corridors, and terrain boundaries
-- **Fill tools** with preset patterns (stone floor, dirt, water, grass, forest, etc.)
-- **Stamp tools** for common dungeon features (doors, secret doors, stairs, pillars, statues)
+- **Terrain stamps** (hex maps) for wilderness features (forest, mountains, water, settlements, etc.)
+- **Wall tool** (square maps) to click cells and fill them black, creating dungeon walls
+- **Feature stamps** (square maps) for dungeon elements (doors, stairs, pillars, statues, traps)
+- **Path tools** (hex maps) for roads, rivers, borders, and trails
 - **Text tool** for room labels and annotations
 - **Eraser** for corrections
 - **Grid toggle** between hex (outdoor) and square (indoor) modes
@@ -557,8 +558,8 @@ Modular monolith with clear separation between:
   /src
     /components      # UI components (Chat, Map, PlayerCards, etc.)
     /canvas          # Map rendering logic (hex grid, square grid, fog)
-    /editor          # Map editor tools (brushes, stamps, patterns, fills)
-    /assets          # Fill patterns, icons, stamps (B/X style graphics)
+    /editor          # Map editor tools (terrain, walls, features, paths)
+    /assets          # Terrain icons, feature stamps (B/X style graphics)
     /hooks           # Custom React hooks (useWebSocket, useAudio, etc.)
     /stores          # State management (game state, user state)
     /utils           # Dice parser, formatters, helpers

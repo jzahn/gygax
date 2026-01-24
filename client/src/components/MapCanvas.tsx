@@ -80,6 +80,45 @@ function drawSquareGrid(ctx: CanvasRenderingContext2D, map: Map) {
   ctx.stroke()
 }
 
+// Get hex corner point
+function hexCorner(cx: number, cy: number, size: number, i: number) {
+  const angleDeg = 60 * i
+  const angleRad = (Math.PI / 180) * angleDeg
+  return {
+    x: cx + size * Math.cos(angleRad),
+    y: cy + size * Math.sin(angleRad),
+  }
+}
+
+// Fill all hexes with white (called before drawing grid lines)
+function fillHexes(ctx: CanvasRenderingContext2D, map: Map) {
+  const { width, height, cellSize } = map
+
+  const size = cellSize / 2
+  const hexHeight = Math.sqrt(3) * size
+  const horizSpacing = size * 1.5
+  const vertSpacing = hexHeight
+
+  ctx.fillStyle = '#FFFFFF'
+
+  for (let col = 0; col < width; col++) {
+    for (let row = 0; row < height; row++) {
+      const cx = size + col * horizSpacing
+      const cy = hexHeight / 2 + row * vertSpacing + (col % 2 === 1 ? vertSpacing / 2 : 0)
+
+      ctx.beginPath()
+      const start = hexCorner(cx, cy, size, 0)
+      ctx.moveTo(start.x, start.y)
+      for (let i = 1; i <= 6; i++) {
+        const corner = hexCorner(cx, cy, size, i % 6)
+        ctx.lineTo(corner.x, corner.y)
+      }
+      ctx.closePath()
+      ctx.fill()
+    }
+  }
+}
+
 // Draw hex grid (flat-top orientation, odd-q offset)
 function drawHexGrid(ctx: CanvasRenderingContext2D, map: Map) {
   const { width, height, cellSize } = map
@@ -91,24 +130,15 @@ function drawHexGrid(ctx: CanvasRenderingContext2D, map: Map) {
 
   ctx.beginPath()
 
-  function hexCorner(cx: number, cy: number, i: number) {
-    const angleDeg = 60 * i
-    const angleRad = (Math.PI / 180) * angleDeg
-    return {
-      x: cx + size * Math.cos(angleRad),
-      y: cy + size * Math.sin(angleRad),
-    }
-  }
-
   for (let col = 0; col < width; col++) {
     for (let row = 0; row < height; row++) {
       const cx = size + col * horizSpacing
       const cy = hexHeight / 2 + row * vertSpacing + (col % 2 === 1 ? vertSpacing / 2 : 0)
 
-      const start = hexCorner(cx, cy, 0)
+      const start = hexCorner(cx, cy, size, 0)
       ctx.moveTo(start.x, start.y)
       for (let i = 1; i <= 6; i++) {
-        const corner = hexCorner(cx, cy, i % 6)
+        const corner = hexCorner(cx, cy, size, i % 6)
         ctx.lineTo(corner.x, corner.y)
       }
     }
@@ -313,7 +343,8 @@ export function MapCanvas({
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
 
-    ctx.fillStyle = '#FFFFFF'
+    // Black background outside map bounds (both grid types)
+    ctx.fillStyle = '#1a1a1a'
     ctx.fillRect(0, 0, displayWidth, displayHeight)
 
     ctx.save()
@@ -323,7 +354,17 @@ export function MapCanvas({
     // Calculate visible bounds for culling
     const visibleBounds = getVisibleBounds(viewport, displayWidth, displayHeight)
 
-    // 1. Draw grid lines (lowest layer)
+    // 1. Fill map area with white
+    if (isHexGrid) {
+      // Hex maps: fill each hex with white
+      fillHexes(ctx, map)
+    } else {
+      // Square maps: fill entire map rectangle with white
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fillRect(0, 0, map.width * map.cellSize, map.height * map.cellSize)
+    }
+
+    // 2. Draw grid lines
     ctx.strokeStyle = '#1a1a1a'
     ctx.lineWidth = 1 / viewport.zoom
 
@@ -333,7 +374,7 @@ export function MapCanvas({
       drawHexGrid(ctx, map)
     }
 
-    // 2. Draw all paths (with viewport culling)
+    // 3. Draw all paths (with viewport culling)
     if (drawingState?.paths) {
       for (const path of drawingState.paths) {
         const bounds = getPathBounds(path)
@@ -348,12 +389,12 @@ export function MapCanvas({
       }
     }
 
-    // 3. Draw terrain icons (on top of paths, with viewport culling)
+    // 4. Draw terrain icons (on top of paths, with viewport culling)
     if (isHexGrid && drawingState?.terrain) {
       drawTerrainCulled(ctx, drawingState.terrain, map.cellSize, visibleBounds)
     }
 
-    // 4. Draw labels (with viewport culling)
+    // 5. Draw labels (with viewport culling)
     if (drawingState?.labels) {
       for (const label of drawingState.labels) {
         // Don't render label being edited (it will be shown as input)
@@ -374,7 +415,7 @@ export function MapCanvas({
       }
     }
 
-    // 5. Draw path preview (while drawing)
+    // 6. Draw path preview (while drawing)
     if (drawingState?.pathInProgress && tool === 'path') {
       renderPathPreview(
         ctx,
@@ -385,18 +426,18 @@ export function MapCanvas({
       )
     }
 
-    // 6. Draw snap indicator
+    // 7. Draw snap indicator
     if (tool === 'path' && snapPoint) {
       renderSnapIndicator(ctx, snapPoint, viewport.zoom)
     }
 
-    // 7. Draw hover preview for terrain/erase (but not when over a path/label in erase mode)
+    // 8. Draw hover preview for terrain/erase (but not when over a path/label in erase mode)
     const showErasePreview = tool === 'erase' && !isOverPath && !isOverLabel
     if (isHexGrid && drawingState?.hoveredHex && (tool === 'terrain' || showErasePreview)) {
       drawHoverPreview(ctx, drawingState.hoveredHex, tool, drawingState.selectedTerrain, map.cellSize)
     }
 
-    // 8. Draw selected path handles
+    // 9. Draw selected path handles
     if (drawingState?.selectedPathId) {
       const selectedPath = drawingState.paths.find((p) => p.id === drawingState.selectedPathId)
       if (selectedPath) {

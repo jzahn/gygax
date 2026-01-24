@@ -2,24 +2,26 @@
 
 ## Goal
 
-Implement wall drawing and dungeon feature tools for square grid maps, enabling DMs to create classic B/X-style dungeon maps. White rooms with solid black walls, simple feature icons for doors, stairs, and other dungeon elements.
+Implement wall placement and dungeon feature tools for square grid maps, enabling DMs to create classic B/X-style dungeon maps. White floors with solid black wall cells, rotatable feature stamps for doors, stairs, and other dungeon elements.
 
 ## Scope
 
 ### In Scope
 
-- Wall drawing tool for square grid maps
-- Wall segments stored as line data
-- Dungeon feature stamps (doors, secret doors, stairs, pillars, etc.)
-- B/X dungeon aesthetic (black walls on white, no floor patterns)
-- Labels and paths work on square grids (reuse from 005c)
+- Wall tool: click cells to fill them black (walls)
+- Dungeon feature stamps with rotation (doors, stairs, altars, etc.)
+- Features of various sizes: 1x1, 1x2, 2x2
+- Z key to rotate features before placement
+- Erase tool works on both walls and features
+- Labels work on square grids (reuse from 005c)
+- B/X dungeon aesthetic (black walls on white floors)
 
 ### Out of Scope
 
-- Floor fill patterns (floors are white/empty)
 - Hex grid support (hex maps use terrain stamping from 005b)
 - Room auto-detection or numbering
 - Undo/redo system (future enhancement)
+- Features larger than 2x2 (future enhancement)
 
 ## Dependencies
 
@@ -31,55 +33,97 @@ Implement wall drawing and dungeon feature tools for square grid maps, enabling 
 
 ## Detailed Requirements
 
-### 1. Data Model Updates
+### 1. Conceptual Model
+
+**How it works:**
+
+1. Map opens as all white (empty floor)
+2. DM selects Wall tool and clicks cells to fill them black
+3. Black cells = walls, white cells = explorable floor
+4. DM switches to Feature tool to place dungeon features
+5. Before placing, DM can press Z to rotate the feature 90°
+6. Click to stamp the feature at the desired location
+7. Erase tool removes walls (click) or features (click)
+
+This mirrors the hex terrain stamping workflow but adapted for dungeon construction.
+
+### 2. Data Model
 
 **Update MapContent (shared/src/types.ts):**
 
 ```typescript
-// Wall segment (line between two points)
-export interface WallSegment {
-  id: string
-  start: MapPoint
-  end: MapPoint
-  type: WallType
+// A wall cell (filled black square)
+export interface WallCell {
+  col: number
+  row: number
 }
 
-export type WallType = 'solid' | 'door' | 'secret'
+// Dungeon feature sizes
+export type FeatureSize = '1x1' | '1x2' | '2x1' | '2x2'
 
 // Dungeon feature stamp
 export interface DungeonFeature {
   id: string
   type: FeatureType
-  position: MapPoint
+  position: { col: number; row: number }  // Top-left cell of the feature
   rotation: 0 | 90 | 180 | 270  // Degrees clockwise
 }
 
 export type FeatureType =
-  | 'door'           // Standard door (can also be drawn as wall segment)
-  | 'door-double'    // Double door
+  // Doors (1x1, placed on wall edge)
+  | 'door'           // Standard door
+  | 'door-double'    // Double door (1x2 base)
   | 'door-secret'    // Secret door (S mark)
-  | 'door-locked'    // Locked door (key mark)
+  | 'door-locked'    // Locked door
+  // Stairs (1x2 or 2x2)
   | 'stairs-up'      // Stairs going up
   | 'stairs-down'    // Stairs going down
-  | 'stairs-both'    // Stairs up and down
-  | 'pillar'         // Stone pillar (square)
-  | 'pillar-round'   // Round pillar
+  // Objects (1x1)
+  | 'pillar'         // Stone pillar
   | 'statue'         // Statue
   | 'altar'          // Altar/shrine
+  | 'fountain'       // Fountain/well
+  | 'chest'          // Treasure chest
+  | 'throne'         // Throne
+  // Hazards (1x1 or 1x2)
   | 'trap'           // Trap marker
   | 'pit'            // Pit/hole
+  // Misc
   | 'lever'          // Lever/switch
-  | 'chest'          // Treasure chest
-  | 'fountain'       // Fountain/well
+  | 'fireplace'      // Fireplace (1x2)
+  | 'table'          // Table (1x2 or 2x2)
+  | 'bed'            // Bed (1x2)
+
+// Feature type to size mapping
+export const FEATURE_SIZES: Record<FeatureType, FeatureSize> = {
+  'door': '1x1',
+  'door-double': '1x2',
+  'door-secret': '1x1',
+  'door-locked': '1x1',
+  'stairs-up': '1x2',
+  'stairs-down': '1x2',
+  'pillar': '1x1',
+  'statue': '1x1',
+  'altar': '1x1',
+  'fountain': '1x1',
+  'chest': '1x1',
+  'throne': '1x1',
+  'trap': '1x1',
+  'pit': '1x1',
+  'lever': '1x1',
+  'fireplace': '1x2',
+  'table': '2x2',
+  'bed': '1x2',
+}
 
 // Updated MapContent (bump version to 3)
 export interface MapContent {
   version: number  // 1, 2, or 3
   terrain: TerrainStamp[]      // Hex maps only
-  paths?: MapPath[]
-  labels?: MapLabel[]
-  walls?: WallSegment[]        // New - square grid maps only
-  features?: DungeonFeature[]  // New - square grid maps only
+  paths?: MapPath[]            // Hex maps only
+  labels?: MapLabel[]          // Both grid types
+  walls?: WallCell[]           // Square grid maps only - NEW
+  features?: DungeonFeature[]  // Square grid maps only - NEW
 }
 ```
 
@@ -87,9 +131,8 @@ export interface MapContent {
 - Version 1-2 content remains valid (hex maps)
 - Version 3 adds optional `walls` and `features` arrays
 - Walls and features only apply to SQUARE grid maps
-- Existing terrain, paths, labels continue to work
 
-### 2. API Updates
+### 3. API Updates
 
 #### PATCH /api/maps/:id
 
@@ -104,18 +147,15 @@ Update content validation to accept walls and features.
     "paths": [],
     "labels": [],
     "walls": [
-      {
-        "id": "wall_abc123",
-        "start": { "x": 0, "y": 0 },
-        "end": { "x": 100, "y": 0 },
-        "type": "solid"
-      }
+      { "col": 0, "row": 0 },
+      { "col": 1, "row": 0 },
+      { "col": 2, "row": 0 }
     ],
     "features": [
       {
         "id": "feat_xyz789",
         "type": "door",
-        "position": { "x": 50, "y": 0 },
+        "position": { "col": 5, "row": 3 },
         "rotation": 0
       }
     ]
@@ -124,143 +164,100 @@ Update content validation to accept walls and features.
 ```
 
 **Validation:**
-- `walls`: Optional array of WallSegment objects
-- `walls[].id`: Required string
-- `walls[].start/end`: Required MapPoint objects
-- `walls[].type`: Required, must be 'solid' | 'door' | 'secret'
+- `walls`: Optional array of WallCell objects
+- `walls[].col/row`: Required integers, must be within map bounds
 - `features`: Optional array of DungeonFeature objects
 - `features[].id`: Required string
 - `features[].type`: Required, must be valid FeatureType
-- `features[].position`: Required MapPoint
+- `features[].position`: Required {col, row}, must be within map bounds
 - `features[].rotation`: Required, must be 0, 90, 180, or 270
-- Coordinates must be within map bounds
-
-### 3. Square Grid Utilities
-
-**Add to client/src/utils/gridUtils.ts:**
-
-```typescript
-/**
- * Snap a point to the nearest grid intersection or cell center
- */
-export function snapToSquareGrid(
-  point: MapPoint,
-  cellSize: number,
-  snapMode: 'intersection' | 'center' | 'edge'
-): MapPoint
-
-/**
- * Get the four corners of a grid cell
- */
-export function getCellCorners(
-  col: number,
-  row: number,
-  cellSize: number
-): MapPoint[]
-
-/**
- * Get the center point of a grid cell
- */
-export function getCellCenter(
-  col: number,
-  row: number,
-  cellSize: number
-): MapPoint
-
-/**
- * Find the nearest snap point for wall drawing
- * Walls snap to grid intersections (corners)
- */
-export function findNearestWallSnapPoint(
-  position: MapPoint,
-  cellSize: number,
-  mapWidth: number,
-  mapHeight: number,
-  snapThreshold: number
-): { point: MapPoint; distance: number } | null
-```
-
-**Snap Behavior:**
-- Walls snap to grid intersections (line corners)
-- Features snap to cell centers or edges depending on type
-- Snap threshold: 15 pixels at 100% zoom (scales with zoom)
+- Feature must fit within map bounds considering its size and rotation
 
 ### 4. Drawing Tools
 
-**Update Drawing Tool Type:**
+**Tool Types for Square Grid:**
 
 ```typescript
 export type DrawingTool =
   | 'pan'
-  | 'terrain'   // Hex maps only
+  | 'terrain'   // Hex maps only (hidden for square)
+  | 'path'      // Hex maps only (hidden for square)
   | 'wall'      // Square maps only - NEW
   | 'feature'   // Square maps only - NEW
-  | 'path'
-  | 'label'
-  | 'erase'
+  | 'label'     // Both grid types
+  | 'erase'     // Both grid types
 ```
 
 #### Wall Tool
 
 **Behavior:**
 1. Select Wall tool from toolbar (W key)
-2. Click on grid intersection to start wall
-3. Click on another intersection to complete segment
-4. Wall renders as thick black line
-5. Continue clicking to add connected segments
-6. Double-click or Enter to finish
-7. Escape cancels current wall
+2. Select mode from palette: Add (filled square) or Remove (empty square)
+3. In Add mode: click cells to fill them black
+4. In Remove mode: click walls to remove them
+5. Click and drag to paint/remove multiple cells
 
-**Wall Types:**
-- **Solid** (default): Thick black line
-- **Door**: Gap in wall with door icon
-- **Secret**: Dotted line with 'S' marker
+**Wall Palette:**
+- **Add mode** (default): Filled black square icon - click to add walls
+- **Remove mode**: Empty square with border icon - click to remove walls
 
-**Drawing Modes:**
-- Single segment: Click start, click end
-- Continuous: Keep clicking to chain segments
-- Orthogonal constraint: Hold Shift for horizontal/vertical only
+**Visual:**
+- Wall cells are solid black (#1a1a1a)
+- Covers the entire cell
+- Grid lines still visible at cell edges
 
 #### Feature Tool
 
 **Behavior:**
 1. Select Feature tool from toolbar (F key)
 2. Select feature type from palette
-3. Click on map to place feature
-4. Feature snaps to appropriate grid position
-5. R key rotates selected feature 90° clockwise
-6. Click placed feature to select, drag to move
+3. Feature preview follows cursor, snapped to grid
+4. Press Z to rotate 90° clockwise (or click rotate buttons)
+5. Click to stamp the feature
+6. Feature occupies cells based on its size and rotation
 
-**Feature Placement:**
-- Doors: Snap to cell edges (between cells)
-- Pillars/statues: Snap to cell centers or intersections
-- Stairs: Snap to cell centers, span one cell
-- Other features: Snap to cell centers
+**Rotation:**
+- Z key rotates 90° clockwise
+- Shift+Z rotates 90° counter-clockwise (optional)
+- Rotation buttons in palette for mouse users
+- Preview updates immediately when rotating
+
+**Size and Rotation:**
+- 1x1 features: rotation affects icon orientation only
+- 1x2 features: at 0°/180° = horizontal, at 90°/270° = vertical
+- 2x2 features: rotation affects icon orientation
+
+**Placement Rules:**
+- Feature position is the top-left cell it occupies
+- Features can overlap wall cells (e.g., door in a wall)
+- Features cannot extend beyond map bounds
+- Preview shows red tint when out of bounds; click does nothing
+
+**Feature Editing (after placement):**
+- Click on placed feature to select it
+- Drag selected feature to move it
+- Press Z to rotate selected feature 90°
+- Press Delete to remove selected feature
+- Click elsewhere or Escape to deselect
 
 ### 5. UI Components
 
 #### Wall Palette (client/src/components/WallPalette.tsx)
 
-Appears when Wall tool is selected.
+When Wall tool is selected, show mode selector:
 
-**Layout:**
 ```
 ┌───────────┐
 │   WALL    │
 ├───────────┤
-│ ━━━ Solid │  ← Default, thick black
-│ ┄┄┄ Door  │  ← Gap with door mark
-│ ··· Secret│  ← Dotted line
-├───────────┤
-│ [Ortho]   │  ← Toggle orthogonal lock
+│  [■] Add  │  ← Default, fills cells black
+│  [□] Remove│  ← Removes wall cells
 └───────────┘
 ```
 
 **Keyboard shortcuts (when Wall tool active):**
-- 1 = Solid wall
-- 2 = Door wall
-- 3 = Secret wall
-- Shift = Orthogonal constraint (hold)
+- 1 = Add mode
+- 2 = Remove mode
 
 #### Feature Palette (client/src/components/FeaturePalette.tsx)
 
@@ -268,141 +265,200 @@ Appears when Feature tool is selected.
 
 **Layout:**
 ```
-┌───────────┐
-│  FEATURE  │
-├───────────┤
-│ Doors     │
-│  [🚪][🚪🚪]│  door, double
-│  [S][🔑]  │  secret, locked
-├───────────┤
-│ Stairs    │
-│  [↑][↓]   │  up, down
-│  [↕]      │  both
-├───────────┤
-│ Objects   │
-│  [▢][●]   │  pillar, round
-│  [🗿][⛩]  │  statue, altar
-├───────────┤
-│ Hazards   │
-│  [⚠][◯]   │  trap, pit
-├───────────┤
-│ Misc      │
-│  [⚙][📦]  │  lever, chest
-│  [⛲]      │  fountain
-└───────────┘
+┌─────────────────┐
+│    FEATURE      │
+├─────────────────┤
+│ [↶] Rotate [↷]  │  ← Z / Shift+Z
+├─────────────────┤
+│ Doors           │
+│  [🚪] [🚪🚪]    │  door, double
+│  [S] [🔑]       │  secret, locked
+├─────────────────┤
+│ Stairs          │
+│  [↑] [↓]        │  up, down
+├─────────────────┤
+│ Furnishings     │
+│  [▢] [🗿]       │  pillar, statue
+│  [⛩] [⛲]       │  altar, fountain
+│  [📦] [👑]      │  chest, throne
+│  [🛏] [🪑]      │  bed, table
+│  [🔥]           │  fireplace
+├─────────────────┤
+│ Hazards         │
+│  [⚠] [◯]       │  trap, pit
+├─────────────────┤
+│ Misc            │
+│  [⚙]            │  lever
+└─────────────────┘
 ```
 
 **Keyboard shortcuts (when Feature tool active):**
-- R = Rotate selected feature 90°
-- Delete = Remove selected feature
+- Z = Rotate 90° clockwise
+- Shift+Z = Rotate 90° counter-clockwise
 
 ### 6. Canvas Rendering
 
-**Update Render Order for Square Grid Maps:**
+**Render Order for Square Grid Maps:**
 
 ```
-1. White background
-2. Grid lines (thin gray squares)
-3. Paths (roads, etc. - if any)
-4. Walls (thick black lines)
-5. Features (doors, stairs, etc.)
+1. Black background (outside map bounds, like hex maps)
+2. White fill (map area)
+3. Wall cells (solid black fills)
+4. Grid lines (thin black)
+5. Features (stamps)
 6. Labels
-7. Hover previews
+7. Feature preview (when placing)
 8. Selection indicators
 ```
 
-**Wall Rendering Style:**
+**Wall Rendering:**
 
 ```typescript
-function renderWall(
+function renderWalls(
   ctx: CanvasRenderingContext2D,
-  wall: WallSegment,
-  zoom: number
+  walls: WallCell[],
+  cellSize: number
 ) {
-  const lineWidth = 4 * zoom  // Thick walls
+  ctx.fillStyle = '#1a1a1a'
 
-  ctx.strokeStyle = '#1a1a1a'
-  ctx.lineWidth = lineWidth
-  ctx.lineCap = 'square'
-
-  switch (wall.type) {
-    case 'solid':
-      ctx.setLineDash([])
-      break
-    case 'door':
-      // Draw wall with gap, add door symbol
-      renderDoorWall(ctx, wall, zoom)
-      return
-    case 'secret':
-      ctx.setLineDash([4 * zoom, 4 * zoom])
-      break
+  for (const wall of walls) {
+    ctx.fillRect(
+      wall.col * cellSize,
+      wall.row * cellSize,
+      cellSize,
+      cellSize
+    )
   }
-
-  ctx.beginPath()
-  ctx.moveTo(wall.start.x, wall.start.y)
-  ctx.lineTo(wall.end.x, wall.end.y)
-  ctx.stroke()
-  ctx.setLineDash([])
 }
 ```
 
 **Feature Rendering:**
 
-Features use pre-rendered PNG images (like terrain) or simple procedural drawing:
+Features use pre-rendered PNG images:
 
 ```
 /features/{type}.png
 ```
 
-For example: `door.png`, `stairs-up.png`, `pillar.png`
+**Image Dimensions (500px per cell):**
+- 1x1 features: 500x500 px
+- 1x2 features: 500x1000 px
+- 2x1 features: 1000x500 px
+- 2x2 features: 1000x1000 px
 
-Features are rendered at cell size, rotated according to their rotation value.
+Images are scaled down to fit the actual cell size on canvas. Rotation is applied via canvas transform.
+
+```typescript
+function renderFeature(
+  ctx: CanvasRenderingContext2D,
+  feature: DungeonFeature,
+  cellSize: number
+) {
+  const size = FEATURE_SIZES[feature.type]
+  const [baseW, baseH] = parseSize(size)  // e.g., '1x2' -> [1, 2]
+
+  // Account for rotation when calculating dimensions
+  const [w, h] = feature.rotation === 90 || feature.rotation === 270
+    ? [baseH, baseW]
+    : [baseW, baseH]
+
+  const x = feature.position.col * cellSize
+  const y = feature.position.row * cellSize
+  const width = w * cellSize
+  const height = h * cellSize
+
+  ctx.save()
+  ctx.translate(x + width / 2, y + height / 2)
+  ctx.rotate((feature.rotation * Math.PI) / 180)
+  ctx.translate(-width / 2, -height / 2)
+
+  // Draw the feature image
+  const img = featureImages.get(feature.type)
+  if (img) {
+    ctx.drawImage(img, 0, 0, width, height)
+  }
+
+  ctx.restore()
+}
+```
+
+**Grid Lines:**
+
+Grid lines render on top of walls so cell boundaries remain visible:
+
+```typescript
+function drawSquareGrid(ctx: CanvasRenderingContext2D, map: Map) {
+  ctx.strokeStyle = '#1a1a1a'  // Black (matching current style)
+  ctx.lineWidth = 1
+
+  // ... draw grid lines
+}
+```
 
 ### 7. Interaction Design
 
-#### Wall Drawing Flow
+#### Wall Painting Flow
 
 1. Select Wall tool (W key)
-2. Select wall type from palette (1/2/3 or click)
-3. Click on grid intersection - first point set
-4. Move cursor - preview line shows
-5. Click on second intersection - wall created
-6. Continue clicking to chain walls
-7. Double-click or Enter to finish
-8. Escape cancels
+2. Click on cell → cell fills black
+3. Click and drag → paint multiple cells
+4. Release mouse → stop painting
 
-**Orthogonal Mode:**
-- Hold Shift to constrain to horizontal/vertical
-- Toggle ortho lock button for persistent constraint
-
-#### Wall Editing
-
-- Click on wall to select
-- Selected wall shows endpoint handles
-- Drag handles to reposition endpoints
-- Delete key removes selected wall
-- Walls cannot overlap (new wall replaces overlapping segment)
+**Paint behavior:**
+- Like terrain stamping - tracks last painted cell to avoid re-painting same cell
+- Only paints empty (white) cells - clicking a wall does nothing
+- Use Erase tool to remove walls
 
 #### Feature Placement Flow
 
 1. Select Feature tool (F key)
 2. Select feature type from palette
-3. Click to place - feature appears at snapped position
-4. Press R to rotate 90° before or after placing
-5. Click existing feature to select
-6. Drag to reposition
-7. Delete to remove
+3. Move cursor over map → preview shows at grid-snapped position
+4. Press Z to rotate preview 90°
+5. Click to place feature
+6. Feature is stamped, preview continues for next placement
 
-### 8. Keyboard Shortcuts
+**Preview:**
+- Shows semi-transparent feature at cursor position (50% opacity)
+- Snaps to grid cells
+- Updates rotation immediately when Z pressed
+- Shows red tint when placement would be out of bounds
+- Click does nothing when preview is red (invalid placement)
+
+#### Erase Tool on Square Grid
+
+1. Select Erase tool (E key)
+2. Click on wall cell → wall removed (cell becomes white)
+3. Click on feature → feature removed
+4. Click and drag on walls → erase multiple walls
+
+**Priority:**
+- If clicking on a feature, delete the feature
+- If clicking on a wall (no feature), delete the wall
+- Clicking on empty floor does nothing
+
+### 8. Tool Visibility by Grid Type
+
+| Tool | Hex Grid | Square Grid |
+|------|----------|-------------|
+| Pan | Show | Show |
+| Terrain | Show | Hide |
+| Path | Show | Hide |
+| Wall | Hide | Show |
+| Feature | Hide | Show |
+| Label | Show | Show |
+| Erase | Show | Show |
+
+Tools that don't apply to the current grid type are **hidden entirely** from the toolbar.
+
+### 9. Keyboard Shortcuts
 
 **Tool Selection:**
 | Key | Action |
 |-----|--------|
 | P | Pan tool |
-| T | Terrain tool (hex only, disabled for square) |
-| W | Wall tool (square only) |
-| F | Feature tool (square only) |
-| R | Path tool |
+| W | Wall tool (square grid only) |
+| F | Feature tool (square grid only) |
 | L | Label tool |
 | E | Erase tool |
 | Space | Temporary pan (hold) |
@@ -410,33 +466,16 @@ Features are rendered at cell size, rotated according to their rotation value.
 **When Wall Tool Active:**
 | Key | Action |
 |-----|--------|
-| 1 | Solid wall |
-| 2 | Door wall |
-| 3 | Secret wall |
-| Shift | Orthogonal constraint (hold) |
-| Enter | Finish current wall chain |
-| Escape | Cancel current wall |
+| 1 | Add mode (paint walls) |
+| 2 | Remove mode (erase walls) |
 
 **When Feature Tool Active:**
 | Key | Action |
 |-----|--------|
-| R | Rotate feature 90° clockwise |
+| Z | Rotate feature 90° clockwise |
+| Shift+Z | Rotate feature 90° counter-clockwise |
 | Delete | Remove selected feature |
-| Escape | Deselect |
-
-### 9. Tool Visibility by Grid Type
-
-| Tool | Hex Grid | Square Grid |
-|------|----------|-------------|
-| Pan | Show | Show |
-| Terrain | Show | Hide |
-| Wall | Hide | Show |
-| Feature | Hide | Show |
-| Path | Show | Show |
-| Label | Show | Show |
-| Erase | Show | Show |
-
-Tools that don't apply to the current grid type are **hidden entirely** from the toolbar. Do not show disabled tools - this creates unnecessary clutter and confusion.
+| Escape | Deselect feature |
 
 ### 10. Drawing State Updates
 
@@ -447,40 +486,54 @@ interface DrawingState {
   // Existing fields
   tool: DrawingTool
   previousTool: DrawingTool
-  // ... terrain, paths, labels state
+  isSpaceHeld: boolean
+  saveStatus: SaveStatus
 
-  // New: Walls (square grid)
-  walls: WallSegment[]
-  selectedWallType: WallType
-  selectedWallId: string | null
-  wallInProgress: MapPoint[] | null  // Points being drawn
-  orthoLock: boolean
+  // Terrain (hex only)
+  selectedTerrain: TerrainType
+  terrain: Map<string, StoredTerrain>
+  hoveredHex: HexCoord | null
 
-  // New: Features (square grid)
+  // Paths (hex only)
+  paths: MapPath[]
+  selectedPathType: PathType
+  selectedPathId: string | null
+  pathInProgress: MapPoint[] | null
+
+  // Labels (both)
+  labels: MapLabel[]
+  selectedLabelSize: TextSize
+  selectedLabelId: string | null
+  labelEditingId: string | null
+
+  // Walls (square only) - NEW
+  walls: Set<string>  // "col,row" keys for O(1) lookup
+  wallMode: 'add' | 'remove'
+
+  // Features (square only) - NEW
   features: DungeonFeature[]
   selectedFeatureType: FeatureType
-  selectedFeatureId: string | null
   featureRotation: 0 | 90 | 180 | 270
+  selectedFeatureId: string | null
+  draggingFeature: boolean
 }
 ```
 
-### 11. Project Structure Updates
+### 11. Project Structure
 
 **New Files:**
 ```
-client/src/components/WallPalette.tsx       # Wall type selector
-client/src/components/FeaturePalette.tsx    # Feature type selector
-client/src/utils/gridUtils.ts               # Square grid snap utilities
-client/src/utils/wallUtils.ts               # Wall rendering, hit testing
-client/src/utils/featureUtils.ts            # Feature rendering
-public/features/*.png                        # Feature icon images
+client/src/components/WallPalette.tsx       # Wall mode selector (Add/Remove)
+client/src/components/FeaturePalette.tsx    # Feature type selector with rotation
+client/src/utils/featureUtils.ts            # Feature rendering, size helpers
+public/features/*.png                        # Feature icon images (AI-generated placeholders)
 ```
 
 **Modified Files:**
 ```
-shared/src/types.ts                  # WallSegment, DungeonFeature, FeatureType
-client/src/hooks/useMapDrawing.ts    # Wall/feature state
-client/src/components/MapCanvas.tsx  # Render walls/features
+shared/src/types.ts                  # WallCell, DungeonFeature, FeatureType, FEATURE_SIZES
+client/src/hooks/useMapDrawing.ts    # Wall/feature state, rotation
+client/src/components/MapCanvas.tsx  # Render walls/features, handle placement
 client/src/components/MapToolbar.tsx # Wall/Feature tools, grid-based visibility
 server/src/routes/maps.ts            # Validate walls/features in content
 ```
@@ -489,243 +542,224 @@ server/src/routes/maps.ts            # Validate walls/features in content
 
 ### Wall Aesthetic
 
-Walls should look like the classic dungeon maps from B/X:
+Walls are simple filled cells:
 
-- **Thickness:** 4px at 100% zoom (solid black)
-- **Color:** Pure black (#1a1a1a)
-- **Caps:** Square ends (not rounded)
-- **Intersections:** Clean joins at corners
-- **Doors:** Gap in wall with simple door symbol
-- **Secret doors:** Dotted line with 'S' marker
+- **Color:** Solid black (#1a1a1a)
+- **Size:** Full cell (no padding)
+- **Grid lines:** Black (#1a1a1a), render on top of walls
+- **Outside bounds:** Black (consistent with hex maps)
+
+This creates the classic dungeon map look: black walls defining corridors and rooms on white floor, framed by black outside the map bounds.
 
 ### Feature Icons
 
-Features are simple B/X-style symbols:
+Features are B/X-style symbolic icons:
 
-- **Doors:** Rectangle with line (indicates swing direction when rotated)
-- **Stairs:** Parallel lines with arrow indicating direction
-- **Pillars:** Simple square or circle
-- **Statues:** Abstract humanoid shape
-- **Traps:** Triangle warning symbol or specific trap icon
-- **Other:** Minimalist iconic representations
+- **Style:** Black line art on transparent background
+- **Resolution:** 500px per cell (1x1 = 500x500, 1x2 = 500x1000, 2x2 = 1000x1000)
+- **Rotation:** Icons should look correct at all 4 rotations
+- **Clarity:** Instantly recognizable when scaled down to cell size
 
-All features:
-- Black on white
-- Fit within one grid cell
-- Instantly recognizable at small sizes
-- Match the pen-and-ink aesthetic
+**Design guidelines:**
+- Doors: Rectangle with swing indicator
+- Stairs: Parallel lines with direction arrow
+- Furniture: Simple top-down silhouettes
+- Hazards: Warning symbols
 
-### Grid Interaction
+### Grid Lines on Top
 
-- Grid lines are thin and light gray (#CCCCCC)
-- Walls render on top of grid, obscuring grid lines they cover
-- Features render centered in cells or on edges as appropriate
-- Snap indicators show during wall/feature placement
+Grid lines render on top of walls (unlike hex maps where grid is below terrain). This keeps cell boundaries visible even in large wall sections, making it easy to count squares and place features precisely.
+
+### Out of Bounds
+
+Like hex maps, the area outside the map bounds renders as black. This frames the map and provides visual consistency across grid types.
 
 ## Acceptance Criteria
 
 ### Data Model
-- [ ] WallSegment type with id, start, end, type
-- [ ] WallType union: 'solid' | 'door' | 'secret'
+- [ ] WallCell type with col, row
 - [ ] DungeonFeature type with id, type, position, rotation
-- [ ] FeatureType union with all 15+ feature types
+- [ ] FeatureType union with all feature types
+- [ ] FEATURE_SIZES mapping for all feature types
 - [ ] MapContent updated with optional walls and features arrays
 
 ### API
 - [ ] PATCH /api/maps/:id accepts walls array
 - [ ] PATCH /api/maps/:id accepts features array
-- [ ] Wall validation: type, start/end coordinates
+- [ ] Wall validation: col/row within bounds
 - [ ] Feature validation: type, position, rotation
-- [ ] Invalid wall/feature type returns 400
-- [ ] Out-of-bounds coordinates return 400
+- [ ] Feature bounds checking considers size and rotation
+- [ ] Invalid types return 400
 
 ### Wall Tool
-- [ ] Toolbar shows Wall tool button (W key) for square grids only
-- [ ] Wall tool not visible for hex grids
-- [ ] Wall palette shows solid/door/secret options
-- [ ] Click-click creates wall segment
-- [ ] Walls snap to grid intersections
-- [ ] Snap indicator shows when near intersection
-- [ ] Continuous wall drawing (chain segments)
-- [ ] Enter/double-click finishes wall chain
-- [ ] Escape cancels current wall
-- [ ] Shift constrains to orthogonal
-
-### Wall Rendering
-- [ ] Solid walls render as thick black lines
-- [ ] Door walls render with gap and door symbol
-- [ ] Secret walls render as dotted lines
-- [ ] Walls render below features, above grid
-- [ ] Line width scales appropriately with zoom
-
-### Wall Editing
-- [ ] Click wall to select
-- [ ] Selected wall shows endpoint handles
-- [ ] Drag handles to reposition
-- [ ] Delete key removes selected wall
-- [ ] Erase tool removes wall on click
+- [ ] Toolbar shows Wall tool (W key) for square grids only
+- [ ] Wall tool hidden for hex grids
+- [ ] Wall palette shows Add and Remove modes
+- [ ] 1 key selects Add mode, 2 key selects Remove mode
+- [ ] Add mode: click cell fills it black
+- [ ] Remove mode: click wall removes it
+- [ ] Click and drag paints/removes multiple cells
+- [ ] Walls render as solid black fills
+- [ ] Grid lines visible on top of walls
 
 ### Feature Tool
-- [ ] Toolbar shows Feature tool button (F key) for square grids only
-- [ ] Feature tool not visible for hex grids
+- [ ] Toolbar shows Feature tool (F key) for square grids only
+- [ ] Feature tool hidden for hex grids
 - [ ] Feature palette shows all feature types organized by category
-- [ ] Click places feature at snapped position
-- [ ] Features snap appropriately (edges for doors, centers for objects)
-- [ ] R key rotates feature 90°
+- [ ] Rotate buttons in palette
+- [ ] Z key rotates 90° clockwise
+- [ ] Preview shows at cursor, snapped to grid
+- [ ] Preview updates rotation immediately
+- [ ] Click places feature
+- [ ] Features render at correct size based on type
+- [ ] Rotation applies correctly to rendering
 
-### Feature Rendering
-- [ ] All feature types render correctly
-- [ ] Features render at correct size (fit in cell)
-- [ ] Rotation applies correctly
-- [ ] Features render above walls
+### Feature Sizes
+- [ ] 1x1 features occupy one cell
+- [ ] 1x2 features occupy two cells (horizontal at 0°/180°, vertical at 90°/270°)
+- [ ] 2x2 features occupy four cells
+- [ ] Features cannot extend beyond map bounds
+- [ ] Preview shows red tint when out of bounds
+- [ ] Click does nothing when preview is red
 
 ### Feature Editing
-- [ ] Click feature to select
-- [ ] Drag selected feature to reposition
-- [ ] R rotates selected feature
-- [ ] Delete removes selected feature
-- [ ] Erase tool removes feature on click
+- [ ] Click on placed feature to select it
+- [ ] Selected feature shows visual indicator
+- [ ] Drag selected feature to move it
+- [ ] Z key rotates selected feature 90°
+- [ ] Delete key removes selected feature
+- [ ] Escape or click elsewhere deselects
+- [ ] Moving feature respects map bounds
+
+### Erase Tool
+- [ ] Click on wall removes it
+- [ ] Click on feature removes it
+- [ ] Click and drag erases multiple walls
+- [ ] Features take priority over walls for click detection
+- [ ] Clicking empty floor does nothing
 
 ### Tool Visibility
-- [ ] Terrain tool hidden for square grid maps
-- [ ] Wall tool hidden for hex grid maps
-- [ ] Feature tool hidden for hex grid maps
-- [ ] Path and Label tools visible on both grid types
+- [ ] Wall tool hidden for hex grids
+- [ ] Feature tool hidden for hex grids
+- [ ] Terrain tool hidden for square grids
+- [ ] Path tool hidden for square grids
+- [ ] Label tool visible on both
 
 ### Auto-Save
-- [ ] Wall creation triggers debounced save
-- [ ] Wall modification triggers save
-- [ ] Wall deletion triggers save
-- [ ] Feature creation triggers save
-- [ ] Feature modification triggers save
-- [ ] Feature deletion triggers save
+- [ ] Wall changes trigger debounced save
+- [ ] Feature changes trigger debounced save
 
 ### Performance
-- [ ] Smooth rendering with 200+ wall segments
+- [ ] Smooth rendering with 1000+ wall cells
+- [ ] Smooth painting when dragging
 - [ ] Smooth rendering with 100+ features
-- [ ] No lag when drawing walls
 
 ## Verification Steps
 
-### 1. Wall Drawing Test
+### 1. Wall Painting Test
 
 1. Create a new square grid map
 2. Select Wall tool (W key)
-3. Select Solid wall type
-4. Click on grid intersection - snap indicator shows
-5. Click on adjacent intersection - wall created
-6. Verify wall is thick black line
-7. Continue clicking - walls chain together
-8. Press Enter to finish
-9. Verify walls persist after save
+3. Click on cell → cell fills black
+4. Click and drag across multiple cells → all fill black
+5. Click on existing wall → nothing happens
+6. Verify grid lines visible on top of walls
+7. Save and refresh → walls persist
 
-### 2. Wall Types Test
-
-1. Draw a solid wall segment
-2. Select Door type (key 2)
-3. Draw a door wall - verify gap with door symbol
-4. Select Secret type (key 3)
-5. Draw a secret wall - verify dotted line
-6. Compare all three visually
-
-### 3. Orthogonal Constraint Test
-
-1. Select Wall tool
-2. Hold Shift
-3. Try to draw diagonal - verify constrains to H/V
-4. Release Shift - verify diagonal works again
-5. Toggle ortho lock button
-6. Verify constraint persists without holding Shift
-
-### 4. Feature Placement Test
+### 2. Feature Placement Test
 
 1. Select Feature tool (F key)
 2. Select Door from palette
-3. Click on cell edge - door places, snaps to edge
-4. Press R - door rotates 90°
-5. Select Pillar
-6. Click on cell center - pillar places, snaps to center
-7. Verify different features snap appropriately
+3. Move cursor → preview follows, snaps to grid
+4. Press Z → preview rotates 90°
+5. Press Z again → preview rotates another 90°
+6. Click to place → door appears
+7. Verify door renders at correct size and rotation
 
-### 5. All Features Test
+### 3. Feature Sizes Test
 
-1. Place one of each feature type
-2. Verify each icon is distinct and recognizable
-3. Zoom to 50% - verify features still readable
-4. Rotate each feature through all 4 orientations
-5. Verify rotations look correct
+1. Place a 1x1 feature (pillar) → occupies one cell
+2. Place a 1x2 feature (stairs-up) at 0° → horizontal, 2 cells wide
+3. Rotate stairs to 90° → vertical, 2 cells tall
+4. Place a 2x2 feature (table) → occupies 4 cells
+5. Try to place feature extending beyond map → should prevent or show error
 
-### 6. Feature Editing Test
+### 4. Wall Remove Mode Test
 
-1. Place several features
-2. Click feature to select
-3. Drag to new position - verify snap behavior
-4. Press R - verify rotation
-5. Press Delete - verify removal
-6. Use Erase tool on feature - verify removal
+1. Paint some walls using Add mode
+2. Switch to Remove mode (key 2 or click)
+3. Click on wall → wall removed
+4. Click and drag → multiple walls removed
+5. Click on empty floor → nothing happens
+6. Switch back to Add mode (key 1)
 
-### 7. Wall Editing Test
+### 5. Feature Editing Test
 
-1. Draw several walls
-2. Click wall to select
-3. Verify endpoint handles appear
-4. Drag handle to new position
-5. Verify wall updates
-6. Press Delete - verify wall removed
+1. Place a feature (e.g., stairs)
+2. Click on the feature → shows selected state
+3. Press Z → feature rotates 90°
+4. Drag feature to new position → feature moves
+5. Press Delete → feature removed
+6. Place another feature
+7. Click elsewhere → feature deselected
+8. Select feature, press Escape → deselected
 
-### 8. Grid Type Tool Visibility Test
+### 6. Erase Test
 
-1. Open a hex grid map
-2. Verify Terrain tool visible in toolbar
-3. Verify Wall tool not visible in toolbar
-4. Verify Feature tool not visible in toolbar
-5. Open a square grid map
-6. Verify Wall tool visible in toolbar
-7. Verify Feature tool visible in toolbar
-8. Verify Terrain tool not visible in toolbar
-9. Verify Pan, Path, Label, Erase visible on both
+1. Paint some walls
+2. Place some features
+3. Select Erase tool (E key)
+4. Click on feature → feature removed
+5. Click on wall → wall removed
+6. Click on empty floor → nothing happens
 
-### 9. Labels on Square Grid Test
+### 7. Tool Visibility Test
+
+1. Open hex grid map
+2. Verify Wall and Feature tools not visible
+3. Verify Terrain and Path tools visible
+4. Open square grid map
+5. Verify Wall and Feature tools visible
+6. Verify Terrain and Path tools not visible
+
+### 8. Label on Square Grid Test
 
 1. Open square grid map
 2. Select Label tool
-3. Place labels - verify they work
-4. Select Path tool
-5. Draw paths - verify they work
-6. Verify labels/paths render correctly with walls
+3. Place labels → works correctly
+4. Labels render on top of walls and features
 
-### 10. Auto-Save Test
+### 9. Complex Dungeon Test
 
-1. Draw some walls and place features
-2. Verify "Saving..." appears after 2 seconds
-3. Verify "Saved" appears after completion
-4. Refresh page
-5. Verify all walls and features persist
-
-### 11. Complex Dungeon Test
-
-1. Create a dungeon with:
-   - Multiple rooms (enclosed by walls)
-   - Connecting corridors
-   - Doors between rooms
-   - Secret door
-   - Stairs up and down
-   - Various features (pillars, statues, etc.)
+1. Create a dungeon layout:
+   - Outer walls forming rooms
+   - Corridors connecting rooms
+   - Doors in walls between areas
+   - Stairs in one room
+   - Furniture scattered around
    - Labels for room names
-2. Pan and zoom around
-3. Verify smooth performance
-4. Verify visual matches B/X dungeon style
+2. Verify everything renders correctly
+3. Pan and zoom → smooth performance
+4. Save and reload → all content persists
+
+### 10. Rotation Preview Test
+
+1. Select Feature tool
+2. Select stairs-up (1x2)
+3. Preview shows horizontal stairs
+4. Press Z → preview shows vertical stairs
+5. Press Z → horizontal again (180°)
+6. Press Z → vertical (270°)
+7. Press Z → back to horizontal (0°)
+8. Place at each rotation → verify correct orientation
 
 ## Future Considerations
 
-This spec establishes the core dungeon mapping tools. Future enhancements could include:
-
-- **Room fill tool:** Click inside walls to fill a room shape
-- **Wall straightening:** Auto-align walls to grid
-- **Dungeon templates:** Pre-made room shapes to stamp
-- **Multi-select:** Select and move multiple walls/features
-- **Copy/paste regions:** Duplicate sections of the dungeon
-- **Layer visibility:** Show/hide features for printing
+- **Larger features:** 2x3, 3x3 for big furniture, pools, etc.
+- **Feature variants:** Multiple visual styles per feature type
+- **Snap to walls:** Doors auto-snap to wall edges
+- **Room fill:** Click inside walls to fill floor area
+- **Copy/paste:** Duplicate sections of dungeon
 
 ## References
 

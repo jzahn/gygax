@@ -225,11 +225,12 @@ All icons use B/X aesthetic: black ink on white, hand-drawn feel, no color.
 Update MapCanvas component to render terrain stamps:
 
 **Render Order (back to front):**
-1. White background
-2. Grid lines (hex outlines)
-3. Terrain icons (centered in each hex)
-4. Hover preview (when placing terrain)
-5. Tool cursor indicator
+1. Black background (outside hex bounds)
+2. White hex fills (inside each hex)
+3. Grid lines (hex outlines)
+4. Terrain icons (centered in each hex)
+5. Hover preview (when placing terrain)
+6. Tool cursor indicator
 
 **Terrain Icon Rendering:**
 
