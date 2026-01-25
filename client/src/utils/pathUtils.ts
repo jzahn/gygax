@@ -27,8 +27,8 @@ const PATH_STYLES: Record<PathType, PathStyle> = {
   },
   border: {
     color: '#1a1a1a',
-    width: 2,
-    dash: [4, 4], // Dotted - territory boundaries
+    width: 1.5,
+    dash: [2, 2], // Short dots - territory boundaries
   },
   trail: {
     color: '#1a1a1a',
@@ -146,6 +146,9 @@ function getCachedSpline(
   return spline
 }
 
+// Light blue color for water paths when color tint is enabled
+const WATER_PATH_TINT_COLOR = '#a8c8f0'
+
 /**
  * Render a path on the canvas
  */
@@ -153,7 +156,8 @@ export function renderPath(
   ctx: CanvasRenderingContext2D,
   path: MapPath,
   zoom: number,
-  splineCache?: SplineCache
+  splineCache?: SplineCache,
+  useColorTint: boolean = false
 ): void {
   if (path.points.length < 2) return
 
@@ -167,7 +171,9 @@ export function renderPath(
   // Scale line width with zoom (but keep it visible)
   const scaledWidth = Math.max(style.width * Math.min(zoom, 1.5), 1)
 
-  ctx.strokeStyle = style.color
+  // Use blue tint for water paths (river/stream) when color mode is on
+  const isWaterPath = path.type === 'river' || path.type === 'stream'
+  ctx.strokeStyle = useColorTint && isWaterPath ? WATER_PATH_TINT_COLOR : style.color
   ctx.lineWidth = scaledWidth
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'

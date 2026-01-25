@@ -43,6 +43,27 @@ export const TERRAIN_INFO: Record<TerrainType, { name: string; group: 'natural' 
   caves: { name: 'Caves', group: 'natural' },
 }
 
+// Light tint colors for terrain types (used when color tinting is enabled)
+export const TERRAIN_COLORS: Record<TerrainType, string> = {
+  clear: 'transparent',
+  grasslands: '#90EE90',  // Light green
+  forest: '#228B22',      // Forest green
+  jungle: '#006400',      // Dark green
+  hills: '#DEB887',       // Burlywood (tan)
+  mountains: '#A0522D',   // Sienna (brown)
+  desert: '#F0E68C',      // Khaki yellow
+  swamp: '#556B2F',       // Dark olive green
+  water: '#4169E1',       // Royal blue
+  volcano: '#B22222',     // Firebrick red
+  barren: '#808080',      // Grey
+  caves: '#2F4F4F',       // Dark slate grey
+  castle: '#708090',      // Slate grey
+  ruins: '#696969',       // Dim grey
+  capitol: '#DAA520',     // Goldenrod
+  city: '#CD853F',        // Peru (tan)
+  town: '#D2B48C',        // Tan
+}
+
 // Terrains with 3 variants (images)
 const MULTI_VARIANT_TERRAINS: TerrainType[] = [
   'forest',
@@ -169,16 +190,17 @@ export function renderTerrainIcon(
   cy: number,
   terrain: TerrainType,
   hexSize: number,
-  variant: 0 | 1 | 2 = 0
+  variant: 0 | 1 | 2 = 0,
+  useColorTint: boolean = false
 ) {
   // Clear terrain has no icon
   if (terrain === 'clear') {
     return
   }
 
-  // Water is just a 50% grey fill (no image needed)
+  // Water is just a fill (grey normally, blue when color tint is on)
   if (terrain === 'water') {
-    drawWaterFill(ctx, cx, cy, hexSize)
+    drawWaterFill(ctx, cx, cy, hexSize, useColorTint)
     return
   }
 
@@ -200,18 +222,61 @@ export function renderTerrainIcon(
 }
 
 /**
- * Draw water as a 50% grey hexagon fill
+ * Draw water as a hexagon fill (grey normally, light blue when color tint is on)
  */
 function drawWaterFill(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
-  hexSize: number
+  hexSize: number,
+  useColorTint: boolean = false
 ) {
   const size = hexSize / 2
 
   ctx.save()
-  ctx.fillStyle = '#808080' // 50% grey
+  if (useColorTint) {
+    ctx.fillStyle = '#a8c8f0' // Light blue (opaque)
+  } else {
+    ctx.fillStyle = '#808080' // 50% grey
+  }
+  ctx.beginPath()
+
+  // Draw hexagon path (flat-top)
+  for (let i = 0; i < 6; i++) {
+    const angleDeg = 60 * i
+    const angleRad = (Math.PI / 180) * angleDeg
+    const x = cx + size * Math.cos(angleRad)
+    const y = cy + size * Math.sin(angleRad)
+    if (i === 0) {
+      ctx.moveTo(x, y)
+    } else {
+      ctx.lineTo(x, y)
+    }
+  }
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
+/**
+ * Draw a light color tint for a hex based on terrain type
+ */
+export function drawTerrainTint(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  terrain: TerrainType,
+  hexSize: number,
+  opacity: number = 0.15
+) {
+  const color = TERRAIN_COLORS[terrain]
+  if (!color || color === 'transparent') return
+
+  const size = hexSize / 2
+
+  ctx.save()
+  ctx.globalAlpha = opacity
+  ctx.fillStyle = color
   ctx.beginPath()
 
   // Draw hexagon path (flat-top)

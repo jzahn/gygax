@@ -2,7 +2,7 @@ import * as React from 'react'
 import type { Map, HexCoord, TerrainType, MapPoint } from '@gygax/shared'
 import type { DrawingState, DrawingTool, StoredTerrain } from '../hooks/useMapDrawing'
 import { hexToPixel, pixelToHex, isHexInBounds, findNearestSnapPoint } from '../utils/hexUtils'
-import { renderTerrainIcon } from '../utils/terrainIcons'
+import { renderTerrainIcon, drawTerrainTint } from '../utils/terrainIcons'
 import {
   renderPath,
   renderPathHandles,
@@ -65,6 +65,8 @@ interface MapCanvasProps {
   onStopDraggingFeature?: () => void
   // Selection
   onClearSelection?: () => void
+  // Display options
+  showTerrainColors?: boolean
 }
 
 interface ViewportState {
@@ -172,9 +174,28 @@ function drawTerrainCulled(
   ctx: CanvasRenderingContext2D,
   terrain: globalThis.Map<string, StoredTerrain>,
   cellSize: number,
-  visibleBounds: { minX: number; minY: number; maxX: number; maxY: number }
+  visibleBounds: { minX: number; minY: number; maxX: number; maxY: number },
+  showColors: boolean = false
 ) {
   const padding = cellSize / 2
+
+  // First pass: draw color tints if enabled
+  if (showColors) {
+    terrain.forEach((stored, key) => {
+      const [col, row] = key.split(',').map(Number)
+      const { x, y } = hexToPixel({ col, row }, cellSize)
+      if (
+        x + padding >= visibleBounds.minX &&
+        x - padding <= visibleBounds.maxX &&
+        y + padding >= visibleBounds.minY &&
+        y - padding <= visibleBounds.maxY
+      ) {
+        drawTerrainTint(ctx, x, y, stored.terrain, cellSize)
+      }
+    })
+  }
+
+  // Second pass: draw terrain icons
   terrain.forEach((stored, key) => {
     const [col, row] = key.split(',').map(Number)
     const { x, y } = hexToPixel({ col, row }, cellSize)
@@ -185,7 +206,7 @@ function drawTerrainCulled(
       y + padding >= visibleBounds.minY &&
       y - padding <= visibleBounds.maxY
     ) {
-      renderTerrainIcon(ctx, x, y, stored.terrain, cellSize, stored.variant)
+      renderTerrainIcon(ctx, x, y, stored.terrain, cellSize, stored.variant, showColors)
     }
   })
 }
@@ -304,6 +325,7 @@ export function MapCanvas({
   onStartDraggingFeature,
   onStopDraggingFeature,
   onClearSelection,
+  showTerrainColors = false,
 }: MapCanvasProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
@@ -414,8 +436,13 @@ export function MapCanvas({
       drawHexGrid(ctx, map)
     }
 
-    // 4. Draw all paths (hex only, with viewport culling)
-    // Render order: rivers/streams first (below), then roads/borders/trails (above)
+    // 4. Draw terrain icons (hex only, with viewport culling)
+    if (isHexGrid && drawingState?.terrain) {
+      drawTerrainCulled(ctx, drawingState.terrain, map.cellSize, visibleBounds, showTerrainColors)
+    }
+
+    // 5. Draw paths (hex only, with viewport culling)
+    // Render order: rivers/streams first, then roads/borders/trails on top
     if (isHexGrid && drawingState?.paths) {
       const waterPaths = drawingState.paths.filter(p => p.type === 'river' || p.type === 'stream')
       const otherPaths = drawingState.paths.filter(p => p.type !== 'river' && p.type !== 'stream')
@@ -428,14 +455,9 @@ export function MapCanvas({
           { minX: bounds.minX - padding, minY: bounds.minY - padding, maxX: bounds.maxX + padding, maxY: bounds.maxY + padding },
           visibleBounds
         )) {
-          renderPath(ctx, path, viewport.zoom, splineCache)
+          renderPath(ctx, path, viewport.zoom, splineCache, showTerrainColors)
         }
       }
-    }
-
-    // 5. Draw terrain icons (hex only, on top of paths, with viewport culling)
-    if (isHexGrid && drawingState?.terrain) {
-      drawTerrainCulled(ctx, drawingState.terrain, map.cellSize, visibleBounds)
     }
 
     // 6. Draw features (square grid only)
@@ -550,7 +572,7 @@ export function MapCanvas({
     }
 
     ctx.restore()
-  }, [map, containerSize, drawingState, tool, isHexGrid, isSquareGrid, cursorMapPos, snapPoint, isOverPath, isOverLabel, hoveredCell])
+  }, [map, containerSize, drawingState, tool, isHexGrid, isSquareGrid, cursorMapPos, snapPoint, isOverPath, isOverLabel, hoveredCell, showTerrainColors])
 
   const scheduleRender = React.useCallback(() => {
     if (rafIdRef.current !== null) {
@@ -613,6 +635,7 @@ export function MapCanvas({
     cursorMapPos,
     snapPoint,
     hoveredCell,
+    showTerrainColors,
   ])
 
   React.useEffect(() => {

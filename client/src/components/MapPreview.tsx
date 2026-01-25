@@ -181,21 +181,21 @@ export function MapPreview({ map, className = '' }: MapPreviewProps) {
       drawHexGrid(ctx, map)
     }
 
-    // 3. Draw paths (hex maps)
-    // Render order: rivers/streams first (below), then roads/borders/trails (above)
+    // 3. Draw terrain icons (hex maps)
+    if (map.gridType === 'HEX' && content?.terrain) {
+      for (const stamp of content.terrain) {
+        const { x, y } = hexToPixel(stamp.hex, map.cellSize)
+        renderTerrainIcon(ctx, x, y, stamp.terrain, map.cellSize, stamp.variant)
+      }
+    }
+
+    // 4. Draw paths (hex maps)
+    // Render order: rivers/streams first, then roads/borders/trails on top
     if (content?.paths) {
       const waterPaths = content.paths.filter(p => p.type === 'river' || p.type === 'stream')
       const otherPaths = content.paths.filter(p => p.type !== 'river' && p.type !== 'stream')
       for (const path of [...waterPaths, ...otherPaths]) {
         renderPath(ctx, path, zoom)
-      }
-    }
-
-    // 4. Draw terrain icons (hex maps)
-    if (map.gridType === 'HEX' && content?.terrain) {
-      for (const stamp of content.terrain) {
-        const { x, y } = hexToPixel(stamp.hex, map.cellSize)
-        renderTerrainIcon(ctx, x, y, stamp.terrain, map.cellSize, stamp.variant)
       }
     }
 

@@ -37,6 +37,7 @@ export function MapEditorPage() {
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [menuOpen, setMenuOpen] = React.useState(false)
+  const [showTerrainColors, setShowTerrainColors] = React.useState(false)
   const menuRef = React.useRef<HTMLDivElement>(null)
 
   // Save content to API
@@ -299,6 +300,8 @@ export function MapEditorPage() {
             onStopDraggingFeature={drawing.stopDraggingFeature}
             // Selection
             onClearSelection={drawing.clearSelection}
+            // Display options
+            showTerrainColors={showTerrainColors}
           />
         </div>
         <MapToolbar
@@ -328,8 +331,30 @@ export function MapEditorPage() {
           {map.description && <span>{map.description}</span>}
           <SaveStatusIndicator status={drawing.state.saveStatus} />
         </div>
-        <div className="font-body text-xs text-ink-soft">
-          {map.width}&times;{map.height} &bull; {map.gridType === 'SQUARE' ? 'Square' : 'Hex'} grid
+        <div className="flex items-center gap-4">
+          {map.gridType === 'HEX' && (
+            <label className="flex cursor-pointer items-center gap-2 font-body text-xs text-ink-soft">
+              <span>Color tint</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showTerrainColors}
+                onClick={() => setShowTerrainColors(!showTerrainColors)}
+                className={`relative h-5 w-10 rounded-full border-2 border-ink transition-colors ${
+                  showTerrainColors ? 'bg-ink' : 'bg-parchment-200'
+                }`}
+              >
+                <span
+                  className={`absolute left-0.5 top-0.5 h-3 w-3 rounded-full border border-ink transition-all ${
+                    showTerrainColors ? 'left-[22px] bg-parchment-100' : 'left-0.5 bg-ink-soft'
+                  }`}
+                />
+              </button>
+            </label>
+          )}
+          <div className="font-body text-xs text-ink-soft">
+            {map.width}&times;{map.height} &bull; {map.gridType === 'SQUARE' ? 'Square' : 'Hex'} grid
+          </div>
         </div>
       </footer>
 
