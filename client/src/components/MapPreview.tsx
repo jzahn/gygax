@@ -182,8 +182,11 @@ export function MapPreview({ map, className = '' }: MapPreviewProps) {
     }
 
     // 3. Draw paths (hex maps)
+    // Render order: rivers/streams first (below), then roads/borders/trails (above)
     if (content?.paths) {
-      for (const path of content.paths) {
+      const waterPaths = content.paths.filter(p => p.type === 'river' || p.type === 'stream')
+      const otherPaths = content.paths.filter(p => p.type !== 'river' && p.type !== 'stream')
+      for (const path of [...waterPaths, ...otherPaths]) {
         renderPath(ctx, path, zoom)
       }
     }

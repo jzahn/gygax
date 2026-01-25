@@ -192,6 +192,7 @@ export function CampaignPage() {
         gridType: data.gridType,
         width: data.width,
         height: data.height,
+        content: data.content,
       }),
     })
 

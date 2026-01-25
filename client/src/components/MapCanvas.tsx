@@ -415,8 +415,12 @@ export function MapCanvas({
     }
 
     // 4. Draw all paths (hex only, with viewport culling)
+    // Render order: rivers/streams first (below), then roads/borders/trails (above)
     if (isHexGrid && drawingState?.paths) {
-      for (const path of drawingState.paths) {
+      const waterPaths = drawingState.paths.filter(p => p.type === 'river' || p.type === 'stream')
+      const otherPaths = drawingState.paths.filter(p => p.type !== 'river' && p.type !== 'stream')
+
+      for (const path of [...waterPaths, ...otherPaths]) {
         const bounds = getPathBounds(path)
         // Add padding for line width
         const padding = 10

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { Map, GridType } from '@gygax/shared'
+import type { Map, GridType, MapContent } from '@gygax/shared'
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Textarea } from './ui/textarea'
+import { readMapExportFile, ImportedMapData } from '../utils/mapExport'
 
 export interface MapFormData {
   name: string
@@ -18,6 +19,7 @@ export interface MapFormData {
   gridType: GridType
   width: number
   height: number
+  content?: MapContent | null
 }
 
 interface CreateMapModalProps {
@@ -47,7 +49,14 @@ export function CreateMapModal({ open, onClose, onSubmit, map }: CreateMapModalP
     height?: string
   }>({})
 
+  // Import state
+  const [importedData, setImportedData] = React.useState<ImportedMapData | null>(null)
+  const [importFileName, setImportFileName] = React.useState<string | null>(null)
+  const [importError, setImportError] = React.useState<string | null>(null)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
   const isEditing = !!map
+  const hasImport = importedData !== null
 
   React.useEffect(() => {
     if (open) {
@@ -65,8 +74,54 @@ export function CreateMapModal({ open, onClose, onSubmit, map }: CreateMapModalP
         setHeight(DEFAULT_DIMENSION)
       }
       setErrors({})
+      setImportedData(null)
+      setImportFileName(null)
+      setImportError(null)
     }
   }, [open, map])
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setImportError(null)
+    const result = await readMapExportFile(file)
+
+    if (!result.success) {
+      setImportError(result.error)
+      setImportedData(null)
+      setImportFileName(null)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      return
+    }
+
+    // Pre-fill form with imported data
+    setImportedData(result.data)
+    setImportFileName(file.name)
+    setName(result.data.name)
+    setDescription(result.data.description || '')
+    setGridType(result.data.gridType)
+    setWidth(result.data.width)
+    setHeight(result.data.height)
+    setErrors({})
+  }
+
+  const handleClearImport = () => {
+    setImportedData(null)
+    setImportFileName(null)
+    setImportError(null)
+    setName('')
+    setDescription('')
+    setGridType('SQUARE')
+    setWidth(DEFAULT_DIMENSION)
+    setHeight(DEFAULT_DIMENSION)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
 
   const validateForm = (): boolean => {
     const newErrors: typeof errors = {}
@@ -110,6 +165,7 @@ export function CreateMapModal({ open, onClose, onSubmit, map }: CreateMapModalP
         gridType,
         width,
         height,
+        content: importedData?.content,
       })
       onClose()
     } catch {
@@ -141,6 +197,61 @@ export function CreateMapModal({ open, onClose, onSubmit, map }: CreateMapModalP
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Import section - only show when creating */}
+          {!isEditing && (
+            <>
+              <div className="space-y-2">
+                <Label className="font-display text-xs uppercase tracking-wide">
+                  Import from File <span className="font-body text-ink-faded">(optional)</span>
+                </Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json,.gygax.json"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="mapFileImport"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Choose File
+                  </Button>
+                  <span className="font-body text-sm text-ink-soft">
+                    {importFileName || 'No file selected'}
+                  </span>
+                  {hasImport && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearImport}
+                      className="ml-auto text-ink-soft hover:text-ink"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                {importError && (
+                  <p className="font-body text-sm text-blood-red">{importError}</p>
+                )}
+                <p className="font-body text-xs text-ink-faded">
+                  Import a .gygax.json file to pre-fill the form
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-ink-faded" />
+                <span className="font-body text-xs text-ink-faded">or</span>
+                <div className="h-px flex-1 bg-ink-faded" />
+              </div>
+            </>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="mapName" className="font-display text-xs uppercase tracking-wide">
               Map Name
@@ -177,20 +288,20 @@ export function CreateMapModal({ open, onClose, onSubmit, map }: CreateMapModalP
           <div className="space-y-2">
             <Label className="font-display text-xs uppercase tracking-wide">
               Grid Type
-              {isEditing && (
+              {(isEditing || hasImport) && (
                 <span className="font-body text-ink-faded"> (cannot be changed)</span>
               )}
             </Label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => !isEditing && setGridType('SQUARE')}
-                disabled={isEditing}
+                onClick={() => !isEditing && !hasImport && setGridType('SQUARE')}
+                disabled={isEditing || hasImport}
                 className={`flex flex-col items-center gap-1 rounded border-2 p-3 transition-colors ${
                   gridType === 'SQUARE'
                     ? 'border-ink bg-parchment-200'
                     : 'border-ink-soft bg-parchment-100 hover:border-ink'
-                } ${isEditing ? 'cursor-not-allowed opacity-60' : ''}`}
+                } ${isEditing || hasImport ? 'cursor-not-allowed opacity-60' : ''}`}
               >
                 <SquareGridIcon className="h-8 w-8" />
                 <span className="font-display text-xs uppercase tracking-wide">Square</span>
@@ -198,13 +309,13 @@ export function CreateMapModal({ open, onClose, onSubmit, map }: CreateMapModalP
               </button>
               <button
                 type="button"
-                onClick={() => !isEditing && setGridType('HEX')}
-                disabled={isEditing}
+                onClick={() => !isEditing && !hasImport && setGridType('HEX')}
+                disabled={isEditing || hasImport}
                 className={`flex flex-col items-center gap-1 rounded border-2 p-3 transition-colors ${
                   gridType === 'HEX'
                     ? 'border-ink bg-parchment-200'
                     : 'border-ink-soft bg-parchment-100 hover:border-ink'
-                } ${isEditing ? 'cursor-not-allowed opacity-60' : ''}`}
+                } ${isEditing || hasImport ? 'cursor-not-allowed opacity-60' : ''}`}
               >
                 <HexGridIcon className="h-8 w-8" />
                 <span className="font-display text-xs uppercase tracking-wide">Hex</span>

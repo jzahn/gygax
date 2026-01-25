@@ -468,7 +468,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
       if (!user) return
 
       const { campaignId } = request.params
-      const { name, description, gridType, width, height } = request.body
+      const { name, description, gridType, width, height, content } = request.body
 
       const hasAccess = await requireCampaignOwnership(fastify, campaignId, user.id, reply)
       if (!hasAccess) return
@@ -565,15 +565,47 @@ export async function mapRoutes(fastify: FastifyInstance) {
         validHeight = height
       }
 
+      // Validate content if provided (for import)
+      let validContent: MapContent | undefined = undefined
+      if (content !== undefined && content !== null) {
+        const contentValidation = validateMapContent(content, validWidth, validHeight, DEFAULT_CELL_SIZE)
+        if (!contentValidation.valid) {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: contentValidation.message,
+          })
+        }
+        validContent = content as MapContent
+      }
+
+      // Generate unique name if duplicate exists
+      const existingMaps = await fastify.prisma.map.findMany({
+        where: { campaignId },
+        select: { name: true },
+      })
+      const existingNames = new Set(existingMaps.map(m => m.name))
+
+      let uniqueName = trimmedName
+      if (existingNames.has(trimmedName)) {
+        let counter = 1
+        let candidateName = `${trimmedName} (${counter})`
+        while (existingNames.has(candidateName)) {
+          counter++
+          candidateName = `${trimmedName} (${counter})`
+        }
+        uniqueName = candidateName
+      }
+
       const map = await fastify.prisma.map.create({
         data: {
-          name: trimmedName,
+          name: uniqueName,
           description: trimmedDescription,
           gridType: validGridType,
           width: validWidth,
           height: validHeight,
           cellSize: DEFAULT_CELL_SIZE,
           campaignId,
+          content: validContent ?? undefined,
         },
       })
 

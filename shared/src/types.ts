@@ -272,6 +272,7 @@ export interface CreateMapRequest {
   gridType?: GridType
   width?: number
   height?: number
+  content?: MapContent  // For import
 }
 
 export interface UpdateMapRequest {
@@ -280,4 +281,19 @@ export interface UpdateMapRequest {
   width?: number
   height?: number
   content?: MapContent
+}
+
+// Map export file format
+export interface MapExportFile {
+  version: 1
+  exportedAt: string
+  map: {
+    name: string
+    description: string | null
+    gridType: GridType
+    width: number
+    height: number
+    cellSize: number
+    content: MapContent | null
+  }
 }

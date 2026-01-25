@@ -8,6 +8,7 @@ import { CreateMapModal, MapFormData } from '../components/CreateMapModal'
 import { DeleteMapDialog } from '../components/DeleteMapDialog'
 import { useMapDrawing, SaveStatus } from '../hooks/useMapDrawing'
 import { preloadTerrainImages } from '../utils/terrainIcons'
+import { exportMap } from '../utils/mapExport'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -233,6 +234,15 @@ export function MapEditorPage() {
 
             {menuOpen && (
               <div className="absolute right-0 top-full z-10 mt-1 min-w-[120px] rounded border-2 border-ink bg-parchment-100 py-1 shadow-brutal">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false)
+                    exportMap(map)
+                  }}
+                  className="block w-full px-3 py-1.5 text-left font-body text-sm hover:bg-parchment-200"
+                >
+                  Export
+                </button>
                 <button
                   onClick={() => {
                     setMenuOpen(false)
