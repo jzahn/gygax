@@ -126,6 +126,7 @@ Implementation specs in `/specs/` — build in order:
 | 005b-map-drawing  | Terrain stamping tools (hex/wilderness) | Complete  |
 | 005c-map-labels-paths | Text labels & path drawing        | Complete  |
 | 005d-map-indoor   | Indoor/dungeon maps (square grid)     | Planned   |
+| 005e-map-import-export | Save/load maps to JSON files      | Planned   |
 | 006-sessions      | Live game sessions & player joining   | Planned   |
 | 007-fog-of-war    | Fog of war system                     | Planned   |
 | 008-chat          | Real-time chat with dice rolling      | Planned   |
