@@ -9,11 +9,15 @@ import type {
   MapPoint,
   MapLabel,
   TextSize,
+  DungeonFeature,
+  FeatureType,
 } from '@gygax/shared'
 import { hexKey, parseHexKey } from '../utils/hexUtils'
 import { getRandomVariant } from '../utils/terrainIcons'
+import { wallsToArray, wallsToSet, wallKey } from '../utils/featureUtils'
+import type { WallMode } from '../components/WallPalette'
 
-export type DrawingTool = 'pan' | 'terrain' | 'path' | 'label' | 'erase'
+export type DrawingTool = 'pan' | 'terrain' | 'path' | 'label' | 'erase' | 'wall' | 'feature'
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 // Stored terrain data includes the variant
@@ -29,29 +33,44 @@ export interface DrawingState {
   isSpaceHeld: boolean
   saveStatus: SaveStatus
 
-  // Terrain
+  // Terrain (hex only)
   selectedTerrain: TerrainType
   terrain: Map<string, StoredTerrain>
   hoveredHex: HexCoord | null
 
-  // Paths
+  // Paths (hex only)
   paths: MapPath[]
   selectedPathType: PathType
   selectedPathId: string | null
   pathInProgress: MapPoint[] | null
   draggingVertexIndex: number | null
 
-  // Labels
+  // Labels (both)
   labels: MapLabel[]
   selectedLabelSize: TextSize
   selectedLabelId: string | null
   labelEditingId: string | null
   draggingLabel: boolean
+
+  // Walls (square only)
+  walls: Set<string>  // "col,row" keys for O(1) lookup
+  wallMode: WallMode
+  hoveredCell: { col: number; row: number } | null
+
+  // Features (square only)
+  features: DungeonFeature[]
+  selectedFeatureType: FeatureType
+  featureRotation: 0 | 90 | 180 | 270
+  selectedFeatureId: string | null
+  draggingFeature: boolean
 }
 
 interface UseMapDrawingOptions {
   initialContent: MapContent | null
   onSave: (content: MapContent) => Promise<void>
+  gridType: 'SQUARE' | 'HEX'
+  mapWidth: number
+  mapHeight: number
 }
 
 interface UseMapDrawingReturn {
@@ -87,6 +106,23 @@ interface UseMapDrawingReturn {
   startDraggingLabel: () => void
   stopDraggingLabel: () => void
 
+  // Wall functions (square grid only)
+  setWallMode: (mode: WallMode) => void
+  setHoveredCell: (cell: { col: number; row: number } | null) => void
+  paintWall: (col: number, row: number) => void
+  eraseWall: (col: number, row: number) => void
+
+  // Feature functions (square grid only)
+  setSelectedFeatureType: (type: FeatureType) => void
+  rotateFeature: (direction: 'cw' | 'ccw') => void
+  placeFeature: (col: number, row: number) => void
+  selectFeature: (id: string | null) => void
+  deleteFeature: (id: string) => void
+  updateFeaturePosition: (id: string, col: number, row: number) => void
+  rotateSelectedFeature: (direction: 'cw' | 'ccw') => void
+  startDraggingFeature: () => void
+  stopDraggingFeature: () => void
+
   // Selection
   clearSelection: () => void
   deleteSelected: () => void
@@ -115,7 +151,15 @@ function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 }
 
-export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions): UseMapDrawingReturn {
+export function useMapDrawing({ initialContent, onSave, gridType, mapWidth, mapHeight }: UseMapDrawingOptions): UseMapDrawingReturn {
+  const isSquareGrid = gridType === 'SQUARE'
+
+  // Use a ref for onSave to avoid stale closure issues in the save timeout
+  const onSaveRef = React.useRef(onSave)
+  React.useEffect(() => {
+    onSaveRef.current = onSave
+  }, [onSave])
+
   const [state, setState] = React.useState<DrawingState>(() => ({
     tool: 'pan',
     previousTool: 'pan',
@@ -140,18 +184,34 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
     selectedLabelId: null,
     labelEditingId: null,
     draggingLabel: false,
+
+    // Walls
+    walls: initialContent?.walls ? wallsToSet(initialContent.walls) : new Set(),
+    wallMode: 'add',
+    hoveredCell: null,
+
+    // Features
+    features: initialContent?.features ?? [],
+    selectedFeatureType: 'door',
+    featureRotation: 0,
+    selectedFeatureId: null,
+    draggingFeature: false,
   }))
 
   // Keep refs to the latest data for use in the save timeout
   const terrainRef = React.useRef(state.terrain)
   const pathsRef = React.useRef(state.paths)
   const labelsRef = React.useRef(state.labels)
+  const wallsRef = React.useRef(state.walls)
+  const featuresRef = React.useRef(state.features)
 
   React.useEffect(() => {
     terrainRef.current = state.terrain
     pathsRef.current = state.paths
     labelsRef.current = state.labels
-  }, [state.terrain, state.paths, state.labels])
+    wallsRef.current = state.walls
+    featuresRef.current = state.features
+  }, [state.terrain, state.paths, state.labels, state.walls, state.features])
 
   // Sync initial content when it becomes available (after map loads)
   const hasLoadedInitialContent = React.useRef(false)
@@ -159,22 +219,27 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
     if (initialContent && !hasLoadedInitialContent.current) {
       hasLoadedInitialContent.current = true
       const loadedTerrain = terrainArrayToMap(initialContent.terrain)
+      const loadedWalls = initialContent.walls ? wallsToSet(initialContent.walls) : new Set<string>()
       setState((s) => ({
         ...s,
         terrain: loadedTerrain,
         paths: initialContent.paths ?? [],
         labels: initialContent.labels ?? [],
+        walls: loadedWalls,
+        features: initialContent.features ?? [],
       }))
       terrainRef.current = loadedTerrain
       pathsRef.current = initialContent.paths ?? []
       labelsRef.current = initialContent.labels ?? []
+      wallsRef.current = loadedWalls
+      featuresRef.current = initialContent.features ?? []
     }
   }, [initialContent])
 
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const isDirtyRef = React.useRef(false)
 
-  // Debounced save - uses refs to get current data
+  // Debounced save - uses refs to get current data and latest onSave callback
   const scheduleSave = React.useCallback(() => {
     isDirtyRef.current = true
 
@@ -190,13 +255,24 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
       try {
         const hasPaths = pathsRef.current.length > 0
         const hasLabels = labelsRef.current.length > 0
+        const hasWalls = wallsRef.current.size > 0
+        const hasFeatures = featuresRef.current.length > 0
+
+        // Determine version based on content
+        let version = 1
+        if (hasPaths || hasLabels) version = 2
+        if (hasWalls || hasFeatures) version = 3
+
         const content: MapContent = {
-          version: hasPaths || hasLabels ? 2 : 1,
+          version,
           terrain: terrainMapToArray(terrainRef.current),
           ...(hasPaths && { paths: pathsRef.current }),
           ...(hasLabels && { labels: labelsRef.current }),
+          ...(hasWalls && { walls: wallsToArray(wallsRef.current) }),
+          ...(hasFeatures && { features: featuresRef.current }),
         }
-        await onSave(content)
+        // Use ref to always get the latest onSave callback
+        await onSaveRef.current(content)
         isDirtyRef.current = false
         setState((s) => ({ ...s, saveStatus: 'saved' }))
 
@@ -208,7 +284,7 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
         setState((s) => ({ ...s, saveStatus: 'error' }))
       }
     }, 2000)
-  }, [onSave])
+  }, [])
 
   // Cleanup on unmount
   React.useEffect(() => {
@@ -243,13 +319,41 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
         case 't':
           setState((s) => {
             if (s.labelEditingId) return s
-            return { ...s, tool: 'terrain', previousTool: s.tool }
+            // Only allow terrain tool on hex grids
+            if (!isSquareGrid) {
+              return { ...s, tool: 'terrain', previousTool: s.tool }
+            }
+            return s
           })
           break
         case 'r':
           setState((s) => {
             if (s.labelEditingId) return s
-            return { ...s, tool: 'path', previousTool: s.tool }
+            // Only allow path tool on hex grids
+            if (!isSquareGrid) {
+              return { ...s, tool: 'path', previousTool: s.tool }
+            }
+            return s
+          })
+          break
+        case 'w':
+          setState((s) => {
+            if (s.labelEditingId) return s
+            // Only allow wall tool on square grids
+            if (isSquareGrid) {
+              return { ...s, tool: 'wall', previousTool: s.tool }
+            }
+            return s
+          })
+          break
+        case 'f':
+          setState((s) => {
+            if (s.labelEditingId) return s
+            // Only allow feature tool on square grids
+            if (isSquareGrid) {
+              return { ...s, tool: 'feature', previousTool: s.tool }
+            }
+            return s
           })
           break
         case 'l':
@@ -263,6 +367,36 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
             if (s.labelEditingId) return s
             return { ...s, tool: 'erase', previousTool: s.tool }
           })
+          break
+        case 'z':
+          setState((s) => {
+            if (s.labelEditingId) return s
+            // Rotate feature (when in feature tool or when a feature is selected)
+            if (s.tool === 'feature' || s.selectedFeatureId) {
+              const rotations: (0 | 90 | 180 | 270)[] = [0, 90, 180, 270]
+              const currentIdx = rotations.indexOf(s.featureRotation)
+              const direction = e.shiftKey ? -1 : 1
+              const newIdx = (currentIdx + direction + 4) % 4
+              const newRotation = rotations[newIdx]
+
+              // If a feature is selected, rotate it
+              if (s.selectedFeatureId) {
+                return {
+                  ...s,
+                  featureRotation: newRotation,
+                  features: s.features.map((f) =>
+                    f.id === s.selectedFeatureId ? { ...f, rotation: newRotation } : f
+                  ),
+                }
+              }
+
+              return { ...s, featureRotation: newRotation }
+            }
+            return s
+          })
+          if (e.key.toLowerCase() === 'z') {
+            scheduleSave()
+          }
           break
         case ' ':
           if (!e.repeat) {
@@ -296,6 +430,13 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
               if (num >= 1 && num <= 4) {
                 return { ...s, selectedLabelSize: sizes[num - 1] }
               }
+            } else if (s.tool === 'wall') {
+              // 1 = add, 2 = remove
+              if (num === 1) {
+                return { ...s, wallMode: 'add' as WallMode }
+              } else if (num === 2) {
+                return { ...s, wallMode: 'remove' as WallMode }
+              }
             }
             return s
           })
@@ -328,8 +469,8 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
               return { ...s, pathInProgress: null }
             }
             // Deselect
-            if (s.selectedPathId || s.selectedLabelId) {
-              return { ...s, selectedPathId: null, selectedLabelId: null }
+            if (s.selectedPathId || s.selectedLabelId || s.selectedFeatureId) {
+              return { ...s, selectedPathId: null, selectedLabelId: null, selectedFeatureId: null }
             }
             return s
           })
@@ -352,6 +493,14 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
                 ...s,
                 labels: s.labels.filter((l) => l.id !== s.selectedLabelId),
                 selectedLabelId: null,
+              }
+            }
+            // Delete selected feature
+            if (s.selectedFeatureId) {
+              return {
+                ...s,
+                features: s.features.filter((f) => f.id !== s.selectedFeatureId),
+                selectedFeatureId: null,
               }
             }
             return s
@@ -380,7 +529,7 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [scheduleSave])
+  }, [scheduleSave, isSquareGrid])
 
   const setTool = React.useCallback((tool: DrawingTool) => {
     setState((s) => ({
@@ -392,6 +541,7 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
       // Clear selections when switching tools
       selectedPathId: null,
       selectedLabelId: null,
+      selectedFeatureId: null,
     }))
   }, [])
 
@@ -648,12 +798,160 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
     setState((s) => ({ ...s, draggingLabel: false }))
   }, [])
 
+  // Wall functions
+  const setWallMode = React.useCallback((mode: WallMode) => {
+    setState((s) => ({ ...s, wallMode: mode }))
+  }, [])
+
+  const setHoveredCell = React.useCallback((cell: { col: number; row: number } | null) => {
+    setState((s) => ({ ...s, hoveredCell: cell }))
+  }, [])
+
+  const paintWall = React.useCallback(
+    (col: number, row: number) => {
+      if (col < 0 || col >= mapWidth || row < 0 || row >= mapHeight) return
+
+      setState((s) => {
+        const key = wallKey(col, row)
+        if (s.wallMode === 'add') {
+          if (s.walls.has(key)) return s // Already a wall
+          const newWalls = new Set(s.walls)
+          newWalls.add(key)
+          return { ...s, walls: newWalls }
+        } else {
+          if (!s.walls.has(key)) return s // Not a wall
+          const newWalls = new Set(s.walls)
+          newWalls.delete(key)
+          return { ...s, walls: newWalls }
+        }
+      })
+      scheduleSave()
+    },
+    [mapWidth, mapHeight, scheduleSave]
+  )
+
+  const eraseWall = React.useCallback(
+    (col: number, row: number) => {
+      if (col < 0 || col >= mapWidth || row < 0 || row >= mapHeight) return
+
+      setState((s) => {
+        const key = wallKey(col, row)
+        if (!s.walls.has(key)) return s
+        const newWalls = new Set(s.walls)
+        newWalls.delete(key)
+        return { ...s, walls: newWalls }
+      })
+      scheduleSave()
+    },
+    [mapWidth, mapHeight, scheduleSave]
+  )
+
+  // Feature functions
+  const setSelectedFeatureType = React.useCallback((type: FeatureType) => {
+    setState((s) => ({ ...s, selectedFeatureType: type }))
+  }, [])
+
+  const rotateFeature = React.useCallback((direction: 'cw' | 'ccw') => {
+    setState((s) => {
+      const rotations: (0 | 90 | 180 | 270)[] = [0, 90, 180, 270]
+      const currentIdx = rotations.indexOf(s.featureRotation)
+      const delta = direction === 'cw' ? 1 : -1
+      const newIdx = (currentIdx + delta + 4) % 4
+      return { ...s, featureRotation: rotations[newIdx] }
+    })
+  }, [])
+
+  const placeFeature = React.useCallback(
+    (col: number, row: number) => {
+      setState((s) => {
+        const newFeature: DungeonFeature = {
+          id: generateId(),
+          type: s.selectedFeatureType,
+          position: { col, row },
+          rotation: s.featureRotation,
+        }
+        return { ...s, features: [...s.features, newFeature] }
+      })
+      scheduleSave()
+    },
+    [scheduleSave]
+  )
+
+  const selectFeature = React.useCallback((id: string | null) => {
+    setState((s) => ({
+      ...s,
+      selectedFeatureId: id,
+      selectedPathId: null,
+      selectedLabelId: null,
+      // Sync rotation with selected feature
+      ...(id && s.features.find((f) => f.id === id)
+        ? { featureRotation: s.features.find((f) => f.id === id)!.rotation }
+        : {}),
+    }))
+  }, [])
+
+  const deleteFeature = React.useCallback(
+    (id: string) => {
+      setState((s) => ({
+        ...s,
+        features: s.features.filter((f) => f.id !== id),
+        selectedFeatureId: s.selectedFeatureId === id ? null : s.selectedFeatureId,
+      }))
+      scheduleSave()
+    },
+    [scheduleSave]
+  )
+
+  const updateFeaturePosition = React.useCallback(
+    (id: string, col: number, row: number) => {
+      setState((s) => ({
+        ...s,
+        features: s.features.map((f) => (f.id === id ? { ...f, position: { col, row } } : f)),
+      }))
+      scheduleSave()
+    },
+    [scheduleSave]
+  )
+
+  const rotateSelectedFeature = React.useCallback(
+    (direction: 'cw' | 'ccw') => {
+      setState((s) => {
+        if (!s.selectedFeatureId) return s
+        const rotations: (0 | 90 | 180 | 270)[] = [0, 90, 180, 270]
+        const feature = s.features.find((f) => f.id === s.selectedFeatureId)
+        if (!feature) return s
+        const currentIdx = rotations.indexOf(feature.rotation)
+        const delta = direction === 'cw' ? 1 : -1
+        const newIdx = (currentIdx + delta + 4) % 4
+        const newRotation = rotations[newIdx]
+        return {
+          ...s,
+          featureRotation: newRotation,
+          features: s.features.map((f) =>
+            f.id === s.selectedFeatureId ? { ...f, rotation: newRotation } : f
+          ),
+        }
+      })
+      scheduleSave()
+    },
+    [scheduleSave]
+  )
+
+  const startDraggingFeature = React.useCallback(() => {
+    setState((s) => ({ ...s, draggingFeature: true }))
+  }, [])
+
+  const stopDraggingFeature = React.useCallback(() => {
+    setState((s) => ({ ...s, draggingFeature: false }))
+  }, [])
+
   // Selection functions
   const clearSelection = React.useCallback(() => {
     setState((s) => ({
       ...s,
       selectedPathId: null,
       selectedLabelId: null,
+      selectedFeatureId: null,
     }))
   }, [])
 
@@ -671,6 +969,13 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
           ...s,
           labels: s.labels.filter((l) => l.id !== s.selectedLabelId),
           selectedLabelId: null,
+        }
+      }
+      if (s.selectedFeatureId) {
+        return {
+          ...s,
+          features: s.features.filter((f) => f.id !== s.selectedFeatureId),
+          selectedFeatureId: null,
         }
       }
       return s
@@ -710,6 +1015,23 @@ export function useMapDrawing({ initialContent, onSave }: UseMapDrawingOptions):
     updateLabelPosition,
     startDraggingLabel,
     stopDraggingLabel,
+
+    // Wall functions
+    setWallMode,
+    setHoveredCell,
+    paintWall,
+    eraseWall,
+
+    // Feature functions
+    setSelectedFeatureType,
+    rotateFeature,
+    placeFeature,
+    selectFeature,
+    deleteFeature,
+    updateFeaturePosition,
+    rotateSelectedFeature,
+    startDraggingFeature,
+    stopDraggingFeature,
 
     // Selection
     clearSelection,

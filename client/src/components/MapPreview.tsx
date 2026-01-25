@@ -4,6 +4,7 @@ import { hexToPixel } from '../utils/hexUtils'
 import { renderTerrainIcon, preloadTerrainImages, areTerrainImagesLoaded } from '../utils/terrainIcons'
 import { renderPath } from '../utils/pathUtils'
 import { renderLabel } from '../utils/labelUtils'
+import { renderWalls, renderFeature, wallsToSet } from '../utils/featureUtils'
 
 interface MapPreviewProps {
   map: Map
@@ -144,8 +145,8 @@ export function MapPreview({ map, className = '' }: MapPreviewProps) {
     ctx.fillStyle = '#FFFFFF'
     ctx.fillRect(0, 0, displayWidth, displayHeight)
 
-    // Fixed 100% zoom, centered on the map
-    const zoom = 1
+    // Zoom level: 50% for square grids, 100% for hex grids
+    const zoom = map.gridType === 'SQUARE' ? 0.5 : 1
     const mapDims = getMapDimensions(map)
 
     // Calculate offset to center the map in the viewport
@@ -162,7 +163,15 @@ export function MapPreview({ map, className = '' }: MapPreviewProps) {
     ctx.translate(offsetX, offsetY)
     ctx.scale(zoom, zoom)
 
-    // 1. Draw grid
+    const content: MapContent | null = map.content
+
+    // 1. For square grids, draw walls before grid lines
+    if (map.gridType === 'SQUARE' && content?.walls && content.walls.length > 0) {
+      const wallsSet = wallsToSet(content.walls)
+      renderWalls(ctx, wallsSet, map.cellSize)
+    }
+
+    // 2. Draw grid
     ctx.strokeStyle = '#1a1a1a'
     ctx.lineWidth = 1 / zoom
 
@@ -172,15 +181,14 @@ export function MapPreview({ map, className = '' }: MapPreviewProps) {
       drawHexGrid(ctx, map)
     }
 
-    // 2. Draw paths
-    const content: MapContent | null = map.content
+    // 3. Draw paths (hex maps)
     if (content?.paths) {
       for (const path of content.paths) {
         renderPath(ctx, path, zoom)
       }
     }
 
-    // 3. Draw terrain icons
+    // 4. Draw terrain icons (hex maps)
     if (map.gridType === 'HEX' && content?.terrain) {
       for (const stamp of content.terrain) {
         const { x, y } = hexToPixel(stamp.hex, map.cellSize)
@@ -188,7 +196,14 @@ export function MapPreview({ map, className = '' }: MapPreviewProps) {
       }
     }
 
-    // 4. Draw labels
+    // 5. Draw features (square maps)
+    if (map.gridType === 'SQUARE' && content?.features) {
+      for (const feature of content.features) {
+        renderFeature(ctx, feature, map.cellSize, false)
+      }
+    }
+
+    // 6. Draw labels
     if (content?.labels) {
       for (const label of content.labels) {
         renderLabel(ctx, label, zoom, false)

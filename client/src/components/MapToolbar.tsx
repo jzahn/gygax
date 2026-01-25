@@ -1,10 +1,13 @@
 import * as React from 'react'
-import type { TerrainType, GridType, PathType, TextSize } from '@gygax/shared'
+import type { TerrainType, GridType, PathType, TextSize, FeatureType } from '@gygax/shared'
 import type { DrawingTool } from '../hooks/useMapDrawing'
 import { TerrainPalette } from './TerrainPalette'
 import { PathPalette } from './PathPalette'
 import { TextSizeSelector } from './TextSizeSelector'
+import { WallPalette, type WallMode } from './WallPalette'
+import { FeaturePalette } from './FeaturePalette'
 import { TERRAIN_INFO } from '../utils/terrainIcons'
+import { FEATURE_NAMES } from '../utils/featureUtils'
 
 interface MapToolbarProps {
   tool: DrawingTool
@@ -12,6 +15,14 @@ interface MapToolbarProps {
   selectedPathType: PathType
   selectedLabelSize: TextSize
   gridType: GridType
+  // Wall props (square grid)
+  wallMode: WallMode
+  onWallModeChange: (mode: WallMode) => void
+  // Feature props (square grid)
+  selectedFeatureType: FeatureType
+  onFeatureTypeChange: (type: FeatureType) => void
+  onFeatureRotate: (direction: 'cw' | 'ccw') => void
+  // Common props
   onToolChange: (tool: DrawingTool) => void
   onTerrainChange: (terrain: TerrainType) => void
   onPathTypeChange: (pathType: PathType) => void
@@ -102,6 +113,29 @@ function EraserIcon() {
   )
 }
 
+// Wall icon (filled square grid)
+function WallIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
+      <rect x="3" y="3" width="8" height="8" />
+      <rect x="13" y="3" width="8" height="8" fill="none" />
+      <rect x="3" y="13" width="8" height="8" fill="none" />
+      <rect x="13" y="13" width="8" height="8" />
+    </svg>
+  )
+}
+
+// Feature/stamp icon (door shape)
+function FeatureIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="4" y="2" width="16" height="20" rx="1" />
+      <circle cx="16" cy="12" r="1.5" fill="currentColor" />
+      <path d="M4 2 h16 a1 1 0 0 1 1 1 v18 a1 1 0 0 1-1 1 h-16" />
+    </svg>
+  )
+}
+
 const PATH_TYPE_NAMES: Record<PathType, string> = {
   road: 'Road',
   river: 'River',
@@ -123,6 +157,11 @@ export function MapToolbar({
   selectedPathType,
   selectedLabelSize,
   gridType,
+  wallMode,
+  onWallModeChange,
+  selectedFeatureType,
+  onFeatureTypeChange,
+  onFeatureRotate,
   onToolChange,
   onTerrainChange,
   onPathTypeChange,
@@ -132,13 +171,17 @@ export function MapToolbar({
   const [hoveredPathType, setHoveredPathType] = React.useState<PathType | null>(null)
   const [hoveredLabelSize, setHoveredLabelSize] = React.useState<TextSize | null>(null)
   const [hoveredTool, setHoveredTool] = React.useState<DrawingTool | null>(null)
+  const [hoveredFeature, setHoveredFeature] = React.useState<FeatureType | null>(null)
+  const [hoveredWallMode, setHoveredWallMode] = React.useState<WallMode | null>(null)
   const isHexGrid = gridType === 'HEX'
-  const terrainDisabled = !isHexGrid
+  const isSquareGrid = gridType === 'SQUARE'
 
   const toolNames: Record<DrawingTool, string> = {
     pan: 'Pan (P)',
     terrain: 'Terrain (T)',
     path: 'Path (R)',
+    wall: 'Wall (W)',
+    feature: 'Feature (F)',
     label: 'Label (L)',
     erase: 'Erase (E)',
   }
@@ -148,6 +191,8 @@ export function MapToolbar({
     if (hoveredTerrain) return TERRAIN_INFO[hoveredTerrain].name
     if (hoveredPathType) return PATH_TYPE_NAMES[hoveredPathType]
     if (hoveredLabelSize) return LABEL_SIZE_NAMES[hoveredLabelSize]
+    if (hoveredFeature) return FEATURE_NAMES[hoveredFeature]
+    if (hoveredWallMode) return hoveredWallMode === 'add' ? 'Add Wall' : 'Remove Wall'
     return '\u00A0'
   }
 
@@ -164,32 +209,61 @@ export function MapToolbar({
         >
           <PanIcon />
         </ToolButton>
-        <ToolButton
-          tool="terrain"
-          currentTool={tool}
-          shortcut="T"
-          onClick={() => onToolChange('terrain')}
-          disabled={terrainDisabled}
-          onHover={setHoveredTool}
-        >
-          <TerrainIcon />
-        </ToolButton>
-        <ToolButton
-          tool="path"
-          currentTool={tool}
-          shortcut="R"
-          onClick={() => onToolChange('path')}
-          disabled={terrainDisabled}
-          onHover={setHoveredTool}
-        >
-          <PathIcon />
-        </ToolButton>
+
+        {/* Hex grid tools */}
+        {isHexGrid && (
+          <>
+            <ToolButton
+              tool="terrain"
+              currentTool={tool}
+              shortcut="T"
+              onClick={() => onToolChange('terrain')}
+              onHover={setHoveredTool}
+            >
+              <TerrainIcon />
+            </ToolButton>
+            <ToolButton
+              tool="path"
+              currentTool={tool}
+              shortcut="R"
+              onClick={() => onToolChange('path')}
+              onHover={setHoveredTool}
+            >
+              <PathIcon />
+            </ToolButton>
+          </>
+        )}
+
+        {/* Square grid tools */}
+        {isSquareGrid && (
+          <>
+            <ToolButton
+              tool="wall"
+              currentTool={tool}
+              shortcut="W"
+              onClick={() => onToolChange('wall')}
+              onHover={setHoveredTool}
+            >
+              <WallIcon />
+            </ToolButton>
+            <ToolButton
+              tool="feature"
+              currentTool={tool}
+              shortcut="F"
+              onClick={() => onToolChange('feature')}
+              onHover={setHoveredTool}
+            >
+              <FeatureIcon />
+            </ToolButton>
+          </>
+        )}
+
+        {/* Common tools */}
         <ToolButton
           tool="label"
           currentTool={tool}
           shortcut="L"
           onClick={() => onToolChange('label')}
-          disabled={terrainDisabled}
           onHover={setHoveredTool}
         >
           <LabelIcon />
@@ -199,7 +273,6 @@ export function MapToolbar({
           currentTool={tool}
           shortcut="E"
           onClick={() => onToolChange('erase')}
-          disabled={terrainDisabled}
           onHover={setHoveredTool}
         >
           <EraserIcon />
@@ -224,22 +297,32 @@ export function MapToolbar({
         />
       )}
 
+      {/* Wall palette - show when wall tool selected (square grid only) */}
+      {isSquareGrid && tool === 'wall' && (
+        <WallPalette
+          mode={wallMode}
+          onModeChange={onWallModeChange}
+          onHover={setHoveredWallMode}
+        />
+      )}
+
+      {/* Feature palette - show when feature tool selected (square grid only) */}
+      {isSquareGrid && tool === 'feature' && (
+        <FeaturePalette
+          selectedFeature={selectedFeatureType}
+          onFeatureChange={onFeatureTypeChange}
+          onRotate={onFeatureRotate}
+          onHover={setHoveredFeature}
+        />
+      )}
+
       {/* Text size selector - show when label tool selected */}
-      {isHexGrid && tool === 'label' && (
+      {tool === 'label' && (
         <TextSizeSelector
           selectedSize={selectedLabelSize}
           onSizeChange={onLabelSizeChange}
           onHover={setHoveredLabelSize}
         />
-      )}
-
-      {/* Message for non-hex grids */}
-      {!isHexGrid && (
-        <div className="flex-1 p-2">
-          <p className="text-center font-body text-xs text-ink-soft">
-            Drawing tools require hex grid
-          </p>
-        </div>
       )}
 
       {/* Spacer */}

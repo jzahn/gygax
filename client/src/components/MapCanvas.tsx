@@ -13,6 +13,15 @@ import {
   getPathBounds,
 } from '../utils/pathUtils'
 import { renderLabel, hitTestLabel, getLabelFontSize } from '../utils/labelUtils'
+import {
+  renderWalls,
+  renderFeature,
+  renderFeaturePreview,
+  hitTestFeature,
+  featureFitsInBounds,
+  getWallAtPosition,
+  wallKey,
+} from '../utils/featureUtils'
 import { LabelEditor } from './LabelEditor'
 
 // Spline cache to avoid recalculating curves on every render
@@ -43,6 +52,17 @@ interface MapCanvasProps {
   onUpdateLabelPosition?: (id: string, position: MapPoint) => void
   onStartDraggingLabel?: () => void
   onStopDraggingLabel?: () => void
+  // Wall callbacks (square grid)
+  onPaintWall?: (col: number, row: number) => void
+  onEraseWall?: (col: number, row: number) => void
+  onHoveredCellChange?: (cell: { col: number; row: number } | null) => void
+  // Feature callbacks (square grid)
+  onPlaceFeature?: (col: number, row: number) => void
+  onSelectFeature?: (id: string | null) => void
+  onDeleteFeature?: (id: string) => void
+  onUpdateFeaturePosition?: (id: string, col: number, row: number) => void
+  onStartDraggingFeature?: () => void
+  onStopDraggingFeature?: () => void
   // Selection
   onClearSelection?: () => void
 }
@@ -206,11 +226,12 @@ function getCursorForTool(
   isPanning: boolean,
   isOverPath: boolean,
   isOverLabel: boolean,
-  isOverVertex: boolean
+  isOverVertex: boolean,
+  isOverFeature: boolean = false
 ): string {
   if (isPanning) return 'grabbing'
   if (isOverVertex) return 'move'
-  if (isOverPath || isOverLabel) return 'pointer'
+  if (isOverPath || isOverLabel || isOverFeature) return 'pointer'
   switch (tool) {
     case 'pan':
       return 'grab'
@@ -218,6 +239,8 @@ function getCursorForTool(
     case 'erase':
     case 'path':
     case 'label':
+    case 'wall':
+    case 'feature':
       return 'crosshair'
     default:
       return 'default'
@@ -271,6 +294,15 @@ export function MapCanvas({
   onUpdateLabelPosition,
   onStartDraggingLabel,
   onStopDraggingLabel,
+  onPaintWall,
+  onEraseWall,
+  onHoveredCellChange,
+  onPlaceFeature,
+  onSelectFeature,
+  onDeleteFeature,
+  onUpdateFeaturePosition,
+  onStartDraggingFeature,
+  onStopDraggingFeature,
   onClearSelection,
 }: MapCanvasProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
@@ -294,10 +326,13 @@ export function MapCanvas({
   const [isOverPath, setIsOverPath] = React.useState(false)
   const [isOverLabel, setIsOverLabel] = React.useState(false)
   const [isOverVertex, setIsOverVertex] = React.useState(false)
+  const [isOverFeature, setIsOverFeature] = React.useState(false)
   const [newLabelPosition, setNewLabelPosition] = React.useState<MapPoint | null>(null)
+  const [hoveredCell, setHoveredCell] = React.useState<{ col: number; row: number } | null>(null)
 
   const tool = drawingState?.tool ?? 'pan'
   const isHexGrid = map.gridType === 'HEX'
+  const isSquareGrid = map.gridType === 'SQUARE'
 
   const getMapDimensions = React.useCallback(() => {
     if (map.gridType === 'SQUARE') {
@@ -364,7 +399,12 @@ export function MapCanvas({
       ctx.fillRect(0, 0, map.width * map.cellSize, map.height * map.cellSize)
     }
 
-    // 2. Draw grid lines
+    // 2. Draw walls (square grid only, before grid lines so lines show on top)
+    if (isSquareGrid && drawingState?.walls && drawingState.walls.size > 0) {
+      renderWalls(ctx, drawingState.walls, map.cellSize)
+    }
+
+    // 3. Draw grid lines
     ctx.strokeStyle = '#1a1a1a'
     ctx.lineWidth = 1 / viewport.zoom
 
@@ -374,8 +414,8 @@ export function MapCanvas({
       drawHexGrid(ctx, map)
     }
 
-    // 3. Draw all paths (with viewport culling)
-    if (drawingState?.paths) {
+    // 4. Draw all paths (hex only, with viewport culling)
+    if (isHexGrid && drawingState?.paths) {
       for (const path of drawingState.paths) {
         const bounds = getPathBounds(path)
         // Add padding for line width
@@ -389,12 +429,19 @@ export function MapCanvas({
       }
     }
 
-    // 4. Draw terrain icons (on top of paths, with viewport culling)
+    // 5. Draw terrain icons (hex only, on top of paths, with viewport culling)
     if (isHexGrid && drawingState?.terrain) {
       drawTerrainCulled(ctx, drawingState.terrain, map.cellSize, visibleBounds)
     }
 
-    // 5. Draw labels (with viewport culling)
+    // 6. Draw features (square grid only)
+    if (isSquareGrid && drawingState?.features) {
+      for (const feature of drawingState.features) {
+        renderFeature(ctx, feature, map.cellSize, feature.id === drawingState.selectedFeatureId)
+      }
+    }
+
+    // 7. Draw labels (with viewport culling)
     if (drawingState?.labels) {
       for (const label of drawingState.labels) {
         // Don't render label being edited (it will be shown as input)
@@ -415,8 +462,8 @@ export function MapCanvas({
       }
     }
 
-    // 6. Draw path preview (while drawing)
-    if (drawingState?.pathInProgress && tool === 'path') {
+    // 8. Draw path preview (while drawing, hex only)
+    if (isHexGrid && drawingState?.pathInProgress && tool === 'path') {
       renderPathPreview(
         ctx,
         drawingState.pathInProgress,
@@ -426,19 +473,72 @@ export function MapCanvas({
       )
     }
 
-    // 7. Draw snap indicator
-    if (tool === 'path' && snapPoint) {
+    // 9. Draw snap indicator (hex only)
+    if (isHexGrid && tool === 'path' && snapPoint) {
       renderSnapIndicator(ctx, snapPoint, viewport.zoom)
     }
 
-    // 8. Draw hover preview for terrain/erase (but not when over a path/label in erase mode)
+    // 10. Draw hover preview for terrain/erase (hex only, but not when over a path/label in erase mode)
     const showErasePreview = tool === 'erase' && !isOverPath && !isOverLabel
     if (isHexGrid && drawingState?.hoveredHex && (tool === 'terrain' || showErasePreview)) {
       drawHoverPreview(ctx, drawingState.hoveredHex, tool, drawingState.selectedTerrain, map.cellSize)
     }
 
-    // 9. Draw selected path handles
-    if (drawingState?.selectedPathId) {
+    // 11. Draw feature preview (square grid only, when feature tool active)
+    if (isSquareGrid && tool === 'feature' && hoveredCell && drawingState) {
+      const isValid = featureFitsInBounds(
+        hoveredCell.col,
+        hoveredCell.row,
+        drawingState.selectedFeatureType,
+        drawingState.featureRotation,
+        map.width,
+        map.height
+      )
+      renderFeaturePreview(
+        ctx,
+        drawingState.selectedFeatureType,
+        hoveredCell.col,
+        hoveredCell.row,
+        drawingState.featureRotation,
+        map.cellSize,
+        isValid
+      )
+    }
+
+    // 12. Draw wall preview for square grids (when wall tool active)
+    if (isSquareGrid && tool === 'wall' && hoveredCell && drawingState) {
+      const key = wallKey(hoveredCell.col, hoveredCell.row)
+      const isWall = drawingState.walls.has(key)
+      ctx.save()
+      ctx.globalAlpha = 0.5
+      if (drawingState.wallMode === 'add' && !isWall) {
+        // Show preview of wall being added
+        ctx.fillStyle = '#1a1a1a'
+        ctx.fillRect(
+          hoveredCell.col * map.cellSize,
+          hoveredCell.row * map.cellSize,
+          map.cellSize,
+          map.cellSize
+        )
+      } else if (drawingState.wallMode === 'remove' && isWall) {
+        // Show preview of wall being removed (red X)
+        const x = hoveredCell.col * map.cellSize + map.cellSize / 2
+        const y = hoveredCell.row * map.cellSize + map.cellSize / 2
+        const size = map.cellSize * 0.3
+        ctx.strokeStyle = '#d32f2f'
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.moveTo(x - size, y - size)
+        ctx.lineTo(x + size, y + size)
+        ctx.moveTo(x + size, y - size)
+        ctx.lineTo(x - size, y + size)
+        ctx.stroke()
+      }
+      ctx.restore()
+    }
+
+    // 13. Draw selected path handles (hex only)
+    if (isHexGrid && drawingState?.selectedPathId) {
       const selectedPath = drawingState.paths.find((p) => p.id === drawingState.selectedPathId)
       if (selectedPath) {
         renderPathHandles(ctx, selectedPath, viewport.zoom)
@@ -446,7 +546,7 @@ export function MapCanvas({
     }
 
     ctx.restore()
-  }, [map, containerSize, drawingState, tool, isHexGrid, cursorMapPos, snapPoint, isOverPath, isOverLabel])
+  }, [map, containerSize, drawingState, tool, isHexGrid, isSquareGrid, cursorMapPos, snapPoint, isOverPath, isOverLabel, hoveredCell])
 
   const scheduleRender = React.useCallback(() => {
     if (rafIdRef.current !== null) {
@@ -501,8 +601,14 @@ export function MapCanvas({
     drawingState?.selectedPathId,
     drawingState?.selectedLabelId,
     drawingState?.labelEditingId,
+    drawingState?.walls,
+    drawingState?.features,
+    drawingState?.selectedFeatureId,
+    drawingState?.wallMode,
+    drawingState?.featureRotation,
     cursorMapPos,
     snapPoint,
+    hoveredCell,
   ])
 
   React.useEffect(() => {
@@ -759,11 +865,135 @@ export function MapCanvas({
         return
       }
 
+      // Handle wall tool (square grid only)
+      if (tool === 'wall' && isSquareGrid) {
+        isPaintingRef.current = true
+        const cell = getWallAtPosition(mapPos.x, mapPos.y, map.cellSize)
+        if (cell.col >= 0 && cell.col < map.width && cell.row >= 0 && cell.row < map.height) {
+          const cellKey = `${cell.col},${cell.row}`
+          lastPaintedHexRef.current = cellKey
+          onPaintWall?.(cell.col, cell.row)
+        }
+        return
+      }
+
+      // Handle feature tool (square grid only)
+      if (tool === 'feature' && isSquareGrid && drawingState) {
+        // Check if clicking on existing feature to select it
+        if (drawingState.features) {
+          for (const feature of drawingState.features) {
+            if (hitTestFeature(mapPos.x, mapPos.y, feature, map.cellSize)) {
+              if (drawingState.selectedFeatureId === feature.id) {
+                // Already selected - start dragging
+                onStartDraggingFeature?.()
+              } else {
+                // Select it
+                onSelectFeature?.(feature.id)
+              }
+              return
+            }
+          }
+        }
+
+        // Click on empty space - place new feature
+        const cell = getWallAtPosition(mapPos.x, mapPos.y, map.cellSize)
+        if (featureFitsInBounds(
+          cell.col,
+          cell.row,
+          drawingState.selectedFeatureType,
+          drawingState.featureRotation,
+          map.width,
+          map.height
+        )) {
+          onPlaceFeature?.(cell.col, cell.row)
+        }
+        return
+      }
+
+      // Handle label tool on square grid
+      if (tool === 'label' && isSquareGrid) {
+        // Check if clicking on existing label
+        const canvas = canvasRef.current
+        const ctx = canvas?.getContext('2d')
+        if (ctx && drawingState?.labels) {
+          for (const label of drawingState.labels) {
+            if (hitTestLabel(mapPos, label, ctx)) {
+              if (isDoubleClick) {
+                // Double-click to edit
+                onStartEditingLabel?.(label.id)
+              } else if (drawingState.selectedLabelId === label.id) {
+                // Click on already-selected label - start dragging
+                onStartDraggingLabel?.()
+              } else {
+                // Single-click to select
+                onSelectLabel?.(label.id)
+              }
+              return
+            }
+          }
+        }
+
+        // Click on empty space - create new label
+        setNewLabelPosition(mapPos)
+        return
+      }
+
+      // Handle erase tool on square grid
+      if (tool === 'erase' && isSquareGrid && drawingState) {
+        // Check features first
+        for (const feature of drawingState.features ?? []) {
+          if (hitTestFeature(mapPos.x, mapPos.y, feature, map.cellSize)) {
+            if (drawingState.selectedFeatureId === feature.id) {
+              // Already selected - delete it
+              onDeleteFeature?.(feature.id)
+            } else {
+              // Select it first
+              onSelectFeature?.(feature.id)
+            }
+            return
+          }
+        }
+
+        // Check labels
+        const canvas = canvasRef.current
+        const ctx = canvas?.getContext('2d')
+        if (ctx && drawingState.labels) {
+          for (const label of drawingState.labels) {
+            if (hitTestLabel(mapPos, label, ctx)) {
+              if (drawingState.selectedLabelId === label.id) {
+                // Already selected - delete it
+                onDeleteLabel?.(label.id)
+              } else {
+                // Select it first
+                onSelectLabel?.(label.id)
+              }
+              return
+            }
+          }
+        }
+
+        // Clear selection if clicking elsewhere
+        if (drawingState.selectedFeatureId || drawingState.selectedLabelId) {
+          onClearSelection?.()
+        }
+
+        // Erase wall
+        isPaintingRef.current = true
+        const cell = getWallAtPosition(mapPos.x, mapPos.y, map.cellSize)
+        if (cell.col >= 0 && cell.col < map.width && cell.row >= 0 && cell.row < map.height) {
+          const cellKey = `${cell.col},${cell.row}`
+          lastPaintedHexRef.current = cellKey
+          onEraseWall?.(cell.col, cell.row)
+        }
+        return
+      }
+
     },
     [
       tool,
       drawingState,
       isHexGrid,
+      isSquareGrid,
       onHexClick,
       screenToMap,
       map,
@@ -777,6 +1007,12 @@ export function MapCanvas({
       onDeleteLabel,
       onStartEditingLabel,
       onStartDraggingLabel,
+      onPaintWall,
+      onEraseWall,
+      onPlaceFeature,
+      onSelectFeature,
+      onDeleteFeature,
+      onStartDraggingFeature,
       onClearSelection,
     ]
   )
@@ -823,6 +1059,23 @@ export function MapCanvas({
       // Handle label dragging
       if (drawingState?.draggingLabel && drawingState?.selectedLabelId) {
         onUpdateLabelPosition?.(drawingState.selectedLabelId, mapPos)
+        return
+      }
+
+      // Handle feature dragging (square grid)
+      if (drawingState?.draggingFeature && drawingState?.selectedFeatureId && isSquareGrid) {
+        const cell = getWallAtPosition(mapPos.x, mapPos.y, map.cellSize)
+        const feature = drawingState.features.find((f) => f.id === drawingState.selectedFeatureId)
+        if (feature && featureFitsInBounds(
+          cell.col,
+          cell.row,
+          feature.type,
+          feature.rotation,
+          map.width,
+          map.height
+        )) {
+          onUpdateFeaturePosition?.(drawingState.selectedFeatureId, cell.col, cell.row)
+        }
         return
       }
 
@@ -889,9 +1142,55 @@ export function MapCanvas({
         }
       }
 
+      // Check feature hit (square grid)
+      let overFeature = false
+      if (isSquareGrid && drawingState?.features) {
+        for (const feature of drawingState.features) {
+          if (hitTestFeature(mapPos.x, mapPos.y, feature, map.cellSize)) {
+            overFeature = true
+            break
+          }
+        }
+      }
+
       setIsOverPath(overPath)
       setIsOverLabel(overLabel)
       setIsOverVertex(overVertex)
+      setIsOverFeature(overFeature)
+
+      // Handle square grid cell hover for wall/feature tools
+      if (isSquareGrid && (tool === 'wall' || tool === 'feature' || tool === 'erase')) {
+        const cell = getWallAtPosition(mapPos.x, mapPos.y, map.cellSize)
+        if (cell.col >= 0 && cell.col < map.width && cell.row >= 0 && cell.row < map.height) {
+          setHoveredCell(cell)
+          onHoveredCellChange?.(cell)
+
+          // Paint walls while dragging (wall tool)
+          if (isPaintingRef.current && tool === 'wall') {
+            const cellKey = `${cell.col},${cell.row}`
+            if (cellKey !== lastPaintedHexRef.current) {
+              lastPaintedHexRef.current = cellKey
+              onPaintWall?.(cell.col, cell.row)
+            }
+          }
+
+          // Erase walls while dragging (erase tool)
+          if (isPaintingRef.current && tool === 'erase') {
+            const cellKey = `${cell.col},${cell.row}`
+            if (cellKey !== lastPaintedHexRef.current) {
+              lastPaintedHexRef.current = cellKey
+              onEraseWall?.(cell.col, cell.row)
+            }
+          }
+        } else {
+          setHoveredCell(null)
+          onHoveredCellChange?.(null)
+        }
+      } else if (isSquareGrid) {
+        // Clear hovered cell when not using wall/feature/erase tools
+        setHoveredCell(null)
+        onHoveredCellChange?.(null)
+      }
 
       // Handle hex hover for terrain/erase tools
       if (isHexGrid && (tool === 'terrain' || tool === 'erase')) {
@@ -918,6 +1217,7 @@ export function MapCanvas({
     [
       scheduleRender,
       isHexGrid,
+      isSquareGrid,
       onHexHover,
       onHexClick,
       tool,
@@ -926,6 +1226,10 @@ export function MapCanvas({
       drawingState,
       onUpdatePathVertex,
       onUpdateLabelPosition,
+      onUpdateFeaturePosition,
+      onHoveredCellChange,
+      onPaintWall,
+      onEraseWall,
     ]
   )
 
@@ -941,7 +1245,10 @@ export function MapCanvas({
     if (drawingState?.draggingLabel) {
       onStopDraggingLabel?.()
     }
-  }, [drawingState, onStopDraggingVertex, onStopDraggingLabel])
+    if (drawingState?.draggingFeature) {
+      onStopDraggingFeature?.()
+    }
+  }, [drawingState, onStopDraggingVertex, onStopDraggingLabel, onStopDraggingFeature])
 
   const handleMouseLeave = React.useCallback(() => {
     isPanningRef.current = false
@@ -950,10 +1257,12 @@ export function MapCanvas({
     setIsPanningState(false)
     setCursorMapPos(null)
     setSnapPoint(null)
+    setHoveredCell(null)
     if (onHexHover) {
       onHexHover(null)
     }
-  }, [onHexHover])
+    onHoveredCellChange?.(null)
+  }, [onHexHover, onHoveredCellChange])
 
   // Touch handlers
   const touchStateRef = React.useRef<{
@@ -1058,7 +1367,7 @@ export function MapCanvas({
     onCancelEditingLabel?.()
   }, [onCancelEditingLabel])
 
-  const cursor = getCursorForTool(tool, isPanningState, isOverPath, isOverLabel, isOverVertex)
+  const cursor = getCursorForTool(tool, isPanningState, isOverPath, isOverLabel, isOverVertex, isOverFeature)
   const viewport = viewportRef.current
 
   // Get editing label data

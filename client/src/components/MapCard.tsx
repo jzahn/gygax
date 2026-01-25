@@ -9,24 +9,6 @@ interface MapCardProps {
   onDelete: () => void
 }
 
-function SquareGridPreview() {
-  return (
-    <svg
-      viewBox="0 0 60 60"
-      className="h-full w-full"
-      style={{ stroke: '#1a1a1a', strokeWidth: 1, fill: 'none' }}
-    >
-      {/* 5x5 grid */}
-      {[0, 12, 24, 36, 48, 60].map((x) => (
-        <line key={`v${x}`} x1={x} y1={0} x2={x} y2={60} />
-      ))}
-      {[0, 12, 24, 36, 48, 60].map((y) => (
-        <line key={`h${y}`} x1={0} y1={y} x2={60} y2={y} />
-      ))}
-    </svg>
-  )
-}
-
 export function MapCard({ map, onEdit, onDelete }: MapCardProps) {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = React.useState(false)
@@ -75,13 +57,7 @@ export function MapCard({ map, onEdit, onDelete }: MapCardProps) {
       {/* Map Preview */}
       <div className="border-b-3 border-ink bg-white">
         <div className="aspect-video w-full">
-          {map.gridType === 'SQUARE' ? (
-            <div className="flex h-full items-center justify-center p-4">
-              <SquareGridPreview />
-            </div>
-          ) : (
-            <MapPreview map={map} />
-          )}
+          <MapPreview map={map} />
         </div>
       </div>
 

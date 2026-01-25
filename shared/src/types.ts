@@ -166,14 +166,82 @@ export interface MapLabel {
   size: TextSize
 }
 
+// Wall cell (square grid only)
+export interface WallCell {
+  col: number
+  row: number
+}
+
+// Dungeon feature types
+export type FeatureType =
+  // Doors (1x1, placed on wall edge)
+  | 'door'           // Standard door
+  | 'door-double'    // Double door (1x2 base)
+  | 'door-secret'    // Secret door (S mark)
+  | 'door-locked'    // Locked door
+  // Stairs (1x2 or 2x2)
+  | 'stairs-up'      // Stairs going up
+  | 'stairs-down'    // Stairs going down
+  // Objects (1x1)
+  | 'pillar'         // Stone pillar
+  | 'statue'         // Statue
+  | 'altar'          // Altar/shrine
+  | 'fountain'       // Fountain/well
+  | 'chest'          // Treasure chest
+  | 'throne'         // Throne
+  // Hazards (1x1 or 1x2)
+  | 'trap'           // Trap marker
+  | 'pit'            // Pit/hole
+  // Misc
+  | 'lever'          // Lever/switch
+  | 'fireplace'      // Fireplace (1x2)
+  | 'table'          // Table (1x2 or 2x2)
+  | 'bed'            // Bed (1x2)
+
+// Feature size types
+export type FeatureSize = '1x1' | '1x2' | '2x1' | '2x2'
+
+// Feature type to size mapping
+export const FEATURE_SIZES: Record<FeatureType, FeatureSize> = {
+  'door': '1x1',
+  'door-double': '1x2',
+  'door-secret': '1x1',
+  'door-locked': '1x1',
+  'stairs-up': '1x2',
+  'stairs-down': '1x2',
+  'pillar': '1x1',
+  'statue': '1x1',
+  'altar': '1x1',
+  'fountain': '1x1',
+  'chest': '1x1',
+  'throne': '1x1',
+  'trap': '1x1',
+  'pit': '1x1',
+  'lever': '1x1',
+  'fireplace': '1x2',
+  'table': '2x2',
+  'bed': '1x2',
+}
+
+// Dungeon feature stamp
+export interface DungeonFeature {
+  id: string
+  type: FeatureType
+  position: { col: number; row: number }  // Top-left cell of the feature
+  rotation: 0 | 90 | 180 | 270  // Degrees clockwise
+}
+
 // Complete map drawing content
 // Version 1: terrain only (backwards compatible)
 // Version 2: terrain + paths + labels
+// Version 3: adds walls + features for square grid maps
 export interface MapContent {
   version: number
   terrain: TerrainStamp[]
-  paths?: MapPath[]    // Optional for backwards compatibility
-  labels?: MapLabel[]  // Optional for backwards compatibility
+  paths?: MapPath[]          // Optional for backwards compatibility
+  labels?: MapLabel[]        // Optional for backwards compatibility
+  walls?: WallCell[]         // Square grid maps only
+  features?: DungeonFeature[] // Square grid maps only
 }
 
 export interface Map {

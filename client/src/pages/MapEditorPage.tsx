@@ -41,7 +41,10 @@ export function MapEditorPage() {
   // Save content to API
   const handleSaveContent = React.useCallback(
     async (content: MapContent) => {
-      if (!map) return
+      if (!map) {
+        console.warn('Cannot save: map not loaded yet')
+        throw new Error('Map not loaded')
+      }
 
       const response = await fetch(`${API_URL}/api/maps/${map.id}`, {
         method: 'PATCH',
@@ -51,7 +54,9 @@ export function MapEditorPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save map content')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Save failed:', response.status, errorData)
+        throw new Error(errorData.message || 'Failed to save map content')
       }
     },
     [map]
@@ -61,6 +66,9 @@ export function MapEditorPage() {
   const drawing = useMapDrawing({
     initialContent: map?.content ?? null,
     onSave: handleSaveContent,
+    gridType: map?.gridType ?? 'SQUARE',
+    mapWidth: map?.width ?? 30,
+    mapHeight: map?.height ?? 30,
   })
 
   // Close menu when clicking outside
@@ -268,6 +276,17 @@ export function MapEditorPage() {
             onUpdateLabelPosition={drawing.updateLabelPosition}
             onStartDraggingLabel={drawing.startDraggingLabel}
             onStopDraggingLabel={drawing.stopDraggingLabel}
+            // Wall callbacks (square grid)
+            onPaintWall={drawing.paintWall}
+            onEraseWall={drawing.eraseWall}
+            onHoveredCellChange={drawing.setHoveredCell}
+            // Feature callbacks (square grid)
+            onPlaceFeature={drawing.placeFeature}
+            onSelectFeature={drawing.selectFeature}
+            onDeleteFeature={drawing.deleteFeature}
+            onUpdateFeaturePosition={drawing.updateFeaturePosition}
+            onStartDraggingFeature={drawing.startDraggingFeature}
+            onStopDraggingFeature={drawing.stopDraggingFeature}
             // Selection
             onClearSelection={drawing.clearSelection}
           />
@@ -278,6 +297,14 @@ export function MapEditorPage() {
           selectedPathType={drawing.state.selectedPathType}
           selectedLabelSize={drawing.state.selectedLabelSize}
           gridType={map.gridType}
+          // Wall props (square grid)
+          wallMode={drawing.state.wallMode}
+          onWallModeChange={drawing.setWallMode}
+          // Feature props (square grid)
+          selectedFeatureType={drawing.state.selectedFeatureType}
+          onFeatureTypeChange={drawing.setSelectedFeatureType}
+          onFeatureRotate={drawing.rotateFeature}
+          // Common props
           onToolChange={drawing.setTool}
           onTerrainChange={drawing.setSelectedTerrain}
           onPathTypeChange={drawing.setSelectedPathType}

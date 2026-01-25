@@ -10,7 +10,9 @@ import type {
   TerrainType,
   PathType,
   TextSize,
+  FeatureType,
 } from '@gygax/shared'
+import { FEATURE_SIZES } from '@gygax/shared'
 
 const MAX_NAME_LENGTH = 100
 const MAX_DESCRIPTION_LENGTH = 1000
@@ -42,6 +44,15 @@ const VALID_TERRAIN_TYPES: TerrainType[] = [
 const VALID_PATH_TYPES: PathType[] = ['road', 'river', 'stream', 'border', 'trail']
 const VALID_TEXT_SIZES: TextSize[] = ['small', 'medium', 'large', 'xlarge']
 const MAX_LABEL_LENGTH = 200
+
+const VALID_FEATURE_TYPES: FeatureType[] = [
+  'door', 'door-double', 'door-secret', 'door-locked',
+  'stairs-up', 'stairs-down',
+  'pillar', 'statue', 'altar', 'fountain', 'chest', 'throne',
+  'trap', 'pit',
+  'lever', 'fireplace', 'table', 'bed',
+]
+const VALID_ROTATIONS = [0, 90, 180, 270]
 
 function formatMap(map: {
   id: string
@@ -87,9 +98,9 @@ function validateMapContent(
 
   const c = content as Record<string, unknown>
 
-  // Accept version 1 or 2 for backwards compatibility
-  if (c.version !== 1 && c.version !== 2) {
-    return { valid: false, message: 'Content version must be 1 or 2' }
+  // Accept version 1, 2, or 3 for backwards compatibility
+  if (c.version !== 1 && c.version !== 2 && c.version !== 3) {
+    return { valid: false, message: 'Content version must be 1, 2, or 3' }
   }
 
   if (!Array.isArray(c.terrain)) {
@@ -259,6 +270,93 @@ function validateMapContent(
 
       if (pos.y < -margin || pos.y > canvasHeight + margin) {
         return { valid: false, message: 'Label position y is out of bounds' }
+      }
+    }
+  }
+
+  // Validate walls if present (square grid maps only)
+  if (c.walls !== undefined) {
+    if (!Array.isArray(c.walls)) {
+      return { valid: false, message: 'Content walls must be an array' }
+    }
+
+    for (const wall of c.walls) {
+      if (typeof wall !== 'object' || wall === null) {
+        return { valid: false, message: 'Each wall must be an object' }
+      }
+
+      const w = wall as Record<string, unknown>
+
+      if (typeof w.col !== 'number' || !Number.isInteger(w.col)) {
+        return { valid: false, message: 'Wall col must be an integer' }
+      }
+
+      if (typeof w.row !== 'number' || !Number.isInteger(w.row)) {
+        return { valid: false, message: 'Wall row must be an integer' }
+      }
+
+      if (w.col < 0 || w.col >= mapWidth) {
+        return { valid: false, message: `Wall col must be between 0 and ${mapWidth - 1}` }
+      }
+
+      if (w.row < 0 || w.row >= mapHeight) {
+        return { valid: false, message: `Wall row must be between 0 and ${mapHeight - 1}` }
+      }
+    }
+  }
+
+  // Validate features if present (square grid maps only)
+  if (c.features !== undefined) {
+    if (!Array.isArray(c.features)) {
+      return { valid: false, message: 'Content features must be an array' }
+    }
+
+    for (const feature of c.features) {
+      if (typeof feature !== 'object' || feature === null) {
+        return { valid: false, message: 'Each feature must be an object' }
+      }
+
+      const f = feature as Record<string, unknown>
+
+      if (typeof f.id !== 'string' || f.id.length === 0) {
+        return { valid: false, message: 'Feature must have a valid id' }
+      }
+
+      if (typeof f.type !== 'string' || !VALID_FEATURE_TYPES.includes(f.type as FeatureType)) {
+        return { valid: false, message: `Invalid feature type: ${f.type}` }
+      }
+
+      if (typeof f.rotation !== 'number' || !VALID_ROTATIONS.includes(f.rotation)) {
+        return { valid: false, message: 'Feature rotation must be 0, 90, 180, or 270' }
+      }
+
+      if (typeof f.position !== 'object' || f.position === null) {
+        return { valid: false, message: 'Feature must have a position' }
+      }
+
+      const pos = f.position as Record<string, unknown>
+
+      if (typeof pos.col !== 'number' || !Number.isInteger(pos.col)) {
+        return { valid: false, message: 'Feature position col must be an integer' }
+      }
+
+      if (typeof pos.row !== 'number' || !Number.isInteger(pos.row)) {
+        return { valid: false, message: 'Feature position row must be an integer' }
+      }
+
+      // Check feature bounds considering size and rotation
+      const featureType = f.type as FeatureType
+      const size = FEATURE_SIZES[featureType]
+      const [baseW, baseH] = size.split('x').map(Number)
+      const rotation = f.rotation as number
+      const [w, h] = rotation === 90 || rotation === 270 ? [baseH, baseW] : [baseW, baseH]
+
+      if (pos.col < 0 || pos.col + w > mapWidth) {
+        return { valid: false, message: 'Feature extends beyond map width' }
+      }
+
+      if (pos.row < 0 || pos.row + h > mapHeight) {
+        return { valid: false, message: 'Feature extends beyond map height' }
       }
     }
   }
