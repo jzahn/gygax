@@ -116,20 +116,25 @@ npm run build            # Production build
 
 Implementation specs in `/specs/` — build in order:
 
-| Spec              | Description                           | Status    |
-| ----------------- | ------------------------------------- | --------- |
-| 001-foundation    | Project setup, Docker, health check   | Complete  |
-| 002-auth          | Authentication system                 | Complete  |
-| 003-email         | Email verification & password reset   | Complete  |
-| 004-campaigns     | Campaign CRUD                         | Complete  |
-| 005a-map-foundation | Map data model & basic canvas       | Complete  |
-| 005b-map-drawing  | Terrain stamping tools (hex/wilderness) | Complete  |
-| 005c-map-labels-paths | Text labels & path drawing        | Complete  |
-| 005d-map-indoor   | Indoor/dungeon maps (square grid)     | Planned   |
-| 005e-map-import-export | Save/load maps to JSON files      | Planned   |
-| 006-sessions      | Live game sessions & player joining   | Planned   |
-| 007-fog-of-war    | Fog of war system                     | Planned   |
-| 008-chat          | Real-time chat with dice rolling      | Planned   |
+| Spec | Description | Status |
+|------|-------------|--------|
+| 001-foundation | Project setup, Docker, health check | Complete |
+| 002-auth | Authentication system | Complete |
+| 003-email | Email verification & password reset | Complete |
+| 004-adventures | Adventure CRUD (renamed from campaigns) | Complete |
+| 005-campaigns | Campaign (collection of Adventures) | Planned |
+| 006-characters | Player character creation (B/X sheets) | Planned |
+| 007-npcs | DM NPC/character creation | Planned |
+| 008-backdrops | Backdrop image display | Planned |
+| 009-notes | DM notes system | Planned |
+| 010a-map-foundation | Map data model & basic canvas | Complete |
+| 010b-map-drawing | Terrain stamping tools (hex/wilderness) | Complete |
+| 010c-map-labels-paths | Text labels & path drawing | Complete |
+| 010d-map-indoor | Indoor/dungeon maps (square grid) | Planned |
+| 010e-map-import-export | Save/load maps to JSON files | Planned |
+| 011-sessions | Live game sessions & player joining | Planned |
+| 012-fog-of-war | Fog of war system | Planned |
+| 013-chat | Real-time chat with dice rolling | Planned |
 
 *Note: Map linking/transitions deferred to Phase 2 (single-player with NPCs)*
 
@@ -137,4 +142,5 @@ Implementation specs in `/specs/` — build in order:
 
 <!-- Update as work progresses -->
 
-- [ ] Spec and implement indoor/dungeon maps (005d)
+- [ ] Rename Campaign → Adventure in existing code (004 implementation refactor)
+- [ ] Spec and implement Campaign collection entity (005)

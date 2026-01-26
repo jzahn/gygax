@@ -1,31 +1,32 @@
-# Spec 004: Campaign Management
+# Spec 004: Adventure Management
 
 ## Goal
 
-Implement campaign CRUD functionality allowing DMs to create, view, edit, and delete campaigns. This establishes the core organizational unit for all future game content (maps, encounters, sessions).
+Implement Adventure CRUD functionality allowing DMs to create, view, edit, and delete Adventures. This establishes the core organizational unit for all future game content (maps, encounters, sessions).
 
 ## Scope
 
 ### In Scope
 
-- Campaign database model with ownership
-- Campaign CRUD API endpoints (create, read, update, delete, list)
+- Adventure database model with ownership
+- Adventure CRUD API endpoints (create, read, update, delete, list)
 - Cover image upload (S3-compatible storage)
-- Dashboard page showing user's campaigns
-- Create/Edit campaign modal with image upload
-- Campaign detail page (shell for future content)
+- Dashboard page showing user's Adventures
+- Create/Edit Adventure modal with image upload
+- Adventure detail page (shell for future content)
 - Empty state for new users
-- Campaign card component with cover image
+- Adventure card component with cover image
 
 ### Out of Scope
 
-- Maps (spec 005)
+- Campaigns (collection of Adventures) (spec 005)
+- Maps (spec 010)
 - Encounters and random tables
 - Live game sessions
 - Player invitations/membership
-- Campaign sharing or public visibility
-- Campaign settings (rule system, house rules)
-- Campaign archiving/soft delete
+- Adventure sharing or public visibility
+- Adventure settings (rule system, house rules)
+- Adventure archiving/soft delete
 - Image cropping/editing (user uploads pre-cropped images)
 
 ## Dependencies
@@ -58,10 +59,10 @@ Implement campaign CRUD functionality allowing DMs to create, view, edit, and de
 
 ### 1. Database Schema
 
-**Campaign Model (prisma/schema.prisma):**
+**Adventure Model (prisma/schema.prisma):**
 
 ```prisma
-model Campaign {
+model Adventure {
   id            String   @id @default(cuid())
   name          String
   description   String?
@@ -72,7 +73,7 @@ model Campaign {
   ownerId       String
   owner         User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  @@map("campaigns")
+  @@map("adventures")
 }
 ```
 
@@ -81,11 +82,11 @@ model Campaign {
 ```prisma
 model User {
   // ... existing fields
-  campaigns Campaign[]
+  adventures Adventure[]
 }
 ```
 
-**Migration:** `004_campaigns` creates the campaigns table with foreign key to users.
+**Migration:** `004_adventures` creates the adventures table with foreign key to users.
 
 ### 1.1 Docker Configuration
 
@@ -128,21 +129,21 @@ The server should create the bucket on startup if it doesn't exist, with public 
 
 ### 2. API Endpoints
 
-All campaign endpoints require authentication and verified email.
+All Adventure endpoints require authentication and verified email.
 
-#### GET /api/campaigns
+#### GET /api/adventures
 
-List all campaigns owned by the current user.
+List all Adventures owned by the current user.
 
 **Response (200):**
 ```json
 {
-  "campaigns": [
+  "adventures": [
     {
       "id": "clx...",
       "name": "Curse of the Azure Bonds",
       "description": "A classic adventure in the Forgotten Realms",
-      "coverImageUrl": "http://localhost:9000/gygax-uploads/campaigns/clx.../cover.jpg",
+      "coverImageUrl": "http://localhost:9000/gygax-uploads/adventures/clx.../cover.jpg",
       "createdAt": "2024-01-20T12:00:00.000Z",
       "updatedAt": "2024-01-20T12:00:00.000Z"
     }
@@ -150,15 +151,15 @@ List all campaigns owned by the current user.
 }
 ```
 
-Campaigns are sorted by `updatedAt` descending (most recently modified first).
+Adventures are sorted by `updatedAt` descending (most recently modified first).
 
 **Errors:**
 - 401: Not authenticated
 - 403: Email not verified
 
-#### POST /api/campaigns
+#### POST /api/adventures
 
-Create a new campaign.
+Create a new Adventure.
 
 **Request:**
 ```json
@@ -171,7 +172,7 @@ Create a new campaign.
 **Response (201):**
 ```json
 {
-  "campaign": {
+  "adventure": {
     "id": "clx...",
     "name": "Curse of the Azure Bonds",
     "description": "A classic adventure in the Forgotten Realms",
@@ -191,18 +192,18 @@ Create a new campaign.
 - 401: Not authenticated
 - 403: Email not verified
 
-#### GET /api/campaigns/:id
+#### GET /api/adventures/:id
 
-Get a single campaign by ID.
+Get a single Adventure by ID.
 
 **Response (200):**
 ```json
 {
-  "campaign": {
+  "adventure": {
     "id": "clx...",
     "name": "Curse of the Azure Bonds",
     "description": "A classic adventure in the Forgotten Realms",
-    "coverImageUrl": "http://localhost:9000/gygax-uploads/campaigns/clx.../cover.jpg",
+    "coverImageUrl": "http://localhost:9000/gygax-uploads/adventures/clx.../cover.jpg",
     "createdAt": "2024-01-20T12:00:00.000Z",
     "updatedAt": "2024-01-20T12:00:00.000Z"
   }
@@ -211,12 +212,12 @@ Get a single campaign by ID.
 
 **Errors:**
 - 401: Not authenticated
-- 403: Email not verified OR not the campaign owner
-- 404: Campaign not found
+- 403: Email not verified OR not the Adventure owner
+- 404: Adventure not found
 
-#### PATCH /api/campaigns/:id
+#### PATCH /api/adventures/:id
 
-Update a campaign.
+Update an Adventure.
 
 **Request:**
 ```json
@@ -231,11 +232,11 @@ Both fields are optional; only provided fields are updated.
 **Response (200):**
 ```json
 {
-  "campaign": {
+  "adventure": {
     "id": "clx...",
     "name": "Updated Name",
     "description": "Updated description",
-    "coverImageUrl": "http://localhost:9000/gygax-uploads/campaigns/clx.../cover.jpg",
+    "coverImageUrl": "http://localhost:9000/gygax-uploads/adventures/clx.../cover.jpg",
     "createdAt": "2024-01-20T12:00:00.000Z",
     "updatedAt": "2024-01-20T14:00:00.000Z"
   }
@@ -245,12 +246,12 @@ Both fields are optional; only provided fields are updated.
 **Errors:**
 - 400: Invalid input
 - 401: Not authenticated
-- 403: Email not verified OR not the campaign owner
-- 404: Campaign not found
+- 403: Email not verified OR not the Adventure owner
+- 404: Adventure not found
 
-#### DELETE /api/campaigns/:id
+#### DELETE /api/adventures/:id
 
-Delete a campaign permanently. Also deletes associated cover image from storage.
+Delete an Adventure permanently. Also deletes associated cover image from storage.
 
 **Response (200):**
 ```json
@@ -261,12 +262,12 @@ Delete a campaign permanently. Also deletes associated cover image from storage.
 
 **Errors:**
 - 401: Not authenticated
-- 403: Email not verified OR not the campaign owner
-- 404: Campaign not found
+- 403: Email not verified OR not the Adventure owner
+- 404: Adventure not found
 
-#### POST /api/campaigns/:id/cover
+#### POST /api/adventures/:id/cover
 
-Upload or replace the campaign cover image.
+Upload or replace the Adventure cover image.
 
 **Request:** `multipart/form-data` with `image` field
 
@@ -278,11 +279,11 @@ Upload or replace the campaign cover image.
 **Response (200):**
 ```json
 {
-  "campaign": {
+  "adventure": {
     "id": "clx...",
     "name": "Curse of the Azure Bonds",
     "description": "A classic adventure in the Forgotten Realms",
-    "coverImageUrl": "http://localhost:9000/gygax-uploads/campaigns/clx.../cover.jpg",
+    "coverImageUrl": "http://localhost:9000/gygax-uploads/adventures/clx.../cover.jpg",
     "createdAt": "2024-01-20T12:00:00.000Z",
     "updatedAt": "2024-01-20T14:00:00.000Z"
   }
@@ -292,22 +293,22 @@ Upload or replace the campaign cover image.
 **Behavior:**
 - Replaces existing cover image if present (deletes old file)
 - Generates unique filename to prevent caching issues
-- Stores at path: `campaigns/{campaignId}/{uuid}.{ext}`
+- Stores at path: `adventures/{adventureId}/{uuid}.{ext}`
 
 **Errors:**
 - 400: No file provided, invalid file type, file too large
 - 401: Not authenticated
-- 403: Email not verified OR not the campaign owner
-- 404: Campaign not found
+- 403: Email not verified OR not the Adventure owner
+- 404: Adventure not found
 
-#### DELETE /api/campaigns/:id/cover
+#### DELETE /api/adventures/:id/cover
 
-Remove the campaign cover image.
+Remove the Adventure cover image.
 
 **Response (200):**
 ```json
 {
-  "campaign": {
+  "adventure": {
     "id": "clx...",
     "name": "Curse of the Azure Bonds",
     "description": "A classic adventure in the Forgotten Realms",
@@ -320,8 +321,8 @@ Remove the campaign cover image.
 
 **Errors:**
 - 401: Not authenticated
-- 403: Email not verified OR not the campaign owner
-- 404: Campaign not found
+- 403: Email not verified OR not the Adventure owner
+- 404: Adventure not found
 
 ### 3. Server Implementation
 
@@ -358,12 +359,12 @@ async function initializeBucket() {
 }
 ```
 
-#### Campaign Routes (server/src/routes/campaigns.ts)
+#### Adventure Routes (server/src/routes/adventures.ts)
 
 New route file implementing all seven endpoints with:
 - Authentication check via `request.user`
 - Email verification check
-- Ownership validation for single-campaign operations
+- Ownership validation for single-Adventure operations
 - Input validation and sanitization
 - File upload handling with @fastify/multipart
 
@@ -384,8 +385,8 @@ function requireVerifiedUser(request: FastifyRequest, reply: FastifyReply) {
 ### 4. Type Definitions (shared/src/types.ts)
 
 ```typescript
-// Campaign types
-export interface Campaign {
+// Adventure types
+export interface Adventure {
   id: string
   name: string
   description: string | null
@@ -394,20 +395,20 @@ export interface Campaign {
   updatedAt: string
 }
 
-export interface CampaignListResponse {
-  campaigns: Campaign[]
+export interface AdventureListResponse {
+  adventures: Adventure[]
 }
 
-export interface CampaignResponse {
-  campaign: Campaign
+export interface AdventureResponse {
+  adventure: Adventure
 }
 
-export interface CreateCampaignRequest {
+export interface CreateAdventureRequest {
   name: string
   description?: string
 }
 
-export interface UpdateCampaignRequest {
+export interface UpdateAdventureRequest {
   name?: string
   description?: string
 }
@@ -419,42 +420,42 @@ export interface UpdateCampaignRequest {
 
 The main landing page for authenticated users. Replaces/extends HomePage.
 
-**Page Title:** "YOUR CAMPAIGNS" (IM Fell English, ALL CAPS)
+**Page Title:** "YOUR ADVENTURES" (IM Fell English, ALL CAPS)
 **Subtitle:** "Select a realm to continue your work, or forge a new one" (Spectral italic)
 
 **Layout:**
-- Header with title and "New Campaign" button
-- Grid of campaign cards (responsive: 1 col mobile, 2 col tablet, 3 col desktop)
-- Empty state when no campaigns exist
+- Header with title and "New Adventure" button
+- Grid of Adventure cards (responsive: 1 col mobile, 2 col tablet, 3 col desktop)
+- Empty state when no Adventures exist
 
 **Empty State:**
 - Centered illustration area (optional: simple quill/scroll icon)
-- Text: "No campaigns yet"
-- Subtext: "Every great adventure begins with a single step. Create your first campaign to begin."
-- Primary "Create Campaign" button
+- Text: "No Adventures yet"
+- Subtext: "Every great adventure begins with a single step. Create your first Adventure to begin."
+- Primary "Create Adventure" button
 
-**Campaign Grid:**
+**Adventure Grid:**
 - Uses CSS Grid: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`
 - Cards sorted by most recently updated
 
-#### Campaign Card Component (client/src/components/CampaignCard.tsx)
+#### Adventure Card Component (client/src/components/AdventureCard.tsx)
 
 **Design:** Neobrutalism card styled like a B/X module cover
 
 **Layout:**
 - Cover image area (2:3 ratio, like classic module covers)
-- If no cover: parchment background with campaign name in decorative typography
+- If no cover: parchment background with Adventure name in decorative typography
 - Content area below image with name, description, timestamp
 
 **Content:**
-- Cover image (or placeholder with campaign initial/name)
-- Campaign name (truncated if long, IM Fell English)
+- Cover image (or placeholder with Adventure initial/name)
+- Adventure name (truncated if long, IM Fell English)
 - Description preview (2 lines max, Spectral, faded if empty)
 - "Last modified: X days ago" timestamp (Spectral, small, faded)
 - Overflow menu (three dots) with Edit and Delete options
 
 **Interaction:**
-- Entire card is clickable → navigates to campaign detail
+- Entire card is clickable → navigates to Adventure detail
 - Hover: subtle lift effect (matches button hover)
 - Menu button stops propagation to prevent navigation
 
@@ -466,9 +467,9 @@ The main landing page for authenticated users. Replaces/extends HomePage.
 **Placeholder Design (no cover image):**
 - Parchment background with subtle border
 - Large decorative initial or crossed swords icon
-- Campaign name in IM Fell English, centered
+- Adventure name in IM Fell English, centered
 
-#### Create/Edit Campaign Modal (client/src/components/CreateCampaignModal.tsx)
+#### Create/Edit Adventure Modal (client/src/components/CreateAdventureModal.tsx)
 
 **Design:** Neobrutalism dialog with paper texture
 
@@ -477,11 +478,11 @@ The main landing page for authenticated users. Replaces/extends HomePage.
 
 **Form Fields:**
 - Cover image upload (optional): "Cover Art" / drag-drop zone or click to browse
-- Name input (required): "Campaign Name" / "What shall this realm be called?"
+- Name input (required): "Adventure Name" / "What shall this realm be called?"
 - Description textarea (optional): "Description" / "Describe the nature of this adventure..."
 
 **Cover Image Upload Area:**
-- Displays current image if editing campaign with existing cover
+- Displays current image if editing Adventure with existing cover
 - Drag-and-drop zone with dashed border
 - Click to open file picker
 - Shows preview after selection
@@ -501,34 +502,34 @@ The main landing page for authenticated users. Replaces/extends HomePage.
 - Closes on success, shows error on failure
 - Escape key closes modal
 
-#### Campaign Detail Page (client/src/pages/CampaignPage.tsx)
+#### Adventure Detail Page (client/src/pages/AdventurePage.tsx)
 
-**Route:** `/campaigns/:id`
+**Route:** `/adventures/:id`
 
 **Layout (shell for future expansion):**
 - Back link to dashboard
 - Hero section with cover image (if present) or decorative header
-- Campaign name as page title (overlaid on cover or below)
+- Adventure name as page title (overlaid on cover or below)
 - Description (if present)
 - Edit button (opens modal)
 - Placeholder content area: "Maps, encounters, and session tools coming soon"
 
 **Cover Image Display:**
-- If cover exists: Full-width hero with cover image, campaign name overlaid at bottom with text shadow
-- If no cover: Decorative parchment header with campaign name
+- If cover exists: Full-width hero with cover image, Adventure name overlaid at bottom with text shadow
+- If no cover: Decorative parchment header with Adventure name
 
 **Future sections (not implemented in this spec):**
 - Maps list
 - Encounters list
 - Session history
-- Campaign settings
+- Adventure settings
 
-#### Delete Confirmation Dialog (client/src/components/DeleteCampaignDialog.tsx)
+#### Delete Confirmation Dialog (client/src/components/DeleteAdventureDialog.tsx)
 
 **Design:** Neobrutalism alert dialog
 
-**Title:** "DELETE CAMPAIGN"
-**Message:** "Are you certain you wish to destroy '{campaign name}'? This action cannot be undone. All maps, encounters, and session history will be lost forever."
+**Title:** "DELETE ADVENTURE"
+**Message:** "Are you certain you wish to destroy '{Adventure name}'? This action cannot be undone. All maps, encounters, and session history will be lost forever."
 
 **Buttons:**
 - Cancel (ghost variant)
@@ -540,7 +541,7 @@ The main landing page for authenticated users. Replaces/extends HomePage.
 
 ```tsx
 <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-<Route path="/campaigns/:id" element={<ProtectedRoute><CampaignPage /></ProtectedRoute>} />
+<Route path="/adventures/:id" element={<ProtectedRoute><AdventurePage /></ProtectedRoute>} />
 ```
 
 Note: HomePage becomes DashboardPage or is replaced by it.
@@ -550,12 +551,12 @@ Note: HomePage becomes DashboardPage or is replaced by it.
 **New Files:**
 ```
 server/src/services/storage.ts             # S3-compatible storage service
-server/src/routes/campaigns.ts
+server/src/routes/adventures.ts
 client/src/pages/DashboardPage.tsx
-client/src/pages/CampaignPage.tsx
-client/src/components/CampaignCard.tsx
-client/src/components/CreateCampaignModal.tsx
-client/src/components/DeleteCampaignDialog.tsx
+client/src/pages/AdventurePage.tsx
+client/src/components/AdventureCard.tsx
+client/src/components/CreateAdventureModal.tsx
+client/src/components/DeleteAdventureDialog.tsx
 client/src/components/ImageUpload.tsx      # Reusable image upload component
 client/src/components/ui/dialog.tsx        # If not already present
 client/src/components/ui/textarea.tsx      # If not already present
@@ -566,10 +567,10 @@ client/src/components/ui/dropdown-menu.tsx # If not already present
 ```
 docker-compose.yml          # Add MinIO service
 .env.example                # Add S3 variables
-prisma/schema.prisma        # Add Campaign model, update User
-shared/src/types.ts         # Add campaign types
+prisma/schema.prisma        # Add Adventure model, update User
+shared/src/types.ts         # Add Adventure types
 server/package.json         # Add @fastify/multipart, @aws-sdk/client-s3
-server/src/app.ts           # Register campaign routes, multipart plugin
+server/src/app.ts           # Register Adventure routes, multipart plugin
 client/src/App.tsx          # Update routes
 client/src/pages/index.tsx  # Export new pages
 ```
@@ -623,18 +624,18 @@ Customize for B/X:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  ╔═══════════════════════════════════════════════════════╗  │
-│  ║  YOUR CAMPAIGNS                    [+ New Campaign]   ║  │
+│  ║  YOUR ADVENTURES                    [+ New Adventure]  ║  │
 │  ║  Select a realm to continue your work                 ║  │
 │  ╠═══════════════════════════════════════════════════════╣  │
 │  ║                                                       ║  │
 │  ║   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ║  │
-│  ║   │ Campaign 1  │  │ Campaign 2  │  │ Campaign 3  │  ║  │
+│  ║   │ Adventure 1 │  │ Adventure 2 │  │ Adventure 3 │  ║  │
 │  ║   │ Description │  │ Description │  │ Description │  ║  │
 │  ║   │ 2 days ago  │  │ 1 week ago  │  │ 3 weeks ago │  ║  │
 │  ║   └─────────────┘  └─────────────┘  └─────────────┘  ║  │
 │  ║                                                       ║  │
 │  ║   ┌─────────────┐  ┌─────────────┐                   ║  │
-│  ║   │ Campaign 4  │  │ Campaign 5  │                   ║  │
+│  ║   │ Adventure 4 │  │ Adventure 5 │                   ║  │
 │  ║   │ Description │  │ Description │                   ║  │
 │  ║   │ 1 month ago │  │ 2 months ago│                   ║  │
 │  ║   └─────────────┘  └─────────────┘                   ║  │
@@ -648,28 +649,28 @@ Customize for B/X:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  ╔═══════════════════════════════════════════════════════╗  │
-│  ║  YOUR CAMPAIGNS                    [+ New Campaign]   ║  │
+│  ║  YOUR ADVENTURES                    [+ New Adventure]  ║  │
 │  ║  Select a realm to continue your work                 ║  │
 │  ╠═══════════════════════════════════════════════════════╣  │
 │  ║                                                       ║  │
 │  ║                                                       ║  │
 │  ║                     ⚔ ══════ ⚔                       ║  │
 │  ║                                                       ║  │
-│  ║                  No campaigns yet                     ║  │
+│  ║                  No Adventures yet                    ║  │
 │  ║                                                       ║  │
 │  ║        Every great adventure begins with a            ║  │
-│  ║        single step. Create your first campaign        ║  │
+│  ║        single step. Create your first Adventure       ║  │
 │  ║        to begin.                                      ║  │
 │  ║                                                       ║  │
 │  ║              ┌─────────────────────┐                  ║  │
-│  ║              │  CREATE CAMPAIGN    │                  ║  │
+│  ║              │  CREATE ADVENTURE   │                  ║  │
 │  ║              └─────────────────────┘                  ║  │
 │  ║                                                       ║  │
 │  ╚═══════════════════════════════════════════════════════╝  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Campaign Card Design
+### Adventure Card Design
 
 **With Cover Image:**
 ```
@@ -705,7 +706,7 @@ Customize for B/X:
 └──────────────────────────────┘
 ```
 
-### Create Campaign Modal
+### Create Adventure Modal
 
 ```
 ┌────────────────────────────────────────────┐
@@ -721,7 +722,7 @@ Customize for B/X:
 │  │  └────────┘   400x600px recommended│    │
 │  └────────────────────────────────────┘    │
 │                                            │
-│  CAMPAIGN NAME                             │
+│  ADVENTURE NAME                            │
 │  ┌────────────────────────────────────┐    │
 │  │ Curse of the Azure Bonds           │    │
 │  └────────────────────────────────────┘    │
@@ -758,32 +759,32 @@ Customize for B/X:
 - [ ] Bucket has public read policy for serving images
 
 ### API
-- [ ] GET /api/campaigns returns empty array for new users
-- [ ] GET /api/campaigns returns user's campaigns sorted by updatedAt desc
-- [ ] POST /api/campaigns creates campaign with valid data
-- [ ] POST /api/campaigns returns 400 for missing/invalid name
-- [ ] GET /api/campaigns/:id returns campaign details
-- [ ] GET /api/campaigns/:id returns 404 for non-existent campaign
-- [ ] GET /api/campaigns/:id returns 403 for other user's campaign
-- [ ] PATCH /api/campaigns/:id updates campaign
-- [ ] PATCH /api/campaigns/:id returns 403 for other user's campaign
-- [ ] DELETE /api/campaigns/:id deletes campaign and cover image
-- [ ] DELETE /api/campaigns/:id returns 403 for other user's campaign
-- [ ] POST /api/campaigns/:id/cover uploads cover image
-- [ ] POST /api/campaigns/:id/cover returns 400 for invalid file type
-- [ ] POST /api/campaigns/:id/cover returns 400 for file too large (>5MB)
-- [ ] DELETE /api/campaigns/:id/cover removes cover image
+- [ ] GET /api/adventures returns empty array for new users
+- [ ] GET /api/adventures returns user's Adventures sorted by updatedAt desc
+- [ ] POST /api/adventures creates Adventure with valid data
+- [ ] POST /api/adventures returns 400 for missing/invalid name
+- [ ] GET /api/adventures/:id returns Adventure details
+- [ ] GET /api/adventures/:id returns 404 for non-existent Adventure
+- [ ] GET /api/adventures/:id returns 403 for other user's Adventure
+- [ ] PATCH /api/adventures/:id updates Adventure
+- [ ] PATCH /api/adventures/:id returns 403 for other user's Adventure
+- [ ] DELETE /api/adventures/:id deletes Adventure and cover image
+- [ ] DELETE /api/adventures/:id returns 403 for other user's Adventure
+- [ ] POST /api/adventures/:id/cover uploads cover image
+- [ ] POST /api/adventures/:id/cover returns 400 for invalid file type
+- [ ] POST /api/adventures/:id/cover returns 400 for file too large (>5MB)
+- [ ] DELETE /api/adventures/:id/cover removes cover image
 - [ ] All endpoints return 401 when not authenticated
 - [ ] All endpoints return 403 when email not verified
 
 ### Dashboard
 - [ ] Dashboard shows loading state while fetching
-- [ ] Dashboard shows empty state when no campaigns
-- [ ] Dashboard shows campaign cards in grid layout
-- [ ] Campaign cards show cover image (or placeholder if none)
-- [ ] Campaign cards show name, description preview, timestamp
-- [ ] Campaign cards are clickable and navigate to detail page
-- [ ] "New Campaign" button opens create modal
+- [ ] Dashboard shows empty state when no Adventures
+- [ ] Dashboard shows Adventure cards in grid layout
+- [ ] Adventure cards show cover image (or placeholder if none)
+- [ ] Adventure cards show name, description preview, timestamp
+- [ ] Adventure cards are clickable and navigate to detail page
+- [ ] "New Adventure" button opens create modal
 - [ ] Responsive grid: 1 col mobile, 2 col tablet, 3 col desktop
 
 ### Create/Edit Modal
@@ -797,25 +798,25 @@ Customize for B/X:
 - [ ] Can remove selected image before submit
 - [ ] Rejects files over 5MB with error message
 - [ ] Rejects non-image files with error message
-- [ ] Submit creates/updates campaign with image
+- [ ] Submit creates/updates Adventure with image
 - [ ] Modal shows loading state during submission
 - [ ] Modal closes on success
 - [ ] Error displays on failure
 - [ ] Escape key closes modal
 
-### Campaign Detail Page
+### Adventure Detail Page
 - [ ] Shows cover image as hero (if present)
 - [ ] Shows decorative header (if no cover)
-- [ ] Shows campaign name and description
+- [ ] Shows Adventure name and description
 - [ ] Has back link to dashboard
 - [ ] Has edit button that opens modal
 - [ ] Shows placeholder for future content
 
 ### Delete Flow
 - [ ] Delete option in card menu opens confirmation
-- [ ] Confirmation shows campaign name
+- [ ] Confirmation shows Adventure name
 - [ ] Cancel closes dialog
-- [ ] Confirm deletes campaign
+- [ ] Confirm deletes Adventure
 - [ ] Dashboard updates after deletion
 
 ### Design
@@ -843,26 +844,26 @@ open http://localhost:9001
 ### 2. API Tests
 
 ```bash
-# Get campaigns (empty)
-curl http://localhost:3000/api/campaigns \
+# Get Adventures (empty)
+curl http://localhost:3000/api/adventures \
   -b cookies.txt
 
-# Create campaign
-curl -X POST http://localhost:3000/api/campaigns \
+# Create Adventure
+curl -X POST http://localhost:3000/api/adventures \
   -H "Content-Type: application/json" \
-  -d '{"name":"Test Campaign","description":"A test"}' \
+  -d '{"name":"Test Adventure","description":"A test"}' \
   -b cookies.txt
 
-# Get campaigns (should have one)
-curl http://localhost:3000/api/campaigns \
+# Get Adventures (should have one)
+curl http://localhost:3000/api/adventures \
   -b cookies.txt
 
-# Get single campaign
-curl http://localhost:3000/api/campaigns/{id} \
+# Get single Adventure
+curl http://localhost:3000/api/adventures/{id} \
   -b cookies.txt
 
 # Upload cover image
-curl -X POST http://localhost:3000/api/campaigns/{id}/cover \
+curl -X POST http://localhost:3000/api/adventures/{id}/cover \
   -F "image=@/path/to/cover.jpg" \
   -b cookies.txt
 
@@ -870,17 +871,17 @@ curl -X POST http://localhost:3000/api/campaigns/{id}/cover \
 curl -I {coverImageUrl}
 
 # Remove cover image
-curl -X DELETE http://localhost:3000/api/campaigns/{id}/cover \
+curl -X DELETE http://localhost:3000/api/adventures/{id}/cover \
   -b cookies.txt
 
-# Update campaign
-curl -X PATCH http://localhost:3000/api/campaigns/{id} \
+# Update Adventure
+curl -X PATCH http://localhost:3000/api/adventures/{id} \
   -H "Content-Type: application/json" \
   -d '{"name":"Updated Name"}' \
   -b cookies.txt
 
-# Delete campaign
-curl -X DELETE http://localhost:3000/api/campaigns/{id} \
+# Delete Adventure
+curl -X DELETE http://localhost:3000/api/adventures/{id} \
   -b cookies.txt
 ```
 
@@ -888,14 +889,14 @@ curl -X DELETE http://localhost:3000/api/campaigns/{id} \
 
 1. Login as verified user
 2. Verify dashboard shows empty state
-3. Click "Create Campaign" → modal opens
+3. Click "Create Adventure" → modal opens
 4. Submit with empty name → shows validation error
 5. Fill name and description → submit
-6. Verify campaign appears in grid with placeholder image
-7. Click campaign card → navigates to detail page
+6. Verify Adventure appears in grid with placeholder image
+7. Click Adventure card → navigates to detail page
 8. Click edit → modal opens with existing data
 9. Drag image into upload zone → preview appears
-10. Click save → campaign updated with cover image
+10. Click save → Adventure updated with cover image
 11. Verify card now shows cover image
 12. Verify detail page shows cover as hero
 13. Click edit → existing cover shown
@@ -903,13 +904,13 @@ curl -X DELETE http://localhost:3000/api/campaigns/{id} \
 15. Save → cover image removed
 16. Click back to dashboard
 17. Click menu on card → delete option
-18. Confirm delete → campaign removed
+18. Confirm delete → Adventure removed
 
 ### 4. Authorization Tests
 
-1. Create campaign as User A
+1. Create Adventure as User A
 2. Login as User B
-3. Try to access User A's campaign via URL → 403
+3. Try to access User A's Adventure via URL → 403
 4. Try to update via API → 403
 5. Try to delete via API → 403
 6. Try to upload cover image via API → 403
@@ -918,7 +919,7 @@ curl -X DELETE http://localhost:3000/api/campaigns/{id} \
 
 1. Dashboard matches layout mockups
 2. Empty state is centered and styled correctly
-3. Campaign cards have brutal shadow and paper texture
+3. Adventure cards have brutal shadow and paper texture
 4. Cover images display correctly in cards (2:3 ratio)
 5. Placeholder cards look good without cover
 6. Modal has proper B/X styling
@@ -929,18 +930,18 @@ curl -X DELETE http://localhost:3000/api/campaigns/{id} \
 
 ## Future Considerations
 
-This spec establishes the Campaign entity as the container for all game content. Future specs will add:
+This spec establishes the Adventure entity as the container for all game content. Future specs will add:
 
-- **Spec 005 (Maps):** Add `maps` relation to Campaign
-- **Spec 006 (Encounters):** Add `encounters` relation to Campaign
-- **Spec 007 (Sessions):** Add live session management with player invites
-- **Campaign Settings:** Rule system selection, house rules, visibility options
-- **Campaign Archiving:** Soft delete with restore capability
+- **Spec 005 (Campaigns):** Add Campaign as collection of Adventures
+- **Spec 010 (Maps):** Add `maps` relation to Adventure
+- **Spec 011 (Sessions):** Add live session management with player invites
+- **Adventure Settings:** Rule system selection, house rules, visibility options
+- **Adventure Archiving:** Soft delete with restore capability
 
 ## References
 
-- [PRD: Key Concepts - Campaign](/prd.md#key-concepts)
-- [PRD: Flow 1 - DM Manages Campaigns](/prd.md#flow-1-dm-logs-in-and-manages-campaigns)
-- [PRD: Flow 2 - DM Builds Campaign](/prd.md#flow-2-dm-builds-a-campaign-prep-mode)
+- [PRD: Key Concepts - Adventure](/prd.md#key-concepts)
+- [PRD: Flow 1 - DM Manages Campaigns & Adventures](/prd.md#flow-1-dm-logs-in-and-manages-campaigns--adventures)
+- [PRD: Flow 3 - DM Builds an Adventure](/prd.md#flow-3-dm-builds-an-adventure-prep-mode)
 - [Spec 002: Authentication](/specs/002-auth.md)
 - [Spec 003: Email Verification](/specs/003-email.md)

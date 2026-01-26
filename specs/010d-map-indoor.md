@@ -1,4 +1,4 @@
-# Spec 005d: Indoor/Dungeon Maps
+# Spec 010d: Indoor/Dungeon Maps
 
 ## Goal
 
@@ -13,12 +13,12 @@ Implement wall placement and dungeon feature tools for square grid maps, enablin
 - Features of various sizes: 1x1, 1x2, 2x2
 - Z key to rotate features before placement
 - Erase tool works on both walls and features
-- Labels work on square grids (reuse from 005c)
+- Labels work on square grids (reuse from 010c)
 - B/X dungeon aesthetic (black walls on white floors)
 
 ### Out of Scope
 
-- Hex grid support (hex maps use terrain stamping from 005b)
+- Hex grid support (hex maps use terrain stamping from 010b)
 - Room auto-detection or numbering
 - Undo/redo system (future enhancement)
 - Features larger than 2x2 (future enhancement)
@@ -26,8 +26,8 @@ Implement wall placement and dungeon feature tools for square grid maps, enablin
 ## Dependencies
 
 **Builds on:**
-- Spec 005a: Map Foundation (Map model, square grid canvas)
-- Spec 005c: Text Labels & Path Drawing (labels, drawing state patterns)
+- Spec 010a: Map Foundation (Map model, square grid canvas)
+- Spec 010c: Text Labels & Path Drawing (labels, drawing state patterns)
 
 **No new dependencies required.** All rendering uses native HTML5 Canvas API.
 
@@ -765,7 +765,7 @@ Like hex maps, the area outside the map bounds renders as black. This frames the
 
 - [PRD: Map Editor Tools](/prd.md#map-editor-tools)
 - [PRD: Map Aesthetic](/prd.md#map-aesthetic)
-- [Spec 005a: Map Foundation](/specs/005a-map-foundation.md)
-- [Spec 005c: Text Labels & Path Drawing](/specs/005c-map-labels-paths.md)
+- [Spec 010a: Map Foundation](/specs/010a-map-foundation.md)
+- [Spec 010c: Text Labels & Path Drawing](/specs/010c-map-labels-paths.md)
 - [Moldvay Basic D&D page B59](https://en.wikipedia.org/wiki/Dungeons_%26_Dragons_Basic_Set) - Sample dungeon reference
 - [Dyson Logos Maps](https://dysonlogos.blog/) - B&W dungeon style reference

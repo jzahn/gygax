@@ -1,4 +1,4 @@
-# Spec 005c: Text Labels & Path Drawing Tools
+# Spec 010c: Text Labels & Path Drawing Tools
 
 ## Goal
 
@@ -25,8 +25,8 @@ Add text labels and path drawing tools (roads, rivers, borders, trails) to hex m
 ## Dependencies
 
 **Builds on:**
-- Spec 005a: Map Foundation (Map model, canvas component)
-- Spec 005b: Wilderness Map Drawing (terrain stamping, toolbar, drawing state)
+- Spec 010a: Map Foundation (Map model, canvas component)
+- Spec 010b: Wilderness Map Drawing (terrain stamping, toolbar, drawing state)
 
 **No new dependencies required.** All rendering uses native HTML5 Canvas API.
 
@@ -191,7 +191,7 @@ export function findNearestSnapPoint(
 export type DrawingTool = 'pan' | 'terrain' | 'path' | 'label' | 'erase'
 
 export interface DrawingState {
-  // Existing fields from 005b
+  // Existing fields from 010b
   tool: DrawingTool
   previousTool: DrawingTool
   selectedTerrain: TerrainType
@@ -308,9 +308,9 @@ Hex maps:
 Square maps:
 1. Black background (outside map bounds)
 2. White map area fill
-3. Walls (spec 005d)
+3. Walls (spec 010d)
 4. Grid lines
-5. Features (spec 005d)
+5. Features (spec 010d)
 6. Labels
 7. Hover previews
 8. Selection indicators
@@ -919,6 +919,6 @@ This spec establishes smooth curved paths and text labels. Future enhancements c
 ## References
 
 - [PRD: Map Editor Tools](/prd.md#map-editor-tools)
-- [Spec 005a: Map Foundation](/specs/005a-map-foundation.md)
-- [Spec 005b: Wilderness Map Drawing](/specs/005b-map-drawing.md)
+- [Spec 010a: Map Foundation](/specs/010a-map-foundation.md)
+- [Spec 010b: Wilderness Map Drawing](/specs/010b-map-drawing.md)
 - [B/X D&D Expert Rulebook](https://en.wikipedia.org/wiki/Dungeons_%26_Dragons_Expert_Set) - Hex crawl map reference

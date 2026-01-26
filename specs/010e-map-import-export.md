@@ -1,8 +1,8 @@
-# Spec 005e: Map Import/Export
+# Spec 010e: Map Import/Export
 
 ## Goal
 
-Allow DMs to save maps to local JSON files and import saved maps when creating new maps. This enables backup, sharing, and template reuse across campaigns.
+Allow DMs to save maps to local JSON files and import saved maps when creating new maps. This enables backup, sharing, and template reuse across Adventures.
 
 ## Scope
 
@@ -24,8 +24,8 @@ Allow DMs to save maps to local JSON files and import saved maps when creating n
 ## Dependencies
 
 **Builds on:**
-- Spec 005a: Map Foundation (Map model, CRUD)
-- Spec 005b-d: Map content types (terrain, paths, labels, walls, features)
+- Spec 010a: Map Foundation (Map model, CRUD)
+- Spec 010b-d: Map content types (terrain, paths, labels, walls, features)
 
 **No new dependencies required.**
 
@@ -440,7 +440,7 @@ Using `.gygax.json` extension:
 
 ## References
 
-- [Spec 005a: Map Foundation](/specs/005a-map-foundation.md)
-- [Spec 005b: Wilderness Map Drawing](/specs/005b-map-drawing.md)
-- [Spec 005c: Text Labels & Path Drawing](/specs/005c-map-labels-paths.md)
-- [Spec 005d: Indoor/Dungeon Maps](/specs/005d-map-indoor.md)
+- [Spec 010a: Map Foundation](/specs/010a-map-foundation.md)
+- [Spec 010b: Wilderness Map Drawing](/specs/010b-map-drawing.md)
+- [Spec 010c: Text Labels & Path Drawing](/specs/010c-map-labels-paths.md)
+- [Spec 010d: Indoor/Dungeon Maps](/specs/010d-map-indoor.md)

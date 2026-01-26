@@ -1,4 +1,4 @@
-# Spec 005b: Wilderness Map Drawing
+# Spec 010b: Wilderness Map Drawing
 
 ## Goal
 
@@ -20,16 +20,16 @@ Implement terrain stamping tools that allow DMs to create wilderness hex maps di
 ### Out of Scope
 
 - Paths (roads, rivers, trails, borders) - future spec
-- Text labels and annotations - spec 005c
-- Map transitions/linking - spec 005d
-- Fog of war - spec 006
+- Text labels and annotations - spec 010c
+- Map transitions/linking - spec 010d
+- Fog of war - spec 012
 - Undo/redo system (future enhancement)
 - Square grid support (hex-only for wilderness maps)
 
 ## Dependencies
 
 **Builds on:**
-- Spec 005a: Map Foundation (Map model, canvas component)
+- Spec 010a: Map Foundation (Map model, canvas component)
 
 **No new dependencies required.** All rendering uses native HTML5 Canvas API.
 
@@ -41,7 +41,7 @@ Implement terrain stamping tools that allow DMs to create wilderness hex maps di
 
 ```prisma
 model Map {
-  // ... existing fields from 005a
+  // ... existing fields from 010a
 
   // Drawing data stored as JSON
   content   Json?    // MapContent type - terrain stamps
@@ -493,5 +493,5 @@ This spec establishes the core hex terrain stamping system. Future specs will ad
 
 - [PRD: Map Editor Tools](/prd.md#map-editor-tools)
 - [PRD: Map Aesthetic](/prd.md#map-aesthetic)
-- [Spec 005a: Map Foundation](/specs/005a-map-foundation.md)
+- [Spec 010a: Map Foundation](/specs/010a-map-foundation.md)
 - [B/X D&D Expert Rulebook](https://en.wikipedia.org/wiki/Dungeons_%26_Dragons_Expert_Set) - Hex crawl map style reference

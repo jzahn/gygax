@@ -26,14 +26,17 @@ Currently most pen and paper D&D games are played via Discord, which lacks purpo
 
 | Term                    | Definition                                                                                              |
 | ----------------------- | ------------------------------------------------------------------------------------------------------- |
-| **Campaign**            | A DM's saved world containing maps, encounters, notes, and session history. Persists between sessions.  |
-| **Session**             | A live game instance that players join via invite code. Real-time sync of map, chat, and audio.         |
+| **Campaign**            | A collection of Adventures with a name, description, and landscape banner image. Contains a world map accessible from all Adventures within it (with shared fog of war). |
+| **Adventure**           | A DM's playable unit containing maps, encounters, backdrops, NPCs, and notes. The core organizational unit for game content that persists between sessions. |
+| **Session**             | A live game instance started from an Adventure that players join. Real-time sync of map, chat, and audio. Players browse and join active Sessions (don't see Campaign/Adventure hierarchy). |
 | **Map**                 | A drawable grid (hex for outdoor/wilderness, square for indoor/dungeon) in B/X black-and-white style.   |
 | **Transition**          | Moving between maps. In Phase 1, DM manually switches the displayed map. Phase 2 adds formal linking.   |
 | **Encounter**           | A meeting with creatures/NPCs. Can be **static** (placed on map) or **random** (triggered from tables). |
 | **Fog of War**          | Unexplored areas hidden from players. Revealed by DM as party explores. State persists per-map.         |
-| **DM (Dungeon Master)** | The user who creates campaigns, draws maps, runs sessions, and controls the game world.                 |
-| **Player**              | A user who joins a session, controls a character, and explores the DM's world.                          |
+| **Backdrop**            | An image a DM can display to players during a session instead of a map (town scenes, battle illustrations, monster images, etc.). |
+| **Notes**               | DM notes with title and content for organizing adventure information.                                    |
+| **DM (Dungeon Master)** | The user who creates campaigns/adventures, draws maps, runs sessions, and controls the game world.      |
+| **Player**              | A user who creates characters and joins sessions to explore the DM's world.                             |
 
 ---
 
@@ -65,47 +68,90 @@ Web application (SPA frontend + API backend)
 
 ## Core Features
 
+### Application Structure
+
+The application has two main navigation modes:
+
+**Forge (DM Tools):** Where DMs create and manage campaigns, adventures, maps, backdrops, NPCs, and notes.
+
+**Adventure (Player Experience):** Where players create characters and browse/join active game sessions.
+
 ### MVP Features (Must Have)
 
-<!-- List the essential features for v1.0 -->
-
+#### Authentication & Users
 1. Users can login to the system with an email and password, or a magic link sent to their email.
-2. DMs can create, save, and manage multiple campaigns independently.
-3. Upon login, DMs see a dashboard listing all their saved campaigns and can select one to edit or play.
-4. DMs can build campaign content (maps, encounters, notes) at any time—before game day or between sessions.
-5. All campaign data persists automatically; DMs can log out and return to continue building.
-6. DMs can start a live game session from any saved campaign when ready to play.
-7. Users can join an existing live game session as a Player.
-8. The DM and Players are represented as cards arranged vertically on the right edge of the screen.
-9. The Players and Dungeon Master can communicate via a chat window at the bottom of the screen.
-10. The Players and DM can see a map representation of the game world created by the DM.
-11. DMs can edit maps.
-12. Players can explore the map and experience a fog of war effect where undiscovered terrain is obscured.
+2. Players and the DM should be able to input their character name and an avatar image.
+
+#### Forge Mode - Campaigns
+3. DMs can create, save, and manage multiple Campaigns (collections of Adventures).
+4. Campaigns have a name, description, and landscape banner image with selectable hotspot.
+5. Campaign detail page shows banner at top, title, description, and list of Adventure cards.
+6. Each Campaign has a world map accessible from all Adventures within it (with shared fog of war).
+
+#### Forge Mode - Adventures
+7. DMs can create, save, and manage multiple Adventures within a Campaign.
+8. Upon login, DMs see a dashboard listing their saved Campaigns and can select one to view Adventures.
+9. DMs can build Adventure content (maps, encounters, backdrops, NPCs, notes) at any time.
+10. All Adventure data persists automatically; DMs can log out and return to continue building.
+11. DMs can start a live game session from any saved Adventure when ready to play.
+
+#### Forge Mode - Maps
+12. DMs can create and edit maps.
 13. Maps are represented by a hexagonal grid when outdoors and a square grid when indoors.
 14. Maps are viewed from an overhead perspective.
-15. The application is designed to be used at first with the Moldvay B/X rule set.
-16. The DM can design random encounter charts and assign them to an area.
-17. The players can experience random encounters while exploring a map (indoor or outdoor).
-18. A game session can be paused by the DM and persists until the next game session.
-19. Players and the DM can also communicate by audio.
-20. The DM should be able to private message any player back and forth.
-21. The chat windows (main or private) should allow the players to roll with a command like `/roll 3d6+1`.
-22. The DM should be able to place static encounters on the map in addition to the random encounters.
-23. Encounters can be both friendly or hostile.
-24. Players and the DM should be able to input their character name and an avatar image.
-25. DM can switch between campaign maps during a session, displaying any map to players.
+15. DM can switch between Adventure maps during a session, displaying any map to players.
+
+#### Forge Mode - Backdrops
+16. DMs can upload backdrop images for display during sessions.
+17. Backdrops can show town scenes, battle illustrations, monster images, etc.
+18. DM can display a backdrop to players instead of a map during a session.
+
+#### Forge Mode - NPCs
+19. DMs can create characters for use as NPCs in their Adventures.
+20. DM NPCs use the same character sheet format as player characters.
+
+#### Forge Mode - Notes
+21. DMs can create notes with title and content for organizing Adventure information.
+
+#### Forge Mode - Encounters
+22. The DM can design random encounter charts and assign them to an area.
+23. The DM should be able to place static encounters on the map in addition to random encounters.
+24. Encounters can be both friendly or hostile.
+
+#### Adventure Mode - Characters
+25. Players can create characters in the Adventure section.
+26. Characters are displayed on a B/X-style character sheet (matching Moldvay Basic rulebook).
+27. Players can create multiple characters and choose which one to play when joining a session.
+
+#### Adventure Mode - Sessions
+28. Players can browse and join active game sessions being hosted by DMs.
+29. When joining a session, players select which of their characters to play.
+30. Users can join an existing live game session as a Player.
+
+#### Live Sessions
+31. Sessions start from an Adventure (not at Campaign level).
+32. The DM and Players are represented as cards arranged vertically on the right edge of the screen.
+33. The Players and Dungeon Master can communicate via a chat window at the bottom of the screen.
+34. The Players and DM can see a map representation of the game world created by the DM.
+35. Players can explore the map and experience a fog of war effect where undiscovered terrain is obscured.
+36. The players can experience random encounters while exploring a map (indoor or outdoor).
+37. A game session can be paused by the DM and persists until the next game session.
+38. Players and the DM can also communicate by audio.
+39. The DM should be able to private message any player back and forth.
+40. The chat windows (main or private) should allow the players to roll with a command like `/roll 3d6+1`.
+
+#### System
+41. The application is designed to be used at first with the Moldvay B/X rule set.
 
 ### Nice-to-Have Features
 
-1. Character sheet integration (auto-calculate stats, track HP/XP)
-2. Initiative tracker with turn order display
-3. Bestiary/monster database for quick encounter setup
-4. Campaign journal/notes shared between sessions
-5. Dice roll history and statistics
-6. Multiple map layers (GM layer hidden from players)
-7. Token movement with measurement tools
-8. Sound effects and ambient music integration
-9. Export campaign data for backup
+1. Initiative tracker with turn order display
+2. Bestiary/monster database for quick encounter setup
+3. Dice roll history and statistics
+4. Multiple map layers (GM layer hidden from players)
+5. Token movement with measurement tools
+6. Sound effects and ambient music integration
+7. Export campaign data for backup
 
 ---
 
@@ -130,59 +176,81 @@ Web application (SPA frontend + API backend)
 
 ### Key User Flows
 
-#### Flow 1: DM Logs In and Manages Campaigns
+#### Flow 1: DM Logs In and Manages Campaigns & Adventures
 
 1. DM logs in or creates account
-2. DM sees dashboard with list of all saved campaigns (or empty state if new user)
-3. DM can create a new campaign, or select an existing campaign to edit/play
-4. Selecting a campaign opens the campaign workspace
-5. DM can log out at any time; all changes are auto-saved
+2. DM sees Forge dashboard with list of all saved Campaigns (or empty state if new user)
+3. DM can create a new Campaign, or select an existing Campaign to view its Adventures
+4. Within a Campaign, DM can create new Adventures or select an Adventure to edit
+5. Selecting an Adventure opens the Adventure workspace
+6. DM can log out at any time; all changes are auto-saved
 
-#### Flow 2: DM Builds a Campaign (Prep Mode)
+#### Flow 2: DM Creates a Campaign
 
-1. DM creates a new campaign or opens an existing one from the dashboard
-2. DM works on campaign content at their own pace:
-   - Create and edit maps (see Flow 6)
+1. DM clicks "Create Campaign" from the Forge dashboard
+2. DM enters Campaign name, description
+3. DM uploads a landscape banner image and selects hotspot for display
+4. DM optionally sets up the world map for the Campaign
+5. Campaign is created and DM can now add Adventures to it
+
+#### Flow 3: DM Builds an Adventure (Prep Mode)
+
+1. DM creates a new Adventure or opens an existing one from a Campaign
+2. DM works on Adventure content at their own pace:
+   - Create and edit maps (see Flow 8)
+   - Upload backdrop images for session display
+   - Create NPC characters
    - Design random encounter tables
    - Place static encounters on maps
-   - Add notes and descriptions
+   - Add notes with titles and content
 3. All changes persist automatically
-4. DM can close the browser, log out, or switch to another campaign
+4. DM can close the browser, log out, or switch to another Adventure
 5. When DM returns (hours, days, weeks later), all work is preserved
 6. DM continues building until ready to run a live session
 
-#### Flow 3: DM Starts a Live Game Session
+#### Flow 4: DM Starts a Live Game Session
 
-1. DM selects a campaign from the dashboard
+1. DM navigates to an Adventure from within a Campaign
 2. DM clicks "Start Session" to go live
 3. System generates a join code/link for players
 4. DM shares the code/link with players (via Discord, text, email, etc.)
 5. DM waits in lobby as players join
 6. Once players are ready, DM begins the session
-7. Campaign is now in "live" mode with real-time sync
+7. Adventure is now in "live" mode with real-time sync
 
-#### Flow 4: Player Joins a Game
+#### Flow 5: Player Creates a Character
 
-1. Player receives invite link/code from DM
-2. Player logs in or creates account
-3. Player sets character name and uploads avatar
-4. Player joins the game lobby and appears in the player card list
-5. Player connects to voice chat
-6. Player views the map with fog of war active
+1. Player logs in or creates account
+2. Player navigates to the Adventure section
+3. Player clicks "Create Character"
+4. Player fills out B/X-style character sheet (name, class, stats, equipment, etc.)
+5. Character is saved and available for use in any session
+6. Player can create multiple characters over time
 
-#### Flow 5: Gameplay Loop
+#### Flow 6: Player Browses and Joins a Session
+
+1. Player navigates to the Adventure section
+2. Player sees list of active sessions available to join
+3. Player selects a session to join
+4. Player chooses which of their characters to play
+5. Player joins the game lobby and appears in the player card list
+6. Player connects to voice chat
+7. Player views the map with fog of war active
+
+#### Flow 7: Gameplay Loop
 
 1. DM narrates and reveals map areas as players explore
 2. Players move tokens (if applicable) or describe actions in chat
 3. Players use `/roll` commands for skill checks, attacks, etc.
 4. Random encounters trigger based on DM-defined rules and exploration
 5. DM manages combat/roleplay through chat and private messages
-6. DM pauses session when done; state persists for next session
-7. DM can resume the same session later, or start a new session in the same campaign
+6. DM can display backdrops during roleplay (town scenes, battle illustrations)
+7. DM pauses session when done; state persists for next session
+8. DM can resume the same session later, or start a new session in the same Adventure
 
-#### Flow 6: DM Creates a New Map
+#### Flow 8: DM Creates a New Map
 
-1. DM opens map editor from campaign workspace
+1. DM opens map editor from Adventure workspace
 2. DM selects grid type: hex (outdoor/wilderness) or square (indoor/dungeon)
 3. DM sets map dimensions
 4. For hex maps: DM stamps terrain types (forest, mountains, water, etc.)
@@ -191,29 +259,38 @@ Web application (SPA frontend + API backend)
 7. DM adds text labels for room names or notes
 8. Map auto-saves; DM can return to edit it anytime
 
-#### Flow 7: DM Switches Maps During Session
+#### Flow 9: DM Switches Maps During Session
 
 1. Party reaches a point where they should move to a different map (door, stairs, cave entrance, etc.)
-2. DM selects a different campaign map from the map list
+2. DM selects a different Adventure map from the map list
 3. All players' views switch to the selected map
 4. Fog of war loads from saved state (previously explored areas remain visible)
 5. Gameplay continues on the new map
 
 *Note: Phase 2 will add formal map linking with transition markers and destination points for single-player experiences.*
 
-#### Flow 9: DM Edits Map Mid-Session
+#### Flow 10: DM Displays Backdrop During Session
+
+1. DM decides to show players a backdrop (entering a town, encountering a monster, etc.)
+2. DM selects a backdrop from the Adventure's backdrop library
+3. All players' views switch from map to the backdrop image
+4. DM narrates the scene
+5. DM switches back to map view when ready to continue exploration
+
+#### Flow 11: DM Edits Map Mid-Session
 
 1. DM enters map edit mode (players see "DM is updating map...")
 2. DM paints terrain, places tokens, adjusts fog boundaries
 3. DM exits edit mode; changes sync to all players
 
-#### Flow 10: DM Switches Between Campaigns
+#### Flow 12: DM Switches Between Campaigns and Adventures
 
-1. DM returns to dashboard from current campaign workspace
-2. DM sees list of all campaigns with last-edited timestamps
-3. DM selects a different campaign to open
-4. Previous campaign state is preserved; new campaign loads
-5. DM can work on multiple campaigns over time without losing progress
+1. DM returns to Forge dashboard from current Adventure workspace
+2. DM sees list of all Campaigns with last-edited timestamps
+3. DM selects a different Campaign to open
+4. DM sees list of Adventures within that Campaign
+5. Previous Adventure state is preserved; new Campaign/Adventure loads
+6. DM can work on multiple Campaigns and Adventures over time without losing progress
 
 ---
 
@@ -488,6 +565,26 @@ Character sheets should look like the original B/X character sheet from the Mold
 - Underline hover states
 - Dropdown menus use neobrutalism card styling
 
+### Page Layouts
+
+**Campaign Detail Page:**
+
+- Landscape banner image at top (with hotspot positioning for focal point)
+- Campaign title overlaid on banner with text shadow
+- Description below banner
+- Grid of Adventure cards below description (2:3 ratio cover images, like B/X module covers)
+- "Create Adventure" button
+- World map access button (for the Campaign's shared world map)
+
+**Adventure Detail Page:**
+
+- Portrait cover image as hero (if present) or decorative parchment header
+- Adventure name overlaid on cover or displayed below
+- Description text
+- Section tabs or links for: Maps, Backdrops, NPCs, Notes, Encounters
+- "Start Session" button to begin live play
+- "Edit" button to modify Adventure details
+
 ### Map Aesthetic
 
 Maps should evoke the classic black-and-white style of the original Moldvay Basic and Expert rulebooks (1981):
@@ -518,7 +615,7 @@ DMs draw maps directly in the application using:
 
 During live sessions, the DM controls which map is displayed to players. When the party reaches a transition point (door, stairs, cave entrance, etc.), the DM manually switches to the appropriate map. This keeps the DM in full control of pacing and narrative.
 
-- DM selects any campaign map to display during a session
+- DM selects any Adventure map to display during a session
 - All connected players see the same map
 - Fog of war state is preserved per-map (returning to a map shows previously explored areas)
 
@@ -581,24 +678,45 @@ Modular monolith with clear separation between:
 
 ### Definition of Done
 
+#### Authentication & Navigation
 - [ ] A DM can create an account and log in
-- [ ] DM sees a dashboard listing all their saved campaigns
-- [ ] DM can create a new campaign from the dashboard
-- [ ] DM can open, edit, and save campaigns (maps, encounters, notes) at any time
-- [ ] Campaign data persists across sessions (log out, log back in, data is intact)
-- [ ] DM can manage multiple campaigns independently
-- [ ] DM can start a live game session from a saved campaign
-- [ ] Players can join via invite link/code, set character name/avatar, and appear in player list
+- [ ] Application has two main modes: Forge (DM) and Adventure (Player)
+
+#### Forge Mode - Campaigns
+- [ ] DM sees a dashboard listing all their saved Campaigns
+- [ ] DM can create a new Campaign with name, description, and landscape banner image
+- [ ] Campaign detail page shows banner, title, description, and list of Adventures
+- [ ] DM can manage multiple Campaigns independently
+
+#### Forge Mode - Adventures
+- [ ] DM can create and manage Adventures within a Campaign
+- [ ] DM can open, edit, and save Adventures (maps, encounters, backdrops, NPCs, notes)
+- [ ] Adventure data persists across sessions (log out, log back in, data is intact)
+- [ ] DM can start a live game session from a saved Adventure
+
+#### Forge Mode - Content
+- [ ] DM can draw a map in-app using built-in tools (B/X black-and-white style) with hex or square grid
+- [ ] DM can upload and manage backdrop images for session display
+- [ ] DM can create NPC characters for use in Adventures
+- [ ] DM can create notes with title and content
+- [ ] DM can create random encounter tables and assign to map regions
+- [ ] DM can place static encounters on the map
+
+#### Adventure Mode - Players
+- [ ] Players can create characters with B/X-style character sheets
+- [ ] Players can browse and join active game sessions
+- [ ] Players select which character to play when joining a session
+
+#### Live Sessions
+- [ ] Players can join via invite link/code and appear in player list
 - [ ] Group chat works in real-time with dice roll parsing (`/roll 3d6+1` shows result)
 - [ ] DM can send private messages to individual players
-- [ ] DM can draw a map in-app using built-in tools (B/X black-and-white style) with hex or square grid
 - [ ] Fog of war obscures unexplored areas for players
 - [ ] DM can reveal map areas to players
-- [ ] DM can create random encounter tables and assign to map regions
 - [ ] Random encounters trigger during exploration
-- [ ] DM can place static encounters on the map
-- [ ] DM can switch between campaign maps during a session
-- [ ] All players see the map the DM has selected
+- [ ] DM can switch between Adventure maps during a session
+- [ ] DM can display backdrops to players during a session
+- [ ] All players see the map or backdrop the DM has selected
 - [ ] Fog of war state persists per-map when switching
 - [ ] Voice chat works between all participants
 - [ ] DM can pause session; state persists and can be resumed

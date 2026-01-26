@@ -1,32 +1,32 @@
-# Spec 005a: Map Foundation
+# Spec 010a: Map Foundation
 
 ## Goal
 
-Establish the data model and basic canvas infrastructure for maps. This creates the foundation for the map editor (005b) by implementing the Map entity, CRUD operations, and a basic interactive canvas with grid rendering.
+Establish the data model and basic canvas infrastructure for maps. This creates the foundation for the map editor (010b) by implementing the Map entity, CRUD operations, and a basic interactive canvas with grid rendering.
 
 ## Scope
 
 ### In Scope
 
-- Map database model linked to campaigns
+- Map database model linked to adventures
 - Map CRUD API endpoints
 - Basic canvas component with pan and zoom
 - Square grid rendering (indoor/dungeon)
 - Hex grid rendering (outdoor/wilderness)
-- Map list UI within campaign page
+- Map list UI within adventure page
 - Create/Edit map modal
 - Empty map viewer page
 - B/X black-and-white grid aesthetic
 
 ### Out of Scope
 
-- Drawing tools (pen, brush, eraser) - spec 005b
-- Fill patterns and terrain - spec 005b
-- Stamps and symbols - spec 005c
-- Text labels - spec 005c
-- Map transitions/linking - spec 005d
-- Fog of war - spec 006
-- Token placement - spec 007
+- Drawing tools (pen, brush, eraser) - spec 010b
+- Fill patterns and terrain - spec 010b
+- Stamps and symbols - spec 010c
+- Text labels - spec 010c
+- Map transitions/linking - spec 010d
+- Fog of war - spec 012
+- Token placement - future spec
 - Map image export
 - Map thumbnails/previews
 - Undo/redo system
@@ -34,7 +34,7 @@ Establish the data model and basic canvas infrastructure for maps. This creates 
 ## Dependencies
 
 **Builds on:**
-- Spec 004: Campaigns (maps belong to campaigns)
+- Spec 004: Adventures (maps belong to Adventures)
 
 **No new dependencies required.** Canvas rendering uses native HTML5 Canvas API.
 
@@ -56,10 +56,10 @@ model Map {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  campaignId  String
-  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adventureId  String
+  adventure    Adventure @relation(fields: [adventureId], references: [id], onDelete: Cascade)
 
-  @@index([campaignId])
+  @@index([adventureId])
   @@map("maps")
 }
 
@@ -69,24 +69,24 @@ enum GridType {
 }
 ```
 
-**Update Campaign Model:**
+**Update Adventure Model:**
 
 ```prisma
-model Campaign {
+model Adventure {
   // ... existing fields
   maps Map[]
 }
 ```
 
-**Migration:** `005a_maps` creates the maps table with foreign key to campaigns.
+**Migration:** `010a_maps` creates the maps table with foreign key to adventures.
 
 ### 2. API Endpoints
 
-All map endpoints require authentication, verified email, and campaign ownership.
+All map endpoints require authentication, verified email, and adventure ownership.
 
-#### GET /api/campaigns/:campaignId/maps
+#### GET /api/adventures/:adventureId/maps
 
-List all maps in a campaign.
+List all maps in a adventure.
 
 **Response (200):**
 ```json
@@ -111,12 +111,12 @@ Maps are sorted by `updatedAt` descending.
 
 **Errors:**
 - 401: Not authenticated
-- 403: Email not verified OR not the campaign owner
-- 404: Campaign not found
+- 403: Email not verified OR not the adventure owner
+- 404: Adventure not found
 
-#### POST /api/campaigns/:campaignId/maps
+#### POST /api/adventures/:adventureId/maps
 
-Create a new map in a campaign.
+Create a new map in a adventure.
 
 **Request:**
 ```json
@@ -156,8 +156,8 @@ Create a new map in a campaign.
 **Errors:**
 - 400: Invalid input
 - 401: Not authenticated
-- 403: Email not verified OR not the campaign owner
-- 404: Campaign not found
+- 403: Email not verified OR not the adventure owner
+- 404: Adventure not found
 
 #### GET /api/maps/:id
 
@@ -174,7 +174,7 @@ Get a single map by ID.
     "width": 30,
     "height": 30,
     "cellSize": 40,
-    "campaignId": "clx...",
+    "adventureId": "clx...",
     "createdAt": "2024-01-20T12:00:00.000Z",
     "updatedAt": "2024-01-20T12:00:00.000Z"
   }
@@ -183,7 +183,7 @@ Get a single map by ID.
 
 **Errors:**
 - 401: Not authenticated
-- 403: Email not verified OR not the campaign owner
+- 403: Email not verified OR not the adventure owner
 - 404: Map not found
 
 #### PATCH /api/maps/:id
@@ -212,7 +212,7 @@ All fields are optional; only provided fields are updated. `gridType` cannot be 
 **Errors:**
 - 400: Invalid input
 - 401: Not authenticated
-- 403: Email not verified OR not the campaign owner
+- 403: Email not verified OR not the adventure owner
 - 404: Map not found
 
 #### DELETE /api/maps/:id
@@ -228,7 +228,7 @@ Delete a map permanently.
 
 **Errors:**
 - 401: Not authenticated
-- 403: Email not verified OR not the campaign owner
+- 403: Email not verified OR not the adventure owner
 - 404: Map not found
 
 ### 3. Type Definitions (shared/src/types.ts)
@@ -246,7 +246,7 @@ export interface Map {
   width: number
   height: number
   cellSize: number
-  campaignId: string
+  adventureId: string
   createdAt: string
   updatedAt: string
 }
@@ -322,7 +322,7 @@ The map should look like an illustration from the Moldvay B/X rulebook or an adv
 - **Square map background**: Black (#1a1a1a) outside the map bounds, white (#FFFFFF) inside the map area. Consistent framing with hex maps.
 - **Grid lines**: Black ink (#1a1a1a), thin (1px at 1x zoom)
 - **Line style**: Crisp, no anti-aliasing (hand-drawn pen-and-ink feel)
-- **Container**: The canvas sits within a parchment-background container with thick black border (3px, like campaign cards)
+- **Container**: The canvas sits within a parchment-background container with thick black border (3px, like adventure cards)
 
 This creates a visual hierarchy: the map is a "document" sitting on the parchment desk/page of the application.
 
@@ -361,16 +361,16 @@ This creates a visual hierarchy: the map is a "document" sitting on the parchmen
 
 ### 5. Client Implementation
 
-#### Campaign Page Updates (client/src/pages/CampaignPage.tsx)
+#### Adventure Page Updates (client/src/pages/AdventurePage.tsx)
 
-Add a "Maps" section to the campaign detail page:
+Add a "Maps" section to the adventure detail page:
 
 **Layout:**
 ```
 ┌─────────────────────────────────────────────────────┐
 │  [Hero/Header - existing]                           │
 ├─────────────────────────────────────────────────────┤
-│  Campaign description...                    [Edit]  │
+│  Adventure description...                    [Edit]  │
 ├─────────────────────────────────────────────────────┤
 │  ═══════════════════════════════════════════════    │
 │                                                     │
@@ -482,7 +482,7 @@ A full-screen map viewing/editing page.
 **Layout:**
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  ← Back to Campaign    Level 1: The Crypt    [Edit] [···]   │
+│  ← Back to Adventure    Level 1: The Crypt    [Edit] [···]   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │                                                             │
@@ -497,7 +497,7 @@ A full-screen map viewing/editing page.
 ```
 
 **Header:**
-- Back link to campaign page
+- Back link to adventure page
 - Map name (editable via modal)
 - Edit button (opens edit modal for name/description)
 - Menu with Delete option
@@ -541,11 +541,11 @@ client/src/components/GridTypeSelector.tsx  # Square/Hex toggle (optional)
 
 **Modified Files:**
 ```
-prisma/schema.prisma        # Add Map model, GridType enum, update Campaign
+prisma/schema.prisma        # Add Map model, GridType enum, update Adventure
 shared/src/types.ts         # Add map types
 server/src/app.ts           # Register map routes
 client/src/App.tsx          # Add map editor route
-client/src/pages/CampaignPage.tsx  # Add maps section
+client/src/pages/AdventurePage.tsx  # Add maps section
 client/src/pages/index.ts   # Export MapEditorPage
 ```
 
@@ -571,7 +571,7 @@ The map canvas should evoke the look of illustrations from the 1981 Moldvay Basi
 - Module maps from B1, B2, X1
 - Dyson Logos-style clean dungeon cartography
 
-This creates contrast: the stark white/black map "pops" against the warm parchment background, just like the campaign cover art cards on the dashboard.
+This creates contrast: the stark white/black map "pops" against the warm parchment background, just like the adventure cover art cards on the dashboard.
 
 ### Grid Type Visual Distinction
 
@@ -635,24 +635,24 @@ For the card preview (not the actual canvas), use a simple CSS or SVG pattern:
 ### Database
 - [ ] Map model created with all fields
 - [ ] GridType enum works correctly
-- [ ] Campaign-Map relationship established
-- [ ] Cascade delete removes maps when campaign deleted
+- [ ] Adventure-Map relationship established
+- [ ] Cascade delete removes maps when adventure deleted
 
 ### API
-- [ ] GET /api/campaigns/:id/maps returns maps for campaign
-- [ ] GET /api/campaigns/:id/maps returns empty array if no maps
-- [ ] POST /api/campaigns/:id/maps creates map with valid data
-- [ ] POST /api/campaigns/:id/maps validates name, dimensions
-- [ ] POST /api/campaigns/:id/maps defaults gridType to SQUARE
+- [ ] GET /api/adventures/:id/maps returns maps for adventure
+- [ ] GET /api/adventures/:id/maps returns empty array if no maps
+- [ ] POST /api/adventures/:id/maps creates map with valid data
+- [ ] POST /api/adventures/:id/maps validates name, dimensions
+- [ ] POST /api/adventures/:id/maps defaults gridType to SQUARE
 - [ ] GET /api/maps/:id returns map details
 - [ ] GET /api/maps/:id returns 404 for non-existent map
 - [ ] GET /api/maps/:id returns 403 for other user's map
 - [ ] PATCH /api/maps/:id updates map metadata
 - [ ] PATCH /api/maps/:id cannot change gridType
 - [ ] DELETE /api/maps/:id deletes map
-- [ ] All endpoints enforce authentication and campaign ownership
+- [ ] All endpoints enforce authentication and adventure ownership
 
-### Campaign Page
+### Adventure Page
 - [ ] Shows "Maps" section with header and create button
 - [ ] Shows map cards in responsive grid
 - [ ] Shows empty state when no maps
@@ -670,7 +670,7 @@ For the card preview (not the actual canvas), use a simple CSS or SVG pattern:
 ### Map Editor Page
 - [ ] Loads map data from API
 - [ ] Shows map name in header
-- [ ] Back link returns to campaign
+- [ ] Back link returns to adventure
 - [ ] Edit button opens modal
 - [ ] Delete option in menu works
 - [ ] Canvas fills available space
@@ -700,17 +700,17 @@ For the card preview (not the actual canvas), use a simple CSS or SVG pattern:
 
 ```bash
 # List maps (empty)
-curl http://localhost:3000/api/campaigns/{campaignId}/maps \
+curl http://localhost:3000/api/adventures/{adventureId}/maps \
   -b cookies.txt
 
 # Create square map
-curl -X POST http://localhost:3000/api/campaigns/{campaignId}/maps \
+curl -X POST http://localhost:3000/api/adventures/{adventureId}/maps \
   -H "Content-Type: application/json" \
   -d '{"name":"Dungeon Level 1","gridType":"SQUARE","width":30,"height":30}' \
   -b cookies.txt
 
 # Create hex map
-curl -X POST http://localhost:3000/api/campaigns/{campaignId}/maps \
+curl -X POST http://localhost:3000/api/adventures/{adventureId}/maps \
   -H "Content-Type: application/json" \
   -d '{"name":"Wilderness","gridType":"HEX","width":20,"height":20}' \
   -b cookies.txt
@@ -746,7 +746,7 @@ curl -X DELETE http://localhost:3000/api/maps/{mapId} \
 
 ### 3. Client Flow Tests
 
-1. Open a campaign with no maps
+1. Open a adventure with no maps
 2. Verify empty state shows
 3. Click "New Map" - modal opens
 4. Submit with empty name - validation error
@@ -756,7 +756,7 @@ curl -X DELETE http://localhost:3000/api/maps/{mapId} \
 8. Verify grid renders correctly
 9. Pan and zoom the view
 10. Click edit - update name
-11. Click back - return to campaign
+11. Click back - return to adventure
 12. Create another map with hex grid
 13. Verify hex grid renders correctly
 14. Delete a map via menu - confirm dialog
@@ -764,7 +764,7 @@ curl -X DELETE http://localhost:3000/api/maps/{mapId} \
 
 ### 4. Authorization Tests
 
-1. Create map in Campaign A as User A
+1. Create map in Adventure A as User A
 2. Login as User B
 3. Try to access map via direct URL - 403
 4. Try to update map via API - 403
@@ -783,10 +783,10 @@ curl -X DELETE http://localhost:3000/api/maps/{mapId} \
 
 This spec establishes the canvas infrastructure for future drawing features:
 
-- **Spec 005b (Drawing Tools):** Add wall drawing, terrain brushes
-- **Spec 005c (Stamps & Text):** Add feature placement, labels
-- **Spec 005d (Map Linking):** Add transition points between maps
-- **Spec 006 (Fog of War):** Add player visibility system
+- **Spec 010b (Drawing Tools):** Add wall drawing, terrain brushes
+- **Spec 010c (Stamps & Text):** Add feature placement, labels
+- **Spec 010d (Map Linking):** Add transition points between maps
+- **Spec 012 (Fog of War):** Add player visibility system
 - **Map Data Storage:** Will need to store drawn content (walls, terrain, etc.)
 
 The MapCanvas component is designed to be extended with:
@@ -797,6 +797,6 @@ The MapCanvas component is designed to be extended with:
 ## References
 
 - [PRD: Map Aesthetic](/prd.md#map-aesthetic)
-- [PRD: Flow 6 - DM Creates Map](/prd.md#flow-6-dm-creates-a-new-map)
-- [Spec 004: Campaigns](/specs/004-campaigns.md)
+- [PRD: Flow 8 - DM Creates Map](/prd.md#flow-8-dm-creates-a-new-map)
+- [Spec 004: Adventures](/specs/004-adventures.md)
 - [Moldvay B/X Sample Dungeon](https://www.drivethrurpg.com/product/110274/DD-Basic-Set-Rulebook-B-X-ed-Basic) - Visual reference
