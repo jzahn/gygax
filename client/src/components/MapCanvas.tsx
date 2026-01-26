@@ -703,6 +703,26 @@ export function MapCanvas({
     zoomToward(centerX, centerY, false)
   }, [containerSize, zoomToward])
 
+  const handleZoomReset = React.useCallback(() => {
+    const viewport = viewportRef.current
+    const centerX = containerSize.width / 2
+    const centerY = containerSize.height / 2
+
+    // Get the map point currently at center
+    const mapCenterX = (centerX - viewport.offsetX) / viewport.zoom
+    const mapCenterY = (centerY - viewport.offsetY) / viewport.zoom
+
+    // Set zoom to 1 (100%)
+    viewport.zoom = 1
+
+    // Adjust offset to keep the same map point at center
+    viewport.offsetX = centerX - mapCenterX * viewport.zoom
+    viewport.offsetY = centerY - mapCenterY * viewport.zoom
+
+    setZoomDisplay(100)
+    scheduleRender()
+  }, [containerSize, scheduleRender])
+
   // Convert screen coordinates to map coordinates
   const screenToMap = React.useCallback((screenX: number, screenY: number): MapPoint | null => {
     const viewport = viewportRef.current
@@ -1454,7 +1474,13 @@ export function MapCanvas({
         >
           &minus;
         </button>
-        <span className="flex items-center px-2">{zoomDisplay}%</span>
+        <button
+          onClick={handleZoomReset}
+          className="flex cursor-pointer items-center px-2 hover:bg-parchment-200"
+          aria-label="Reset zoom to 100%"
+        >
+          {zoomDisplay}%
+        </button>
         <button
           onClick={handleZoomIn}
           className="flex w-7 items-center justify-center border-l border-ink hover:bg-parchment-200"

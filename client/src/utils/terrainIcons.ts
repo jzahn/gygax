@@ -56,12 +56,12 @@ export const TERRAIN_COLORS: Record<TerrainType, string> = {
   water: '#4169E1',       // Royal blue
   volcano: '#B22222',     // Firebrick red
   barren: '#808080',      // Grey
-  caves: '#2F4F4F',       // Dark slate grey
+  caves: '#708090',       // Slate grey
   castle: '#708090',      // Slate grey
-  ruins: '#696969',       // Dim grey
-  capitol: '#DAA520',     // Goldenrod
-  city: '#CD853F',        // Peru (tan)
-  town: '#D2B48C',        // Tan
+  ruins: '#708090',       // Slate grey
+  capitol: '#708090',     // Slate grey
+  city: '#708090',        // Slate grey
+  town: '#708090',        // Slate grey
 }
 
 // Terrains with 3 variants (images)
