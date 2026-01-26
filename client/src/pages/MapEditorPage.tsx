@@ -163,7 +163,7 @@ export function MapEditorPage() {
       throw new Error('Failed to delete map')
     }
 
-    navigate(`/campaigns/${map.campaignId}`)
+    navigate(`/adventures/${map.adventureId}`)
   }
 
   if (isLoading) {
@@ -200,10 +200,10 @@ export function MapEditorPage() {
       <header className="flex items-center justify-between border-b-3 border-ink bg-parchment-100 px-4 py-3">
         <div className="flex items-center gap-4">
           <Link
-            to={`/campaigns/${map.campaignId}`}
+            to={`/adventures/${map.adventureId}`}
             className="font-body text-sm text-ink-soft hover:text-ink"
           >
-            &larr; Back to Campaign
+            &larr; Back to Adventure
           </Link>
           <div className="h-4 w-px bg-ink-faded" />
           <h1 className="font-display text-lg uppercase tracking-wide text-ink">{map.name}</h1>

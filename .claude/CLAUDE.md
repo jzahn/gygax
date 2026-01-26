@@ -122,7 +122,7 @@ Implementation specs in `/specs/` — build in order:
 | 002-auth | Authentication system | Complete |
 | 003-email | Email verification & password reset | Complete |
 | 004-adventures | Adventure CRUD (renamed from campaigns) | Complete |
-| 005-campaigns | Campaign (collection of Adventures) | Planned |
+| 005-campaigns | Campaign (collection of Adventures) | Complete |
 | 006-characters | Player character creation (B/X sheets) | Planned |
 | 007-npcs | DM NPC/character creation | Planned |
 | 008-backdrops | Backdrop image display | Planned |
@@ -142,5 +142,6 @@ Implementation specs in `/specs/` — build in order:
 
 <!-- Update as work progresses -->
 
-- [ ] Rename Campaign → Adventure in existing code (004 implementation refactor)
-- [ ] Spec and implement Campaign collection entity (005)
+- [x] Rename Campaign → Adventure in existing code (004 implementation refactor)
+- [x] Spec and implement Campaign collection entity (005)
+- [ ] Spec 006: Player character creation (B/X sheets)

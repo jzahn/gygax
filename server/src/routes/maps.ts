@@ -63,7 +63,7 @@ function formatMap(map: {
   height: number
   cellSize: number
   content: unknown
-  campaignId: string
+  adventureId: string
   createdAt: Date
   updatedAt: Date
 }): Map {
@@ -76,7 +76,7 @@ function formatMap(map: {
     height: map.height,
     cellSize: map.cellSize,
     content: map.content as MapContent | null,
-    campaignId: map.campaignId,
+    adventureId: map.adventureId,
     createdAt: map.createdAt.toISOString(),
     updatedAt: map.updatedAt.toISOString(),
   }
@@ -401,29 +401,29 @@ async function requireVerifiedUser(
   return user
 }
 
-async function requireCampaignOwnership(
+async function requireAdventureOwnership(
   fastify: FastifyInstance,
-  campaignId: string,
+  adventureId: string,
   userId: string,
   reply: FastifyReply
 ): Promise<boolean> {
-  const campaign = await fastify.prisma.campaign.findUnique({
-    where: { id: campaignId },
+  const adventure = await fastify.prisma.adventure.findUnique({
+    where: { id: adventureId },
     select: { id: true, ownerId: true },
   })
 
-  if (!campaign) {
+  if (!adventure) {
     reply.status(404).send({
       error: 'Not Found',
-      message: 'Campaign not found',
+      message: 'Adventure not found',
     })
     return false
   }
 
-  if (campaign.ownerId !== userId) {
+  if (adventure.ownerId !== userId) {
     reply.status(403).send({
       error: 'Forbidden',
-      message: 'Not authorized to access this campaign',
+      message: 'Not authorized to access this adventure',
     })
     return false
   }
@@ -432,20 +432,20 @@ async function requireCampaignOwnership(
 }
 
 export async function mapRoutes(fastify: FastifyInstance) {
-  // GET /api/campaigns/:campaignId/maps - List maps in a campaign
-  fastify.get<{ Params: { campaignId: string } }>(
-    '/api/campaigns/:campaignId/maps',
-    async (request: FastifyRequest<{ Params: { campaignId: string } }>, reply: FastifyReply) => {
+  // GET /api/adventures/:adventureId/maps - List maps in an adventure
+  fastify.get<{ Params: { adventureId: string } }>(
+    '/api/adventures/:adventureId/maps',
+    async (request: FastifyRequest<{ Params: { adventureId: string } }>, reply: FastifyReply) => {
       const user = await requireVerifiedUser(fastify, request, reply)
       if (!user) return
 
-      const { campaignId } = request.params
+      const { adventureId } = request.params
 
-      const hasAccess = await requireCampaignOwnership(fastify, campaignId, user.id, reply)
+      const hasAccess = await requireAdventureOwnership(fastify, adventureId, user.id, reply)
       if (!hasAccess) return
 
       const maps = await fastify.prisma.map.findMany({
-        where: { campaignId },
+        where: { adventureId },
         orderBy: { updatedAt: 'desc' },
       })
 
@@ -457,20 +457,20 @@ export async function mapRoutes(fastify: FastifyInstance) {
     }
   )
 
-  // POST /api/campaigns/:campaignId/maps - Create a new map
-  fastify.post<{ Params: { campaignId: string }; Body: CreateMapRequest }>(
-    '/api/campaigns/:campaignId/maps',
+  // POST /api/adventures/:adventureId/maps - Create a new map
+  fastify.post<{ Params: { adventureId: string }; Body: CreateMapRequest }>(
+    '/api/adventures/:adventureId/maps',
     async (
-      request: FastifyRequest<{ Params: { campaignId: string }; Body: CreateMapRequest }>,
+      request: FastifyRequest<{ Params: { adventureId: string }; Body: CreateMapRequest }>,
       reply: FastifyReply
     ) => {
       const user = await requireVerifiedUser(fastify, request, reply)
       if (!user) return
 
-      const { campaignId } = request.params
+      const { adventureId } = request.params
       const { name, description, gridType, width, height, content } = request.body
 
-      const hasAccess = await requireCampaignOwnership(fastify, campaignId, user.id, reply)
+      const hasAccess = await requireAdventureOwnership(fastify, adventureId, user.id, reply)
       if (!hasAccess) return
 
       // Validate name
@@ -580,7 +580,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
 
       // Generate unique name if duplicate exists
       const existingMaps = await fastify.prisma.map.findMany({
-        where: { campaignId },
+        where: { adventureId },
         select: { name: true },
       })
       const existingNames = new Set(existingMaps.map(m => m.name))
@@ -604,7 +604,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
           width: validWidth,
           height: validHeight,
           cellSize: DEFAULT_CELL_SIZE,
-          campaignId,
+          adventureId,
           content: validContent ?? undefined,
         },
       })
@@ -628,7 +628,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
 
       const map = await fastify.prisma.map.findUnique({
         where: { id },
-        include: { campaign: { select: { ownerId: true } } },
+        include: { adventure: { select: { ownerId: true } } },
       })
 
       if (!map) {
@@ -638,7 +638,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
         })
       }
 
-      if (map.campaign.ownerId !== user.id) {
+      if (map.adventure.ownerId !== user.id) {
         return reply.status(403).send({
           error: 'Forbidden',
           message: 'Not authorized to access this map',
@@ -668,7 +668,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
 
       const map = await fastify.prisma.map.findUnique({
         where: { id },
-        include: { campaign: { select: { ownerId: true } } },
+        include: { adventure: { select: { ownerId: true } } },
       })
 
       if (!map) {
@@ -678,7 +678,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
         })
       }
 
-      if (map.campaign.ownerId !== user.id) {
+      if (map.adventure.ownerId !== user.id) {
         return reply.status(403).send({
           error: 'Forbidden',
           message: 'Not authorized to modify this map',
@@ -812,7 +812,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
 
       const map = await fastify.prisma.map.findUnique({
         where: { id },
-        include: { campaign: { select: { ownerId: true } } },
+        include: { adventure: { select: { ownerId: true } } },
       })
 
       if (!map) {
@@ -822,7 +822,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
         })
       }
 
-      if (map.campaign.ownerId !== user.id) {
+      if (map.adventure.ownerId !== user.id) {
         return reply.status(403).send({
           error: 'Forbidden',
           message: 'Not authorized to delete this map',

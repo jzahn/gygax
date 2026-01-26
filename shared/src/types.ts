@@ -67,24 +67,36 @@ export interface MessageResponse {
   message: string
 }
 
-// Campaign types
+// Campaign types (collection of Adventures)
 export interface Campaign {
   id: string
   name: string
   description: string | null
-  coverImageUrl: string | null
-  coverImageFocusX: number | null
-  coverImageFocusY: number | null
+  bannerImageUrl: string | null
+  bannerHotspotX: number | null
+  bannerHotspotY: number | null
   createdAt: string
   updatedAt: string
 }
 
+export interface CampaignWithAdventures extends Campaign {
+  adventures: Adventure[]
+}
+
+export interface CampaignListItem extends Campaign {
+  adventureCount: number
+}
+
 export interface CampaignListResponse {
-  campaigns: Campaign[]
+  campaigns: CampaignListItem[]
 }
 
 export interface CampaignResponse {
   campaign: Campaign
+}
+
+export interface CampaignWithAdventuresResponse {
+  campaign: CampaignWithAdventures
 }
 
 export interface CreateCampaignRequest {
@@ -95,6 +107,39 @@ export interface CreateCampaignRequest {
 export interface UpdateCampaignRequest {
   name?: string
   description?: string | null
+}
+
+// Adventure types (individual adventure, may belong to a Campaign)
+export interface Adventure {
+  id: string
+  name: string
+  description: string | null
+  coverImageUrl: string | null
+  coverImageFocusX: number | null
+  coverImageFocusY: number | null
+  campaignId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AdventureListResponse {
+  adventures: Adventure[]
+}
+
+export interface AdventureResponse {
+  adventure: Adventure
+}
+
+export interface CreateAdventureRequest {
+  name: string
+  description?: string
+  campaignId?: string
+}
+
+export interface UpdateAdventureRequest {
+  name?: string
+  description?: string | null
+  campaignId?: string | null
 }
 
 // Map types
@@ -253,7 +298,7 @@ export interface Map {
   height: number
   cellSize: number
   content: MapContent | null
-  campaignId: string
+  adventureId: string
   createdAt: string
   updatedAt: string
 }

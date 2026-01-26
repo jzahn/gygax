@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from 'react-router'
-import type { CampaignListItem } from '@gygax/shared'
+import type { Adventure } from '@gygax/shared'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,10 +9,10 @@ import {
 } from './ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 
-interface CampaignCardProps {
-  campaign: CampaignListItem
-  onEdit: (campaign: CampaignListItem) => void
-  onDelete: (campaign: CampaignListItem) => void
+interface AdventureCardProps {
+  adventure: Adventure
+  onEdit: (adventure: Adventure) => void
+  onDelete: (adventure: Adventure) => void
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -39,11 +39,11 @@ function formatRelativeTime(dateString: string): string {
   }
 }
 
-export function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) {
+export function AdventureCard({ adventure, onEdit, onDelete }: AdventureCardProps) {
   const navigate = useNavigate()
 
   const handleCardClick = () => {
-    navigate(`/campaigns/${campaign.id}`)
+    navigate(`/adventures/${adventure.id}`)
   }
 
   const handleMenuClick = (e: React.MouseEvent) => {
@@ -52,12 +52,12 @@ export function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) 
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onEdit(campaign)
+    onEdit(adventure)
   }
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onDelete(campaign)
+    onDelete(adventure)
   }
 
   return (
@@ -65,43 +65,28 @@ export function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) 
       onClick={handleCardClick}
       className="group cursor-pointer border-3 border-ink bg-parchment-100 shadow-brutal card-texture transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
     >
-      {/* Banner area - 3:2 aspect ratio (landscape inverse of adventure's 2:3 portrait) */}
-      <div className="aspect-[3/2] overflow-hidden border-b-3 border-ink">
-        {campaign.bannerImageUrl ? (
+      <div className="aspect-[2/3] overflow-hidden border-b-3 border-ink">
+        {adventure.coverImageUrl ? (
           <img
-            src={campaign.bannerImageUrl}
-            alt={campaign.name}
+            src={adventure.coverImageUrl}
+            alt={adventure.name}
             className="h-full w-full object-cover"
-            style={{
-              objectPosition: `${campaign.bannerHotspotX ?? 50}% ${campaign.bannerHotspotY ?? 50}%`,
-            }}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-parchment-200">
-            <div className="text-center">
-              <div className="mb-1 text-ink-soft">&#9876; &#9552;&#9552;&#9552; &#9876;</div>
-              <span className="px-4 font-display text-sm uppercase tracking-wide text-ink">
-                {campaign.name.length > 30 ? campaign.name.slice(0, 30) + '...' : campaign.name}
-              </span>
-            </div>
+          <div className="flex h-full w-full flex-col items-center justify-center bg-parchment-200">
+            <div className="mb-2 text-ink-soft">&#9876; &#9876;</div>
+            <span className="px-4 text-center font-display text-lg uppercase tracking-wide text-ink">
+              {adventure.name.length > 20 ? adventure.name.slice(0, 20) + '...' : adventure.name}
+            </span>
           </div>
         )}
       </div>
 
       <div className="p-4">
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <h3 className="font-display text-base uppercase tracking-wide text-ink line-clamp-1">
-              {campaign.name}
-            </h3>
-            <p className="mt-1 font-body text-sm text-ink-soft">
-              {campaign.adventureCount === 0
-                ? 'No adventures'
-                : campaign.adventureCount === 1
-                  ? '1 adventure'
-                  : `${campaign.adventureCount} adventures`}
-            </p>
-          </div>
+          <h3 className="font-display text-base uppercase tracking-wide text-ink line-clamp-1">
+            {adventure.name}
+          </h3>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={handleMenuClick}>
               <button className="flex-shrink-0 p-1 text-ink-soft hover:text-ink">
@@ -119,15 +104,15 @@ export function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) 
 
         <p
           className={cn(
-            'mt-2 font-body text-sm line-clamp-2',
-            campaign.description ? 'text-ink-soft' : 'italic text-ink-faded'
+            'mt-1 font-body text-sm line-clamp-2',
+            adventure.description ? 'text-ink-soft' : 'italic text-ink-faded'
           )}
         >
-          {campaign.description || 'No description'}
+          {adventure.description || 'No description'}
         </p>
 
         <p className="mt-2 font-body text-xs text-ink-faded">
-          Last modified: {formatRelativeTime(campaign.updatedAt)}
+          Last modified: {formatRelativeTime(adventure.updatedAt)}
         </p>
       </div>
     </div>

@@ -23,6 +23,7 @@ model User {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   passwordResets PasswordReset[]
+  adventures     Adventure[]
   campaigns      Campaign[]
 
   @@map("users")
@@ -41,20 +42,40 @@ model PasswordReset {
 }
 
 model Campaign {
-  id                 String   @id @default(cuid())
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  bannerImageUrl  String?
+  bannerHotspotX  Float?   @default(50)
+  bannerHotspotY  Float?   @default(50)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  ownerId    String
+  owner      User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  adventures Adventure[]
+
+  @@map("campaigns")
+}
+
+model Adventure {
+  id                 String    @id @default(cuid())
   name               String
   description        String?
   coverImageUrl      String?
   coverImageFocusX   Float?
   coverImageFocusY   Float?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  ownerId String
-  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  maps    Map[]
+  ownerId    String
+  owner      User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  maps       Map[]
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
-  @@map("campaigns")
+  @@index([campaignId])
+  @@map("adventures")
 }
 
 enum GridType {
@@ -74,9 +95,9 @@ model Map {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  campaignId String
-  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adventureId String
+  adventure   Adventure @relation(fields: [adventureId], references: [id], onDelete: Cascade)
 
-  @@index([campaignId])
+  @@index([adventureId])
   @@map("maps")
 }

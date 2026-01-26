@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { Campaign } from '@gygax/shared'
+import type { Adventure } from '@gygax/shared'
 import {
   Dialog,
   DialogContent,
@@ -10,21 +10,19 @@ import {
 } from './ui/dialog'
 import { Button } from './ui/button'
 
-interface DeleteCampaignDialogProps {
+interface DeleteAdventureDialogProps {
   open: boolean
   onClose: () => void
   onConfirm: () => Promise<void>
-  campaign: Campaign | null
-  adventureCount?: number
+  adventure: Adventure | null
 }
 
-export function DeleteCampaignDialog({
+export function DeleteAdventureDialog({
   open,
   onClose,
   onConfirm,
-  campaign,
-  adventureCount = 0,
-}: DeleteCampaignDialogProps) {
+  adventure,
+}: DeleteAdventureDialogProps) {
   const [isDeleting, setIsDeleting] = React.useState(false)
 
   const handleConfirm = async () => {
@@ -43,17 +41,10 @@ export function DeleteCampaignDialog({
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-blood-red">Delete Campaign</DialogTitle>
+          <DialogTitle className="text-blood-red">Delete Adventure</DialogTitle>
           <DialogDescription className="font-body text-base not-italic text-ink">
-            Are you certain you wish to delete &lsquo;{campaign?.name}&rsquo;?
-            {adventureCount > 0 ? (
-              <>
-                {' '}The {adventureCount} adventure{adventureCount === 1 ? '' : 's'} within will become standalone
-                and will not be deleted.
-              </>
-            ) : (
-              <> This campaign is empty and will be permanently removed.</>
-            )}
+            Are you certain you wish to destroy &lsquo;{adventure?.name}&rsquo;? This action cannot
+            be undone. All maps and session history will be lost forever.
           </DialogDescription>
         </DialogHeader>
 

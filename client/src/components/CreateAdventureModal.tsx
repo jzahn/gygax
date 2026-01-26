@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { Campaign } from '@gygax/shared'
+import type { Adventure } from '@gygax/shared'
 import {
   Dialog,
   DialogContent,
@@ -11,65 +11,65 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Textarea } from './ui/textarea'
-import { BannerUpload } from './BannerUpload'
+import { ImageUpload } from './ImageUpload'
 
-export interface CampaignFormData {
+export interface AdventureFormData {
   name: string
   description: string
-  bannerImage: File | null | undefined
-  hotspotX: number
-  hotspotY: number
+  coverImage: File | null | undefined
+  focusX: number
+  focusY: number
 }
 
-interface CreateCampaignModalProps {
+interface CreateAdventureModalProps {
   open: boolean
   onClose: () => void
-  onSubmit: (data: CampaignFormData) => Promise<void>
+  onSubmit: (data: AdventureFormData) => Promise<void>
   onDelete?: () => void
-  campaign?: Campaign | null
+  adventure?: Adventure | null
 }
 
 const MAX_NAME_LENGTH = 100
 const MAX_DESCRIPTION_LENGTH = 1000
 
-export function CreateCampaignModal({
+export function CreateAdventureModal({
   open,
   onClose,
   onSubmit,
   onDelete,
-  campaign,
-}: CreateCampaignModalProps) {
+  adventure,
+}: CreateAdventureModalProps) {
   const [name, setName] = React.useState('')
   const [description, setDescription] = React.useState('')
-  const [bannerImage, setBannerImage] = React.useState<File | string | null>(null)
-  const [hotspotX, setHotspotX] = React.useState(50)
-  const [hotspotY, setHotspotY] = React.useState(50)
-  const [removeBannerImage, setRemoveBannerImage] = React.useState(false)
+  const [coverImage, setCoverImage] = React.useState<File | string | null>(null)
+  const [focusX, setFocusX] = React.useState(50)
+  const [focusY, setFocusY] = React.useState(50)
+  const [removeCoverImage, setRemoveCoverImage] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [errors, setErrors] = React.useState<{ name?: string; description?: string }>({})
 
-  const isEditing = !!campaign
+  const isEditing = !!adventure
 
   React.useEffect(() => {
     if (open) {
-      if (campaign) {
-        setName(campaign.name)
-        setDescription(campaign.description || '')
-        setBannerImage(campaign.bannerImageUrl)
-        setHotspotX(campaign.bannerHotspotX ?? 50)
-        setHotspotY(campaign.bannerHotspotY ?? 50)
-        setRemoveBannerImage(false)
+      if (adventure) {
+        setName(adventure.name)
+        setDescription(adventure.description || '')
+        setCoverImage(adventure.coverImageUrl)
+        setFocusX(adventure.coverImageFocusX ?? 50)
+        setFocusY(adventure.coverImageFocusY ?? 50)
+        setRemoveCoverImage(false)
       } else {
         setName('')
         setDescription('')
-        setBannerImage(null)
-        setHotspotX(50)
-        setHotspotY(50)
-        setRemoveBannerImage(false)
+        setCoverImage(null)
+        setFocusX(50)
+        setFocusY(50)
+        setRemoveCoverImage(false)
       }
       setErrors({})
     }
-  }, [open, campaign])
+  }, [open, adventure])
 
   const validateForm = (): boolean => {
     const newErrors: { name?: string; description?: string } = {}
@@ -101,19 +101,19 @@ export function CreateCampaignModal({
     try {
       // undefined = no change, null = explicitly remove, File = new upload
       let imageToSubmit: File | null | undefined
-      if (removeBannerImage) {
+      if (removeCoverImage) {
         imageToSubmit = null
-      } else if (bannerImage instanceof File) {
-        imageToSubmit = bannerImage
+      } else if (coverImage instanceof File) {
+        imageToSubmit = coverImage
       } else {
         imageToSubmit = undefined
       }
       await onSubmit({
         name: name.trim(),
         description: description.trim(),
-        bannerImage: imageToSubmit,
-        hotspotX,
-        hotspotY,
+        coverImage: imageToSubmit,
+        focusX,
+        focusY,
       })
       onClose()
     } catch {
@@ -123,62 +123,59 @@ export function CreateCampaignModal({
     }
   }
 
-  const handleBannerImageChange = (file: File | null) => {
-    setBannerImage(file)
-    setRemoveBannerImage(false)
-    // Reset hotspot to center when selecting a new image
+  const handleCoverImageChange = (file: File | null) => {
+    setCoverImage(file)
+    setRemoveCoverImage(false)
+    // Reset focal point to center when selecting a new image
     if (file) {
-      setHotspotX(50)
-      setHotspotY(50)
+      setFocusX(50)
+      setFocusY(50)
     }
   }
 
-  const handleRemoveBannerImage = () => {
-    setBannerImage(null)
-    setRemoveBannerImage(true)
-    setHotspotX(50)
-    setHotspotY(50)
+  const handleRemoveCoverImage = () => {
+    setCoverImage(null)
+    setRemoveCoverImage(true)
+    setFocusX(50)
+    setFocusY(50)
   }
 
-  const handleHotspotChange = (x: number, y: number) => {
-    setHotspotX(x)
-    setHotspotY(y)
+  const handleFocusChange = (x: number, y: number) => {
+    setFocusX(x)
+    setFocusY(y)
   }
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Campaign' : 'Create New Campaign'}</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Adventure' : 'Forge a New Adventure'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label className="font-display text-xs uppercase tracking-wide">
-              Campaign Banner <span className="font-body text-ink-faded">(optional)</span>
+              Cover Art <span className="font-body text-ink-faded">(optional)</span>
             </Label>
-            <BannerUpload
-              value={bannerImage}
-              onChange={handleBannerImageChange}
-              onRemove={handleRemoveBannerImage}
-              hotspotX={hotspotX}
-              hotspotY={hotspotY}
-              onHotspotChange={handleHotspotChange}
+            <ImageUpload
+              value={coverImage}
+              onChange={handleCoverImageChange}
+              onRemove={handleRemoveCoverImage}
+              focusX={focusX}
+              focusY={focusY}
+              onFocusChange={handleFocusChange}
             />
-            <p className="font-body text-xs text-ink-faded">
-              Recommended: 1200x400 (3:1 ratio) landscape image
-            </p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="name" className="font-display text-xs uppercase tracking-wide">
-              Campaign Name
+              Adventure Name
             </Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="What shall this campaign be called?"
+              placeholder="What shall this adventure be called?"
               error={!!errors.name}
               maxLength={MAX_NAME_LENGTH + 10}
             />
@@ -193,8 +190,8 @@ export function CreateCampaignModal({
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the nature of this campaign..."
-              rows={3}
+              placeholder="Describe the nature of this adventure..."
+              rows={4}
               error={!!errors.description}
               maxLength={MAX_DESCRIPTION_LENGTH + 10}
             />

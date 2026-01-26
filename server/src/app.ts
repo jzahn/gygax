@@ -5,6 +5,7 @@ import { prismaPlugin } from './plugins/prisma'
 import { authPlugin } from './plugins/auth'
 import { healthRoutes } from './routes/health'
 import { authRoutes } from './routes/auth'
+import { adventureRoutes } from './routes/adventures'
 import { campaignRoutes } from './routes/campaigns'
 import { mapRoutes } from './routes/maps'
 import { initializeBucket } from './services/storage'
@@ -44,6 +45,7 @@ export async function buildApp() {
   await fastify.register(healthRoutes)
   await fastify.register(authRoutes)
   await fastify.register(campaignRoutes)
+  await fastify.register(adventureRoutes)
   await fastify.register(mapRoutes)
 
   return fastify

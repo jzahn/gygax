@@ -1,28 +1,32 @@
 import * as React from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
-import type { Campaign, CampaignResponse, Map, MapListResponse, MapResponse } from '@gygax/shared'
+import type {
+  CampaignWithAdventures,
+  CampaignWithAdventuresResponse,
+  CampaignResponse,
+  Adventure,
+  AdventureResponse,
+} from '@gygax/shared'
 import { Button, Divider } from '../components/ui'
 import { CreateCampaignModal, CampaignFormData } from '../components/CreateCampaignModal'
 import { DeleteCampaignDialog } from '../components/DeleteCampaignDialog'
-import { MapCard } from '../components/MapCard'
-import { CreateMapModal, MapFormData } from '../components/CreateMapModal'
-import { DeleteMapDialog } from '../components/DeleteMapDialog'
+import { AdventureCard } from '../components/AdventureCard'
+import { CreateAdventureModal, AdventureFormData } from '../components/CreateAdventureModal'
+import { DeleteAdventureDialog } from '../components/DeleteAdventureDialog'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 export function CampaignPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [campaign, setCampaign] = React.useState<Campaign | null>(null)
+  const [campaign, setCampaign] = React.useState<CampaignWithAdventures | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
-  const [maps, setMaps] = React.useState<Map[]>([])
-  const [isLoadingMaps, setIsLoadingMaps] = React.useState(true)
-  const [isCreateMapModalOpen, setIsCreateMapModalOpen] = React.useState(false)
-  const [editingMap, setEditingMap] = React.useState<Map | null>(null)
-  const [deletingMap, setDeletingMap] = React.useState<Map | null>(null)
+  const [isCreateAdventureModalOpen, setIsCreateAdventureModalOpen] = React.useState(false)
+  const [editingAdventure, setEditingAdventure] = React.useState<Adventure | null>(null)
+  const [deletingAdventure, setDeletingAdventure] = React.useState<Adventure | null>(null)
 
   const fetchCampaign = React.useCallback(async () => {
     if (!id) return
@@ -46,7 +50,7 @@ export function CampaignPage() {
         throw new Error('Failed to fetch campaign')
       }
 
-      const data: CampaignResponse = await response.json()
+      const data: CampaignWithAdventuresResponse = await response.json()
       setCampaign(data.campaign)
     } catch {
       setError('Failed to load campaign')
@@ -58,33 +62,6 @@ export function CampaignPage() {
   React.useEffect(() => {
     fetchCampaign()
   }, [fetchCampaign])
-
-  const fetchMaps = React.useCallback(async () => {
-    if (!id) return
-
-    try {
-      const response = await fetch(`${API_URL}/api/campaigns/${id}/maps`, {
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        return
-      }
-
-      const data: MapListResponse = await response.json()
-      setMaps(data.maps)
-    } catch {
-      // Silently fail - maps section will show empty
-    } finally {
-      setIsLoadingMaps(false)
-    }
-  }, [id])
-
-  React.useEffect(() => {
-    if (campaign) {
-      fetchMaps()
-    }
-  }, [campaign, fetchMaps])
 
   // Scroll to top when navigating to this page
   React.useEffect(() => {
@@ -106,56 +83,56 @@ export function CampaignPage() {
     }
 
     const result: CampaignResponse = await response.json()
-    let updatedCampaign = result.campaign
+    let updatedCampaign = { ...result.campaign, adventures: campaign.adventures }
 
-    if (data.coverImage instanceof File) {
-      // Uploading new image with focal point
+    if (data.bannerImage instanceof File) {
+      // Uploading new image with hotspot
       const formData = new FormData()
-      formData.append('image', data.coverImage)
-      formData.append('focusX', data.focusX.toString())
-      formData.append('focusY', data.focusY.toString())
+      formData.append('image', data.bannerImage)
+      formData.append('hotspotX', data.hotspotX.toString())
+      formData.append('hotspotY', data.hotspotY.toString())
 
-      const coverResponse = await fetch(`${API_URL}/api/campaigns/${campaign.id}/cover`, {
+      const bannerResponse = await fetch(`${API_URL}/api/campaigns/${campaign.id}/banner`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
       })
 
-      if (coverResponse.ok) {
-        const coverResult: CampaignResponse = await coverResponse.json()
-        updatedCampaign = coverResult.campaign
+      if (bannerResponse.ok) {
+        const bannerResult: CampaignResponse = await bannerResponse.json()
+        updatedCampaign = { ...bannerResult.campaign, adventures: campaign.adventures }
       }
-    } else if (data.coverImage === null && campaign.coverImageUrl) {
-      // Explicitly removing cover image
-      const coverResponse = await fetch(`${API_URL}/api/campaigns/${campaign.id}/cover`, {
+    } else if (data.bannerImage === null && campaign.bannerImageUrl) {
+      // Explicitly removing banner image
+      const bannerResponse = await fetch(`${API_URL}/api/campaigns/${campaign.id}/banner`, {
         method: 'DELETE',
         credentials: 'include',
       })
 
-      if (coverResponse.ok) {
-        const coverResult: CampaignResponse = await coverResponse.json()
-        updatedCampaign = coverResult.campaign
+      if (bannerResponse.ok) {
+        const bannerResult: CampaignResponse = await bannerResponse.json()
+        updatedCampaign = { ...bannerResult.campaign, adventures: campaign.adventures }
       }
-    } else if (data.coverImage === undefined && campaign.coverImageUrl) {
-      // Check if focal point changed for existing image
-      const focusChanged =
-        data.focusX !== (campaign.coverImageFocusX ?? 50) ||
-        data.focusY !== (campaign.coverImageFocusY ?? 50)
+    } else if (data.bannerImage === undefined && campaign.bannerImageUrl) {
+      // Check if hotspot changed for existing image
+      const hotspotChanged =
+        data.hotspotX !== (campaign.bannerHotspotX ?? 50) ||
+        data.hotspotY !== (campaign.bannerHotspotY ?? 50)
 
-      if (focusChanged) {
-        const focusResponse = await fetch(
-          `${API_URL}/api/campaigns/${campaign.id}/cover/focus`,
+      if (hotspotChanged) {
+        const hotspotResponse = await fetch(
+          `${API_URL}/api/campaigns/${campaign.id}/banner/hotspot`,
           {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ focusX: data.focusX, focusY: data.focusY }),
+            body: JSON.stringify({ hotspotX: data.hotspotX, hotspotY: data.hotspotY }),
           }
         )
 
-        if (focusResponse.ok) {
-          const focusResult: CampaignResponse = await focusResponse.json()
-          updatedCampaign = focusResult.campaign
+        if (hotspotResponse.ok) {
+          const hotspotResult: CampaignResponse = await hotspotResponse.json()
+          updatedCampaign = { ...hotspotResult.campaign, adventures: campaign.adventures }
         }
       }
     }
@@ -179,70 +156,148 @@ export function CampaignPage() {
     navigate('/')
   }
 
-  const handleCreateMap = async (data: MapFormData) => {
+  const handleCreateAdventure = async (data: AdventureFormData) => {
     if (!campaign) return
 
-    const response = await fetch(`${API_URL}/api/campaigns/${campaign.id}/maps`, {
+    const response = await fetch(`${API_URL}/api/campaigns/${campaign.id}/adventures`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
         name: data.name,
         description: data.description || null,
-        gridType: data.gridType,
-        width: data.width,
-        height: data.height,
-        content: data.content,
       }),
     })
 
     if (!response.ok) {
-      throw new Error('Failed to create map')
+      throw new Error('Failed to create adventure')
     }
 
-    const result: MapResponse = await response.json()
-    setMaps((prev) => [result.map, ...prev])
-    setIsCreateMapModalOpen(false)
+    const result: AdventureResponse = await response.json()
+    let adventure = result.adventure
+
+    if (data.coverImage instanceof File) {
+      const formData = new FormData()
+      formData.append('image', data.coverImage)
+      formData.append('focusX', data.focusX.toString())
+      formData.append('focusY', data.focusY.toString())
+
+      const coverResponse = await fetch(`${API_URL}/api/adventures/${adventure.id}/cover`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      if (coverResponse.ok) {
+        const coverResult: AdventureResponse = await coverResponse.json()
+        adventure = coverResult.adventure
+      }
+    }
+
+    setCampaign((prev) =>
+      prev ? { ...prev, adventures: [adventure, ...prev.adventures] } : null
+    )
+    setIsCreateAdventureModalOpen(false)
   }
 
-  const handleEditMap = async (data: MapFormData) => {
-    if (!editingMap) return
+  const handleEditAdventure = async (data: AdventureFormData) => {
+    if (!editingAdventure) return
 
-    const response = await fetch(`${API_URL}/api/maps/${editingMap.id}`, {
+    const response = await fetch(`${API_URL}/api/adventures/${editingAdventure.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({
-        name: data.name,
-        description: data.description || null,
-        width: data.width,
-        height: data.height,
-      }),
+      body: JSON.stringify({ name: data.name, description: data.description || null }),
     })
 
     if (!response.ok) {
-      throw new Error('Failed to update map')
+      throw new Error('Failed to update adventure')
     }
 
-    const result: MapResponse = await response.json()
-    setMaps((prev) => prev.map((m) => (m.id === result.map.id ? result.map : m)))
-    setEditingMap(null)
+    const result: AdventureResponse = await response.json()
+    let adventure = result.adventure
+
+    if (data.coverImage instanceof File) {
+      const formData = new FormData()
+      formData.append('image', data.coverImage)
+      formData.append('focusX', data.focusX.toString())
+      formData.append('focusY', data.focusY.toString())
+
+      const coverResponse = await fetch(`${API_URL}/api/adventures/${adventure.id}/cover`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      if (coverResponse.ok) {
+        const coverResult: AdventureResponse = await coverResponse.json()
+        adventure = coverResult.adventure
+      }
+    } else if (data.coverImage === null && editingAdventure.coverImageUrl) {
+      const coverResponse = await fetch(`${API_URL}/api/adventures/${adventure.id}/cover`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (coverResponse.ok) {
+        const coverResult: AdventureResponse = await coverResponse.json()
+        adventure = coverResult.adventure
+      }
+    } else if (data.coverImage === undefined && editingAdventure.coverImageUrl) {
+      const focusChanged =
+        data.focusX !== (editingAdventure.coverImageFocusX ?? 50) ||
+        data.focusY !== (editingAdventure.coverImageFocusY ?? 50)
+
+      if (focusChanged) {
+        const focusResponse = await fetch(
+          `${API_URL}/api/adventures/${adventure.id}/cover/focus`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ focusX: data.focusX, focusY: data.focusY }),
+          }
+        )
+
+        if (focusResponse.ok) {
+          const focusResult: AdventureResponse = await focusResponse.json()
+          adventure = focusResult.adventure
+        }
+      }
+    }
+
+    setCampaign((prev) =>
+      prev
+        ? {
+            ...prev,
+            adventures: prev.adventures.map((a) => (a.id === adventure.id ? adventure : a)),
+          }
+        : null
+    )
+    setEditingAdventure(null)
   }
 
-  const handleDeleteMap = async () => {
-    if (!deletingMap) return
+  const handleDeleteAdventure = async () => {
+    if (!deletingAdventure) return
 
-    const response = await fetch(`${API_URL}/api/maps/${deletingMap.id}`, {
+    const response = await fetch(`${API_URL}/api/adventures/${deletingAdventure.id}`, {
       method: 'DELETE',
       credentials: 'include',
     })
 
     if (!response.ok) {
-      throw new Error('Failed to delete map')
+      throw new Error('Failed to delete adventure')
     }
 
-    setMaps((prev) => prev.filter((m) => m.id !== deletingMap.id))
-    setDeletingMap(null)
+    setCampaign((prev) =>
+      prev
+        ? {
+            ...prev,
+            adventures: prev.adventures.filter((a) => a.id !== deletingAdventure.id),
+          }
+        : null
+    )
+    setDeletingAdventure(null)
   }
 
   if (isLoading) {
@@ -275,14 +330,14 @@ export function CampaignPage() {
 
   return (
     <div className="min-h-screen paper-texture">
-      {campaign.coverImageUrl ? (
-        <div className="relative h-64 overflow-hidden border-b-3 border-ink md:h-80">
+      {campaign.bannerImageUrl ? (
+        <div className="relative h-48 overflow-hidden border-b-3 border-ink md:h-64">
           <img
-            src={campaign.coverImageUrl}
+            src={campaign.bannerImageUrl}
             alt={campaign.name}
             className="h-full w-full object-cover"
             style={{
-              objectPosition: `${campaign.coverImageFocusX ?? 50}% ${campaign.coverImageFocusY ?? 50}%`,
+              objectPosition: `${campaign.bannerHotspotX ?? 50}% ${campaign.bannerHotspotY ?? 50}%`,
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-ink/80 to-transparent" />
@@ -292,7 +347,7 @@ export function CampaignPage() {
                 to="/"
                 className="mb-2 inline-block font-body text-sm text-parchment-200 hover:text-parchment-100"
               >
-                &larr; Back to campaigns
+                &larr; Back to dashboard
               </Link>
               <h1 className="font-display text-2xl uppercase tracking-wide text-parchment-100 drop-shadow-lg md:text-4xl">
                 {campaign.name}
@@ -307,10 +362,10 @@ export function CampaignPage() {
               to="/"
               className="mb-2 inline-block font-body text-sm text-ink-soft hover:text-ink"
             >
-              &larr; Back to campaigns
+              &larr; Back to dashboard
             </Link>
             <div className="flex items-center gap-4">
-              <div className="text-ink-soft">&#9876; &#9876;</div>
+              <div className="text-ink-soft">&#9876; &#9552;&#9552;&#9552; &#9876;</div>
               <h1 className="font-display text-2xl uppercase tracking-wide text-ink md:text-4xl">
                 {campaign.name}
               </h1>
@@ -333,55 +388,54 @@ export function CampaignPage() {
 
         <Divider className="my-8" />
 
-        {/* Maps Section */}
+        {/* Adventures Section */}
         <div className="mb-8">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-lg uppercase tracking-wide text-ink">Maps</h2>
-            <Button variant="default" size="sm" onClick={() => setIsCreateMapModalOpen(true)}>
-              + New Map
+            <h2 className="font-display text-lg uppercase tracking-wide text-ink">Adventures</h2>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsCreateAdventureModalOpen(true)}
+            >
+              + New Adventure
             </Button>
           </div>
 
-          {isLoadingMaps ? (
+          {campaign.adventures.length === 0 ? (
             <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
-              <span className="animate-quill-scratch text-2xl">&#9998;</span>
-              <p className="mt-2 font-body text-ink-soft">Loading maps...</p>
-            </div>
-          ) : maps.length === 0 ? (
-            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
-              <div className="mb-4 text-2xl text-ink-soft">&#128506;</div>
-              <p className="font-body text-ink">No maps yet</p>
+              <div className="mb-4 text-2xl text-ink-soft">&#128214;</div>
+              <p className="font-body text-ink">No adventures yet</p>
               <p className="mt-1 font-body text-sm text-ink-soft">
-                Create your first map to begin charting this realm.
+                Create your first adventure to begin building this campaign.
               </p>
               <Button
                 variant="default"
                 className="mt-4"
-                onClick={() => setIsCreateMapModalOpen(true)}
+                onClick={() => setIsCreateAdventureModalOpen(true)}
               >
-                Create Map
+                Create Adventure
               </Button>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {maps.map((map) => (
-                <MapCard
-                  key={map.id}
-                  map={map}
-                  onEdit={() => setEditingMap(map)}
-                  onDelete={() => setDeletingMap(map)}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {campaign.adventures.map((adventure) => (
+                <AdventureCard
+                  key={adventure.id}
+                  adventure={adventure}
+                  onEdit={setEditingAdventure}
+                  onDelete={setDeletingAdventure}
                 />
               ))}
             </div>
           )}
         </div>
 
-        {/* Coming Soon Section */}
+        {/* World Map Placeholder */}
         <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
-          <div className="mb-4 text-2xl text-ink-soft">&#128506;</div>
-          <h2 className="font-display text-lg uppercase tracking-wide text-ink">Coming Soon</h2>
+          <div className="mb-4 text-2xl text-ink-soft">&#127758;</div>
+          <h2 className="font-display text-lg uppercase tracking-wide text-ink">World Map</h2>
           <p className="mt-2 font-body text-ink-soft">
-            Encounters and session tools will appear here in future updates.
+            Campaign-level world map coming in a future update.
           </p>
         </div>
       </div>
@@ -402,26 +456,33 @@ export function CampaignPage() {
         onClose={() => setIsDeleteDialogOpen(false)}
         onConfirm={handleDeleteCampaign}
         campaign={campaign}
+        adventureCount={campaign.adventures.length}
       />
 
-      <CreateMapModal
-        open={isCreateMapModalOpen}
-        onClose={() => setIsCreateMapModalOpen(false)}
-        onSubmit={handleCreateMap}
+      <CreateAdventureModal
+        open={isCreateAdventureModalOpen}
+        onClose={() => setIsCreateAdventureModalOpen(false)}
+        onSubmit={handleCreateAdventure}
       />
 
-      <CreateMapModal
-        open={!!editingMap}
-        onClose={() => setEditingMap(null)}
-        onSubmit={handleEditMap}
-        map={editingMap}
+      <CreateAdventureModal
+        open={!!editingAdventure}
+        onClose={() => setEditingAdventure(null)}
+        onSubmit={handleEditAdventure}
+        onDelete={() => {
+          if (editingAdventure) {
+            setDeletingAdventure(editingAdventure)
+            setEditingAdventure(null)
+          }
+        }}
+        adventure={editingAdventure}
       />
 
-      <DeleteMapDialog
-        open={!!deletingMap}
-        onClose={() => setDeletingMap(null)}
-        onConfirm={handleDeleteMap}
-        map={deletingMap}
+      <DeleteAdventureDialog
+        open={!!deletingAdventure}
+        onClose={() => setDeletingAdventure(null)}
+        onConfirm={handleDeleteAdventure}
+        adventure={deletingAdventure}
       />
     </div>
   )
