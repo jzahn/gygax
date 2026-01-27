@@ -7,6 +7,9 @@ import type {
   CampaignListItem,
   CampaignListResponse,
   CampaignResponse,
+  Character,
+  CharacterListResponse,
+  CharacterResponse,
 } from '@gygax/shared'
 import { useAuth } from '../hooks'
 import { Button, Divider } from '../components/ui'
@@ -16,6 +19,9 @@ import { DeleteCampaignDialog } from '../components/DeleteCampaignDialog'
 import { AdventureCard } from '../components/AdventureCard'
 import { CreateAdventureModal, AdventureFormData } from '../components/CreateAdventureModal'
 import { DeleteAdventureDialog } from '../components/DeleteAdventureDialog'
+import { CharacterCard } from '../components/CharacterCard'
+import { CreateCharacterModal, CharacterFormData } from '../components/CreateCharacterModal'
+import { DeleteCharacterDialog } from '../components/DeleteCharacterDialog'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -38,6 +44,14 @@ export function DashboardPage() {
   const [isCreateAdventureModalOpen, setIsCreateAdventureModalOpen] = React.useState(false)
   const [editingAdventure, setEditingAdventure] = React.useState<Adventure | null>(null)
   const [deletingAdventure, setDeletingAdventure] = React.useState<Adventure | null>(null)
+
+  // Characters state
+  const [characters, setCharacters] = React.useState<Character[]>([])
+  const [isLoadingCharacters, setIsLoadingCharacters] = React.useState(true)
+  const [charactersError, setCharactersError] = React.useState<string | null>(null)
+  const [isCreateCharacterModalOpen, setIsCreateCharacterModalOpen] = React.useState(false)
+  const [editingCharacter, setEditingCharacter] = React.useState<Character | null>(null)
+  const [deletingCharacter, setDeletingCharacter] = React.useState<Character | null>(null)
 
   const fetchCampaigns = React.useCallback(async () => {
     try {
@@ -77,10 +91,30 @@ export function DashboardPage() {
     }
   }, [])
 
+  const fetchCharacters = React.useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/characters`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch characters')
+      }
+
+      const data: CharacterListResponse = await response.json()
+      setCharacters(data.characters)
+    } catch {
+      setCharactersError('Failed to load characters')
+    } finally {
+      setIsLoadingCharacters(false)
+    }
+  }, [])
+
   React.useEffect(() => {
     fetchCampaigns()
     fetchAdventures()
-  }, [fetchCampaigns, fetchAdventures])
+    fetchCharacters()
+  }, [fetchCampaigns, fetchAdventures, fetchCharacters])
 
   const handleLogout = async () => {
     await logout()
@@ -341,10 +375,64 @@ export function DashboardPage() {
     setDeletingAdventure(null)
   }
 
-  const isLoading = isLoadingCampaigns || isLoadingAdventures
+  // Character handlers
+  const handleCreateCharacter = async (data: CharacterFormData) => {
+    const response = await fetch(`${API_URL}/api/characters`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to create character')
+    }
+
+    const result: CharacterResponse = await response.json()
+    setCharacters((prev) => [result.character, ...prev])
+    setIsCreateCharacterModalOpen(false)
+  }
+
+  const handleEditCharacter = async (data: CharacterFormData) => {
+    if (!editingCharacter) return
+
+    const response = await fetch(`${API_URL}/api/characters/${editingCharacter.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update character')
+    }
+
+    const result: CharacterResponse = await response.json()
+    setCharacters((prev) => prev.map((c) => (c.id === result.character.id ? result.character : c)))
+    setEditingCharacter(null)
+  }
+
+  const handleDeleteCharacter = async () => {
+    if (!deletingCharacter) return
+
+    const response = await fetch(`${API_URL}/api/characters/${deletingCharacter.id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to delete character')
+    }
+
+    setCharacters((prev) => prev.filter((c) => c.id !== deletingCharacter.id))
+    setDeletingCharacter(null)
+  }
+
+  const isLoading = isLoadingCampaigns || isLoadingAdventures || isLoadingCharacters
   const hasNoCampaigns = !isLoadingCampaigns && campaigns.length === 0
   const hasNoAdventures = !isLoadingAdventures && adventures.length === 0
-  const isEmpty = hasNoCampaigns && hasNoAdventures
+  const hasNoCharacters = !isLoadingCharacters && characters.length === 0
+  const isEmpty = hasNoCampaigns && hasNoAdventures && hasNoCharacters
 
   return (
     <div className="min-h-screen paper-texture">
@@ -393,6 +481,57 @@ export function DashboardPage() {
           </div>
         ) : (
           <>
+            {/* Characters Section - First */}
+            <section className="mb-12">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-display text-lg uppercase tracking-wide text-ink">
+                  Your Characters
+                </h2>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsCreateCharacterModalOpen(true)}
+                >
+                  + New Character
+                </Button>
+              </div>
+
+              {charactersError ? (
+                <div className="rounded border-3 border-blood-red bg-parchment-100 p-6 text-center">
+                  <p className="font-body text-blood-red">{charactersError}</p>
+                  <Button variant="ghost" onClick={fetchCharacters} className="mt-4">
+                    Try again
+                  </Button>
+                </div>
+              ) : characters.length === 0 ? (
+                <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-6 text-center">
+                  <p className="font-body text-ink-soft">
+                    No characters yet.{' '}
+                    <button
+                      onClick={() => setIsCreateCharacterModalOpen(true)}
+                      className="text-ink underline underline-offset-2 hover:text-ink-soft"
+                    >
+                      Create one
+                    </button>{' '}
+                    to begin your adventures.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {characters.map((character) => (
+                    <CharacterCard
+                      key={character.id}
+                      character={character}
+                      onEdit={setEditingCharacter}
+                      onDelete={setDeletingCharacter}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <Divider className="mb-8" />
+
             {/* Campaigns Section */}
             <section className="mb-12">
               <div className="mb-4 flex items-center justify-between">
@@ -559,6 +698,27 @@ export function DashboardPage() {
         onClose={() => setDeletingAdventure(null)}
         onConfirm={handleDeleteAdventure}
         adventure={deletingAdventure}
+      />
+
+      {/* Character Modals */}
+      <CreateCharacterModal
+        open={isCreateCharacterModalOpen}
+        onClose={() => setIsCreateCharacterModalOpen(false)}
+        onSubmit={handleCreateCharacter}
+      />
+
+      <CreateCharacterModal
+        open={!!editingCharacter}
+        onClose={() => setEditingCharacter(null)}
+        onSubmit={handleEditCharacter}
+        character={editingCharacter}
+      />
+
+      <DeleteCharacterDialog
+        open={!!deletingCharacter}
+        onClose={() => setDeletingCharacter(null)}
+        onConfirm={handleDeleteCharacter}
+        character={deletingCharacter}
       />
     </div>
   )

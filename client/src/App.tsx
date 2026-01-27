@@ -6,6 +6,7 @@ import {
   CampaignPage,
   AdventurePage,
   MapEditorPage,
+  CharacterPage,
   LoginPage,
   RegisterPage,
   VerifyEmailPage,
@@ -48,6 +49,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <MapEditorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/characters/:id"
+            element={
+              <ProtectedRoute>
+                <CharacterPage />
               </ProtectedRoute>
             }
           />

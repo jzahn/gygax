@@ -25,6 +25,7 @@ model User {
   passwordResets PasswordReset[]
   adventures     Adventure[]
   campaigns      Campaign[]
+  characters     Character[]
 
   @@map("users")
 }
@@ -100,4 +101,54 @@ model Map {
 
   @@index([adventureId])
   @@map("maps")
+}
+
+model Character {
+  id               String   @id @default(cuid())
+  name             String
+  class            String   // Fighter, Magic-User, Cleric, Thief, Elf, Dwarf, Halfling
+  level            Int      @default(1)
+  alignment        String?  // Lawful, Neutral, Chaotic
+  title            String?  // Class-specific title
+
+  // Ability Scores (3-18)
+  strength         Int      @default(10)
+  intelligence     Int      @default(10)
+  wisdom           Int      @default(10)
+  dexterity        Int      @default(10)
+  constitution     Int      @default(10)
+  charisma         Int      @default(10)
+
+  // Combat
+  hitPointsMax     Int      @default(1)
+  hitPointsCurrent Int      @default(1)
+  armorClass       Int      @default(9)  // Unarmored AC in B/X
+
+  // Saving Throws
+  saveDeathRay     Int      @default(14)
+  saveWands        Int      @default(15)
+  saveParalysis    Int      @default(16)
+  saveBreath       Int      @default(17)
+  saveSpells       Int      @default(17)
+
+  // Resources
+  experiencePoints Int      @default(0)
+  goldPieces       Int      @default(0)
+
+  // Freeform text fields
+  equipment        String?  // Player-written equipment list
+  spells           String?  // Player-written spell list
+
+  // Optional
+  avatarUrl        String?
+  notes            String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  ownerId          String
+  owner            User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@map("characters")
 }

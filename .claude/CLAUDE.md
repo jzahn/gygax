@@ -112,6 +112,16 @@ npm run build            # Production build
 - No generic aesthetics (Inter/Roboto fonts, purple gradients, cookie-cutter layouts)
 - Run `/frontend-design` for new UI work requiring creative direction
 
+## Spec Workflow
+
+**IMPORTANT:** Writing a spec and implementing a spec are separate steps.
+
+1. **Write spec** — Draft the spec in `/specs/`, get user review
+2. **User reviews** — User reads spec, provides feedback, approves
+3. **Implement** — Only after explicit user approval, implement the spec
+
+Do NOT start implementing immediately after writing a spec. Wait for user review and approval.
+
 ## Specs
 
 Implementation specs in `/specs/` — build in order:
@@ -123,7 +133,7 @@ Implementation specs in `/specs/` — build in order:
 | 003-email | Email verification & password reset | Complete |
 | 004-adventures | Adventure CRUD (renamed from campaigns) | Complete |
 | 005-campaigns | Campaign (collection of Adventures) | Complete |
-| 006-characters | Player character creation (B/X sheets) | Planned |
+| 006-characters | Player character creation (B/X sheets) | Complete |
 | 007-npcs | DM NPC/character creation | Planned |
 | 008-backdrops | Backdrop image display | Planned |
 | 009-notes | DM notes system | Planned |
@@ -144,4 +154,4 @@ Implementation specs in `/specs/` — build in order:
 
 - [x] Rename Campaign → Adventure in existing code (004 implementation refactor)
 - [x] Spec and implement Campaign collection entity (005)
-- [ ] Spec 006: Player character creation (B/X sheets)
+- [x] Spec 006: Player character creation — complete

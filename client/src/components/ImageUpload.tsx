@@ -13,6 +13,10 @@ interface ImageUploadProps {
   maxSize?: number
   error?: string
   className?: string
+  /** Compact mode for small avatars - hides focal point picker */
+  compact?: boolean
+  /** Aspect ratio for the image container (e.g., "1/1", "2/3") */
+  aspectRatio?: string
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -28,6 +32,8 @@ export function ImageUpload({
   maxSize = MAX_FILE_SIZE,
   error,
   className,
+  compact = false,
+  aspectRatio,
 }: ImageUploadProps) {
   const [isDragging, setIsDragging] = React.useState(false)
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
@@ -95,6 +101,71 @@ export function ImageUpload({
     inputRef.current?.click()
   }
 
+  // Compact mode for small avatars/portraits
+  if (compact) {
+    return (
+      <div className={cn('group relative', className)}>
+        <div
+          onClick={handleClick}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={cn(
+            'relative cursor-pointer border-3 border-dashed bg-parchment-100 transition-colors',
+            isDragging ? 'border-candleGlow bg-parchment-200' : 'border-ink-soft hover:border-ink',
+            error && 'border-blood-red',
+            !previewUrl && 'flex items-center justify-center'
+          )}
+          style={aspectRatio && !previewUrl ? { aspectRatio } : undefined}
+        >
+          {previewUrl ? (
+            <>
+              <img
+                src={previewUrl}
+                alt="Avatar"
+                className="block w-full"
+              />
+              {/* Hover overlay with actions */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-ink/70 opacity-0 transition-opacity group-hover:opacity-100">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleClick()
+                  }}
+                  className="font-body text-xs text-parchment-100 underline underline-offset-2"
+                >
+                  Change
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="font-body text-xs text-blood-red underline underline-offset-2"
+                >
+                  Remove
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center p-4 text-center">
+              <div className="text-2xl text-ink-soft">&#128100;</div>
+              <p className="font-body text-xs text-ink-soft">Add portrait</p>
+            </div>
+          )}
+          <input
+            ref={inputRef}
+            type="file"
+            accept={accept}
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+        </div>
+        {error && <p className="mt-1 font-body text-xs text-blood-red">{error}</p>}
+      </div>
+    )
+  }
+
+  // Full mode with focal point picker
   return (
     <div className={cn('space-y-2', className)}>
       <div

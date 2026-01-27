@@ -347,7 +347,7 @@ export function CampaignPage() {
                 to="/"
                 className="mb-2 inline-block font-body text-sm text-parchment-200 hover:text-parchment-100"
               >
-                &larr; Back to dashboard
+                &larr; Back to Dashboard
               </Link>
               <h1 className="font-display text-2xl uppercase tracking-wide text-parchment-100 drop-shadow-lg md:text-4xl">
                 {campaign.name}
@@ -362,7 +362,7 @@ export function CampaignPage() {
               to="/"
               className="mb-2 inline-block font-body text-sm text-ink-soft hover:text-ink"
             >
-              &larr; Back to dashboard
+              &larr; Back to Dashboard
             </Link>
             <div className="flex items-center gap-4">
               <div className="text-ink-soft">&#9876; &#9552;&#9552;&#9552; &#9876;</div>

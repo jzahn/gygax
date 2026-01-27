@@ -342,3 +342,105 @@ export interface MapExportFile {
     content: MapContent | null
   }
 }
+
+// Character types (B/X D&D)
+export type CharacterClass =
+  | 'Fighter'
+  | 'Magic-User'
+  | 'Cleric'
+  | 'Thief'
+  | 'Elf'
+  | 'Dwarf'
+  | 'Halfling'
+
+export type Alignment = 'Lawful' | 'Neutral' | 'Chaotic'
+
+export interface Character {
+  id: string
+  name: string
+  class: CharacterClass
+  level: number
+  alignment: Alignment | null
+  title: string | null
+
+  // Ability Scores
+  strength: number
+  intelligence: number
+  wisdom: number
+  dexterity: number
+  constitution: number
+  charisma: number
+
+  // Combat
+  hitPointsMax: number
+  hitPointsCurrent: number
+  armorClass: number
+
+  // Saving Throws
+  saveDeathRay: number
+  saveWands: number
+  saveParalysis: number
+  saveBreath: number
+  saveSpells: number
+
+  // Resources
+  experiencePoints: number
+  goldPieces: number
+
+  // Freeform text
+  equipment: string | null
+  spells: string | null
+  notes: string | null
+
+  // Avatar
+  avatarUrl: string | null
+
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CharacterListResponse {
+  characters: Character[]
+}
+
+export interface CharacterResponse {
+  character: Character
+}
+
+export interface CreateCharacterRequest {
+  name: string
+  class: CharacterClass
+  strength?: number
+  intelligence?: number
+  wisdom?: number
+  dexterity?: number
+  constitution?: number
+  charisma?: number
+}
+
+export interface UpdateCharacterRequest {
+  name?: string
+  class?: CharacterClass
+  level?: number
+  alignment?: Alignment | null
+  title?: string | null
+  strength?: number
+  intelligence?: number
+  wisdom?: number
+  dexterity?: number
+  constitution?: number
+  charisma?: number
+  hitPointsMax?: number
+  hitPointsCurrent?: number
+  armorClass?: number
+  saveDeathRay?: number
+  saveWands?: number
+  saveParalysis?: number
+  saveBreath?: number
+  saveSpells?: number
+  experiencePoints?: number
+  goldPieces?: number
+  equipment?: string | null
+  spells?: string | null
+  notes?: string | null
+}
