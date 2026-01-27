@@ -1,11 +1,15 @@
 import * as React from 'react'
-import type { Character, CharacterClass, Alignment, UpdateCharacterRequest } from '@gygax/shared'
+import type { Character, NPC, CharacterClass, Alignment, UpdateCharacterRequest, UpdateNPCRequest } from '@gygax/shared'
 import { ImageUpload } from './ImageUpload'
 import { getModifier, formatModifier, getThac0 } from '../utils/bxRules'
 
+// Union type for Character or NPC data
+type CharacterOrNPC = Character | NPC
+
 interface CharacterSheetProps {
-  character: Character
-  onUpdate: (data: UpdateCharacterRequest) => Promise<void>
+  character: CharacterOrNPC
+  isNPC?: boolean
+  onUpdate: (data: UpdateCharacterRequest | UpdateNPCRequest) => Promise<void>
   onAvatarUpload: (file: File) => Promise<void>
   onAvatarRemove: () => Promise<void>
 }
@@ -88,25 +92,37 @@ function EditableField({
 
 export function CharacterSheet({
   character,
+  isNPC = false,
   onUpdate,
   onAvatarUpload,
   onAvatarRemove,
 }: CharacterSheetProps) {
   const [isSaving, setIsSaving] = React.useState(false)
 
-  const handleFieldUpdate = async (field: keyof UpdateCharacterRequest, value: unknown) => {
+  const handleFieldUpdate = async (field: string, value: unknown) => {
     setIsSaving(true)
     try {
-      await onUpdate({ [field]: value })
+      await onUpdate({ [field]: value } as UpdateCharacterRequest | UpdateNPCRequest)
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleNumberUpdate = async (field: keyof UpdateCharacterRequest, value: string) => {
+  const handleNumberUpdate = async (field: string, value: string) => {
     const num = parseInt(value, 10)
     if (!isNaN(num)) {
       await handleFieldUpdate(field, num)
+    }
+  }
+
+  const handleNullableNumberUpdate = async (field: string, value: string) => {
+    if (value === '' || value === '-') {
+      await handleFieldUpdate(field, null)
+    } else {
+      const num = parseInt(value, 10)
+      if (!isNaN(num)) {
+        await handleFieldUpdate(field, num)
+      }
     }
   }
 
@@ -116,7 +132,9 @@ export function CharacterSheet({
     }
   }
 
-  const thac0 = getThac0(character.class, character.level)
+  // For NPCs, class can be null - use Fighter defaults for THAC0 calculation
+  const effectiveClass = character.class || 'Fighter'
+  const thac0 = getThac0(effectiveClass as CharacterClass, character.level)
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -152,10 +170,11 @@ export function CharacterSheet({
                 Class
               </label>
               <select
-                value={character.class}
-                onChange={(e) => handleFieldUpdate('class', e.target.value as CharacterClass)}
+                value={character.class || ''}
+                onChange={(e) => handleFieldUpdate('class', e.target.value ? (e.target.value as CharacterClass) : null)}
                 className="w-full border-0 border-b-2 border-ink-faded bg-transparent px-1 py-1 font-body text-ink focus:border-ink focus:outline-none"
               >
+                {isNPC && <option value="">— None —</option>}
                 {CHARACTER_CLASSES.map((cls) => (
                   <option key={cls} value={cls}>
                     {cls}
@@ -227,8 +246,8 @@ export function CharacterSheet({
                 { key: 'constitution', label: 'Constitution', abbr: 'CON' },
                 { key: 'charisma', label: 'Charisma', abbr: 'CHA' },
               ].map(({ key, label, abbr }) => {
-                const score = character[key as keyof Character] as number
-                const mod = getModifier(score)
+                const score = character[key as keyof CharacterOrNPC] as number | null
+                const mod = score !== null ? getModifier(score) : null
                 return (
                   <div key={key} className="flex items-center gap-3 md:justify-end">
                     <label className="w-28 font-display text-xs uppercase tracking-wide text-ink-soft md:text-right">
@@ -239,15 +258,16 @@ export function CharacterSheet({
                       <div className="border-3 border-ink bg-parchment-200 px-3 py-1">
                         <input
                           type="number"
-                          value={score}
-                          onChange={(e) => handleNumberUpdate(key as keyof UpdateCharacterRequest, e.target.value)}
+                          value={score ?? ''}
+                          onChange={(e) => isNPC ? handleNullableNumberUpdate(key, e.target.value) : handleNumberUpdate(key, e.target.value)}
                           min={3}
                           max={18}
-                          className="w-12 bg-transparent text-center font-body text-xl text-ink focus:outline-none"
+                          placeholder={isNPC ? '—' : undefined}
+                          className="w-12 bg-transparent text-center font-body text-xl text-ink placeholder:text-ink-faded focus:outline-none"
                         />
                       </div>
                       <div className="w-10 text-center font-body text-lg text-ink-soft">
-                        {formatModifier(mod)}
+                        {mod !== null ? formatModifier(mod) : '—'}
                       </div>
                     </div>
                   </div>
@@ -270,17 +290,19 @@ export function CharacterSheet({
               <div className="flex items-center justify-center gap-1">
                 <input
                   type="number"
-                  value={character.hitPointsCurrent}
-                  onChange={(e) => handleNumberUpdate('hitPointsCurrent', e.target.value)}
-                  className="w-12 bg-transparent text-center font-body text-2xl text-ink focus:outline-none"
+                  value={character.hitPointsCurrent ?? ''}
+                  onChange={(e) => isNPC ? handleNullableNumberUpdate('hitPointsCurrent', e.target.value) : handleNumberUpdate('hitPointsCurrent', e.target.value)}
+                  placeholder={isNPC ? '—' : undefined}
+                  className="w-12 bg-transparent text-center font-body text-2xl text-ink placeholder:text-ink-faded focus:outline-none"
                 />
                 <span className="font-body text-ink-soft">/</span>
                 <input
                   type="number"
-                  value={character.hitPointsMax}
-                  onChange={(e) => handleNumberUpdate('hitPointsMax', e.target.value)}
+                  value={character.hitPointsMax ?? ''}
+                  onChange={(e) => isNPC ? handleNullableNumberUpdate('hitPointsMax', e.target.value) : handleNumberUpdate('hitPointsMax', e.target.value)}
                   min={0}
-                  className="w-12 bg-transparent text-center font-body text-2xl text-ink focus:outline-none"
+                  placeholder={isNPC ? '—' : undefined}
+                  className="w-12 bg-transparent text-center font-body text-2xl text-ink placeholder:text-ink-faded focus:outline-none"
                 />
               </div>
               <div className="font-body text-xs text-ink-faded">(current/max)</div>
@@ -293,9 +315,10 @@ export function CharacterSheet({
             <div className="mt-1 border-3 border-ink bg-parchment-200 p-2">
               <input
                 type="number"
-                value={character.armorClass}
-                onChange={(e) => handleNumberUpdate('armorClass', e.target.value)}
-                className="w-full bg-transparent text-center font-body text-2xl text-ink focus:outline-none"
+                value={character.armorClass ?? ''}
+                onChange={(e) => isNPC ? handleNullableNumberUpdate('armorClass', e.target.value) : handleNumberUpdate('armorClass', e.target.value)}
+                placeholder={isNPC ? '—' : undefined}
+                className="w-full bg-transparent text-center font-body text-2xl text-ink placeholder:text-ink-faded focus:outline-none"
               />
               <div className="font-body text-xs text-ink-faded">(descending)</div>
             </div>
@@ -333,22 +356,26 @@ export function CharacterSheet({
             { key: 'saveParalysis', label: 'Paralysis' },
             { key: 'saveBreath', label: 'Breath' },
             { key: 'saveSpells', label: 'Spells' },
-          ].map(({ key, label }) => (
-            <div key={key} className="text-center">
-              <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
-                {label}
-              </label>
-              <div className="mt-1 border-3 border-ink bg-parchment-200 p-2">
-                <input
-                  type="number"
-                  value={character[key as keyof Character] as number}
-                  onChange={(e) => handleNumberUpdate(key as keyof UpdateCharacterRequest, e.target.value)}
-                  min={1}
-                  className="w-full bg-transparent text-center font-body text-xl text-ink focus:outline-none"
-                />
+          ].map(({ key, label }) => {
+            const saveValue = character[key as keyof CharacterOrNPC] as number | null
+            return (
+              <div key={key} className="text-center">
+                <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
+                  {label}
+                </label>
+                <div className="mt-1 border-3 border-ink bg-parchment-200 p-2">
+                  <input
+                    type="number"
+                    value={saveValue ?? ''}
+                    onChange={(e) => isNPC ? handleNullableNumberUpdate(key, e.target.value) : handleNumberUpdate(key, e.target.value)}
+                    min={1}
+                    placeholder={isNPC ? '—' : undefined}
+                    className="w-full bg-transparent text-center font-body text-xl text-ink placeholder:text-ink-faded focus:outline-none"
+                  />
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </section>
 
@@ -362,9 +389,10 @@ export function CharacterSheet({
             </label>
             <EditableField
               type="number"
-              value={character.experiencePoints}
-              onChange={(v) => handleNumberUpdate('experiencePoints', v)}
+              value={character.experiencePoints ?? ''}
+              onChange={(v) => isNPC ? handleNullableNumberUpdate('experiencePoints', v) : handleNumberUpdate('experiencePoints', v)}
               min={0}
+              placeholder={isNPC ? '—' : undefined}
               className="text-lg"
             />
           </div>
@@ -374,9 +402,10 @@ export function CharacterSheet({
             </label>
             <EditableField
               type="number"
-              value={character.goldPieces}
-              onChange={(v) => handleNumberUpdate('goldPieces', v)}
+              value={character.goldPieces ?? ''}
+              onChange={(v) => isNPC ? handleNullableNumberUpdate('goldPieces', v) : handleNumberUpdate('goldPieces', v)}
               min={0}
+              placeholder={isNPC ? '—' : undefined}
               className="text-lg"
             />
           </div>

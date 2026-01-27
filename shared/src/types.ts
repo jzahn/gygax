@@ -444,3 +444,162 @@ export interface UpdateCharacterRequest {
   spells?: string | null
   notes?: string | null
 }
+
+// NPC types (DM-owned characters in Adventures)
+export interface NPC {
+  id: string
+  name: string
+  description: string | null
+
+  class: string | null  // Optional unlike Character
+  level: number
+  alignment: Alignment | null
+  title: string | null
+
+  // Ability Scores (all optional)
+  strength: number | null
+  intelligence: number | null
+  wisdom: number | null
+  dexterity: number | null
+  constitution: number | null
+  charisma: number | null
+
+  // Combat
+  hitPointsMax: number | null
+  hitPointsCurrent: number | null
+  armorClass: number | null
+
+  // Saving Throws
+  saveDeathRay: number | null
+  saveWands: number | null
+  saveParalysis: number | null
+  saveBreath: number | null
+  saveSpells: number | null
+
+  // Resources
+  experiencePoints: number | null
+  goldPieces: number | null
+
+  // Freeform text
+  equipment: string | null
+  spells: string | null
+  notes: string | null
+
+  // Avatar
+  avatarUrl: string | null
+
+  adventureId: string
+  createdAt: string
+  updatedAt: string
+}
+
+// Abbreviated NPC for list views
+export interface NPCListItem {
+  id: string
+  name: string
+  description: string | null
+  class: string | null
+  level: number
+  avatarUrl: string | null
+  adventureId: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface NPCListResponse {
+  npcs: NPCListItem[]
+}
+
+export interface NPCResponse {
+  npc: NPC
+}
+
+export interface CreateNPCRequest {
+  name: string
+  description?: string
+  class?: string
+  level?: number
+  alignment?: Alignment
+  title?: string
+  strength?: number
+  intelligence?: number
+  wisdom?: number
+  dexterity?: number
+  constitution?: number
+  charisma?: number
+  // Extended fields for import support
+  hitPointsMax?: number
+  hitPointsCurrent?: number
+  armorClass?: number
+  saveDeathRay?: number
+  saveWands?: number
+  saveParalysis?: number
+  saveBreath?: number
+  saveSpells?: number
+  experiencePoints?: number
+  goldPieces?: number
+  equipment?: string
+  spells?: string
+  notes?: string
+}
+
+export interface UpdateNPCRequest {
+  name?: string
+  description?: string | null
+  class?: string | null
+  level?: number
+  alignment?: Alignment | null
+  title?: string | null
+  strength?: number | null
+  intelligence?: number | null
+  wisdom?: number | null
+  dexterity?: number | null
+  constitution?: number | null
+  charisma?: number | null
+  hitPointsMax?: number | null
+  hitPointsCurrent?: number | null
+  armorClass?: number | null
+  saveDeathRay?: number | null
+  saveWands?: number | null
+  saveParalysis?: number | null
+  saveBreath?: number | null
+  saveSpells?: number | null
+  experiencePoints?: number | null
+  goldPieces?: number | null
+  equipment?: string | null
+  spells?: string | null
+  notes?: string | null
+}
+
+// NPC export file format
+export interface NPCExportFile {
+  version: 1
+  exportedAt: string
+  npc: {
+    name: string
+    description: string | null
+    class: string | null
+    level: number
+    alignment: string | null
+    title: string | null
+    strength: number | null
+    intelligence: number | null
+    wisdom: number | null
+    dexterity: number | null
+    constitution: number | null
+    charisma: number | null
+    hitPointsMax: number | null
+    hitPointsCurrent: number | null
+    armorClass: number | null
+    saveDeathRay: number | null
+    saveWands: number | null
+    saveParalysis: number | null
+    saveBreath: number | null
+    saveSpells: number | null
+    experiencePoints: number | null
+    goldPieces: number | null
+    equipment: string | null
+    spells: string | null
+    notes: string | null
+  }
+}

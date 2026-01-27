@@ -1,12 +1,25 @@
 import * as React from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
-import type { Adventure, AdventureResponse, Map, MapListResponse, MapResponse } from '@gygax/shared'
+import type {
+  Adventure,
+  AdventureResponse,
+  Map,
+  MapListResponse,
+  MapResponse,
+  NPCListItem,
+  NPCListResponse,
+  NPCResponse,
+} from '@gygax/shared'
 import { Button, Divider } from '../components/ui'
 import { CreateAdventureModal, AdventureFormData } from '../components/CreateAdventureModal'
 import { DeleteAdventureDialog } from '../components/DeleteAdventureDialog'
 import { MapCard } from '../components/MapCard'
 import { CreateMapModal, MapFormData } from '../components/CreateMapModal'
 import { DeleteMapDialog } from '../components/DeleteMapDialog'
+import { NPCCard } from '../components/NPCCard'
+import { CreateNPCModal, NPCFormData } from '../components/CreateNPCModal'
+import { DeleteNPCDialog } from '../components/DeleteNPCDialog'
+import { exportNPC } from '../utils/npcExport'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -23,6 +36,11 @@ export function AdventurePage() {
   const [isCreateMapModalOpen, setIsCreateMapModalOpen] = React.useState(false)
   const [editingMap, setEditingMap] = React.useState<Map | null>(null)
   const [deletingMap, setDeletingMap] = React.useState<Map | null>(null)
+  const [npcs, setNpcs] = React.useState<NPCListItem[]>([])
+  const [isLoadingNpcs, setIsLoadingNpcs] = React.useState(true)
+  const [isCreateNpcModalOpen, setIsCreateNpcModalOpen] = React.useState(false)
+  const [editingNpc, setEditingNpc] = React.useState<NPCListItem | null>(null)
+  const [deletingNpc, setDeletingNpc] = React.useState<NPCListItem | null>(null)
 
   const fetchAdventure = React.useCallback(async () => {
     if (!id) return
@@ -85,6 +103,33 @@ export function AdventurePage() {
       fetchMaps()
     }
   }, [adventure, fetchMaps])
+
+  const fetchNpcs = React.useCallback(async () => {
+    if (!id) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/adventures/${id}/npcs`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        return
+      }
+
+      const data: NPCListResponse = await response.json()
+      setNpcs(data.npcs)
+    } catch {
+      // Silently fail - npcs section will show empty
+    } finally {
+      setIsLoadingNpcs(false)
+    }
+  }, [id])
+
+  React.useEffect(() => {
+    if (adventure) {
+      fetchNpcs()
+    }
+  }, [adventure, fetchNpcs])
 
   // Scroll to top when navigating to this page
   React.useEffect(() => {
@@ -245,6 +290,106 @@ export function AdventurePage() {
     setDeletingMap(null)
   }
 
+  const handleCreateNpc = async (data: NPCFormData) => {
+    if (!adventure) return
+
+    const response = await fetch(`${API_URL}/api/adventures/${adventure.id}/npcs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to create NPC')
+    }
+
+    const result: NPCResponse = await response.json()
+    // Convert full NPC to list item
+    const listItem: NPCListItem = {
+      id: result.npc.id,
+      name: result.npc.name,
+      description: result.npc.description,
+      class: result.npc.class,
+      level: result.npc.level,
+      avatarUrl: result.npc.avatarUrl,
+      adventureId: result.npc.adventureId,
+      createdAt: result.npc.createdAt,
+      updatedAt: result.npc.updatedAt,
+    }
+    setNpcs((prev) => [listItem, ...prev])
+    setIsCreateNpcModalOpen(false)
+  }
+
+  const handleEditNpc = async (data: NPCFormData) => {
+    if (!editingNpc) return
+
+    const response = await fetch(`${API_URL}/api/npcs/${editingNpc.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        name: data.name,
+        description: data.description || null,
+        class: data.class || null,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update NPC')
+    }
+
+    const result: NPCResponse = await response.json()
+    const listItem: NPCListItem = {
+      id: result.npc.id,
+      name: result.npc.name,
+      description: result.npc.description,
+      class: result.npc.class,
+      level: result.npc.level,
+      avatarUrl: result.npc.avatarUrl,
+      adventureId: result.npc.adventureId,
+      createdAt: result.npc.createdAt,
+      updatedAt: result.npc.updatedAt,
+    }
+    setNpcs((prev) => prev.map((n) => (n.id === listItem.id ? listItem : n)))
+    setEditingNpc(null)
+  }
+
+  const handleDeleteNpc = async () => {
+    if (!deletingNpc) return
+
+    const response = await fetch(`${API_URL}/api/npcs/${deletingNpc.id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to delete NPC')
+    }
+
+    setNpcs((prev) => prev.filter((n) => n.id !== deletingNpc.id))
+    setDeletingNpc(null)
+  }
+
+  const handleExportNpc = async (npc: NPCListItem) => {
+    // Fetch full NPC data for export
+    try {
+      const response = await fetch(`${API_URL}/api/npcs/${npc.id}`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch NPC')
+      }
+
+      const data: NPCResponse = await response.json()
+      exportNPC(data.npc)
+    } catch {
+      // Could add toast notification here
+      console.error('Failed to export NPC')
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center paper-texture">
@@ -376,6 +521,50 @@ export function AdventurePage() {
           )}
         </div>
 
+        {/* NPCs Section */}
+        <div className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg uppercase tracking-wide text-ink">NPCs</h2>
+            <Button variant="default" size="sm" onClick={() => setIsCreateNpcModalOpen(true)}>
+              + New NPC
+            </Button>
+          </div>
+
+          {isLoadingNpcs ? (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <span className="animate-quill-scratch text-2xl">&#9998;</span>
+              <p className="mt-2 font-body text-ink-soft">Loading NPCs...</p>
+            </div>
+          ) : npcs.length === 0 ? (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <div className="mb-4 text-2xl text-ink-soft">&#9786;</div>
+              <p className="font-body text-ink">No NPCs yet</p>
+              <p className="mt-1 font-body text-sm text-ink-soft">
+                Create your first NPC to populate this adventure.
+              </p>
+              <Button
+                variant="default"
+                className="mt-4"
+                onClick={() => setIsCreateNpcModalOpen(true)}
+              >
+                Create NPC
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {npcs.map((npc) => (
+                <NPCCard
+                  key={npc.id}
+                  npc={npc}
+                  onEdit={() => setEditingNpc(npc)}
+                  onDelete={() => setDeletingNpc(npc)}
+                  onExport={() => handleExportNpc(npc)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Coming Soon Section */}
         <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
           <div className="mb-4 text-2xl text-ink-soft">&#128506;</div>
@@ -422,6 +611,26 @@ export function AdventurePage() {
         onClose={() => setDeletingMap(null)}
         onConfirm={handleDeleteMap}
         map={deletingMap}
+      />
+
+      <CreateNPCModal
+        open={isCreateNpcModalOpen}
+        onClose={() => setIsCreateNpcModalOpen(false)}
+        onSubmit={handleCreateNpc}
+      />
+
+      <CreateNPCModal
+        open={!!editingNpc}
+        onClose={() => setEditingNpc(null)}
+        onSubmit={handleEditNpc}
+        npc={editingNpc}
+      />
+
+      <DeleteNPCDialog
+        open={!!deletingNpc}
+        onClose={() => setDeletingNpc(null)}
+        onConfirm={handleDeleteNpc}
+        npc={deletingNpc}
       />
     </div>
   )

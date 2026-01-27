@@ -9,6 +9,7 @@ import {
   AdventureModePage,
   MapEditorPage,
   CharacterPage,
+  NPCPage,
   LoginPage,
   RegisterPage,
   VerifyEmailPage,
@@ -36,6 +37,7 @@ export function App() {
             <Route path="/adventures/:id" element={<AdventurePage />} />
             <Route path="/maps/:id" element={<MapEditorPage />} />
             <Route path="/characters/:id" element={<CharacterPage />} />
+            <Route path="/adventures/:adventureId/npcs/:npcId" element={<NPCPage />} />
           </Route>
 
           {/* Public routes */}

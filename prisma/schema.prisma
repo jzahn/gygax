@@ -72,6 +72,7 @@ model Adventure {
   ownerId    String
   owner      User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   maps       Map[]
+  npcs       NPC[]
   campaignId String?
   campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
@@ -151,4 +152,56 @@ model Character {
 
   @@index([ownerId])
   @@map("characters")
+}
+
+model NPC {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?  // DM reference: who is this NPC, role, personality
+
+  class            String?  // Optional: Fighter, Magic-User, Cleric, etc.
+  level            Int      @default(1)
+  alignment        String?  // Lawful, Neutral, Chaotic
+  title            String?  // Class-specific title
+
+  // Ability Scores (all optional, default null)
+  strength         Int?
+  intelligence     Int?
+  wisdom           Int?
+  dexterity        Int?
+  constitution     Int?
+  charisma         Int?
+
+  // Combat
+  hitPointsMax     Int?
+  hitPointsCurrent Int?
+  armorClass       Int?
+
+  // Saving Throws (all optional)
+  saveDeathRay     Int?
+  saveWands        Int?
+  saveParalysis    Int?
+  saveBreath       Int?
+  saveSpells       Int?
+
+  // Resources (optional for NPCs)
+  experiencePoints Int?
+  goldPieces       Int?
+
+  // Freeform text fields
+  equipment        String?
+  spells           String?
+  notes            String?
+
+  // Avatar
+  avatarUrl        String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  adventureId      String
+  adventure        Adventure @relation(fields: [adventureId], references: [id], onDelete: Cascade)
+
+  @@index([adventureId])
+  @@map("npcs")
 }
