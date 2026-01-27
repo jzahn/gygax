@@ -153,15 +153,13 @@ Clicking the card navigates to `/maps/:id` (existing MapEditorPage). The "back" 
 
 ### 5. Client: Adventure Page
 
-Add a small banner/link in the Adventure page when the Adventure belongs to a Campaign that has a world map:
+When the Adventure belongs to a Campaign that has a world map, show it as the first entry in the maps section — same card style with preview as any other map, but visually demoted to indicate it belongs to the Campaign, not the Adventure:
 
-```
-┌─────────────────────────────────────────┐
-│  🗺 View Campaign World Map →           │
-└─────────────────────────────────────────┘
-```
-
-This links to `/maps/:worldMapId`. Shown only when `campaign.worldMap` exists.
+- Appears first in the maps list
+- Same card layout and thumbnail preview as adventure maps
+- "Campaign Map" label to distinguish it from the Adventure's own maps
+- Clicking opens the map editor (navigates to `/maps/:worldMapId`)
+- Only shown when `campaign.worldMap` exists
 
 ### 6. Client: MapEditorPage Updates
 
