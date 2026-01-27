@@ -212,28 +212,28 @@ export function NPCPage() {
         </div>
       </header>
 
-      {/* Description Section */}
-      <div className="mx-auto max-w-4xl px-6 pt-6 md:px-8 md:pt-8">
-        <section className="border-3 border-ink bg-parchment-100 p-4 md:p-6">
-          <h2 className="mb-3 font-display text-sm uppercase tracking-wide text-ink">
-            DM Description
-          </h2>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            onBlur={handleDescriptionBlur}
-            placeholder="Role, personality, secrets, plot hooks..."
-            className="w-full resize-none border-0 border-b-2 border-ink-faded bg-transparent px-1 py-1 font-body text-ink placeholder:text-ink-faded focus:border-ink focus:outline-none"
-            rows={3}
-          />
-          {isSavingDescription && (
-            <p className="mt-1 font-body text-xs text-ink-faded">Saving...</p>
-          )}
-        </section>
-      </div>
-
       {/* Character Sheet */}
       <main className="p-6 md:p-8">
+        {/* DM Description */}
+        <div className="mx-auto mb-8 max-w-4xl">
+          <section className="border-3 border-ink bg-parchment-100 p-4 md:p-6">
+            <h2 className="mb-3 font-display text-sm uppercase tracking-wide text-ink">
+              DM Description
+            </h2>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onBlur={handleDescriptionBlur}
+              placeholder="Role, personality, secrets, plot hooks..."
+              className="w-full resize-none border-0 border-b-2 border-ink-faded bg-transparent px-1 py-1 font-body text-ink placeholder:text-ink-faded focus:border-ink focus:outline-none"
+              rows={3}
+            />
+            {isSavingDescription && (
+              <p className="mt-1 font-body text-xs text-ink-faded">Saving...</p>
+            )}
+          </section>
+        </div>
+
         <CharacterSheet
           character={npc}
           isNPC
