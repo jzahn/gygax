@@ -605,6 +605,34 @@ export interface UpdateBackdropRequest {
   focusY?: number
 }
 
+// Note types
+export interface Note {
+  id: string
+  title: string
+  content: string | null
+  adventureId: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface NoteListResponse {
+  notes: Note[]
+}
+
+export interface NoteResponse {
+  note: Note
+}
+
+export interface CreateNoteRequest {
+  title: string
+  content?: string
+}
+
+export interface UpdateNoteRequest {
+  title?: string
+  content?: string | null
+}
+
 // NPC export file format
 export interface NPCExportFile {
   version: 1

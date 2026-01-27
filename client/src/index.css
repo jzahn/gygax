@@ -191,6 +191,56 @@ a, button, [role="button"] {
   text-shadow: 0 1px 2px rgba(26, 26, 26, 0.1);
 }
 
+/* Markdown prose styling for notes */
+.prose-bx h1, .prose-bx h2, .prose-bx h3, .prose-bx h4 {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  color: var(--color-ink);
+}
+.prose-bx h1 { font-size: 1.5rem; }
+.prose-bx h2 { font-size: 1.25rem; }
+.prose-bx h3 { font-size: 1.1rem; }
+.prose-bx p { margin-bottom: 0.75em; line-height: 1.6; }
+.prose-bx ul, .prose-bx ol { margin-bottom: 0.75em; padding-left: 1.5em; }
+.prose-bx ul { list-style-type: disc; }
+.prose-bx ol { list-style-type: decimal; }
+.prose-bx li { margin-bottom: 0.25em; line-height: 1.5; }
+.prose-bx strong { font-weight: 700; }
+.prose-bx em { font-style: italic; }
+.prose-bx a { color: var(--color-blood-red); text-decoration: underline; }
+.prose-bx code {
+  font-family: var(--font-input);
+  font-size: 0.9em;
+  background: var(--color-parchment-200);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+.prose-bx pre {
+  background: var(--color-parchment-200);
+  border: 1px solid var(--color-ink-faded);
+  padding: 0.75em;
+  margin-bottom: 0.75em;
+  overflow-x: auto;
+  font-family: var(--font-input);
+  font-size: 0.85em;
+}
+.prose-bx pre code { background: none; padding: 0; }
+.prose-bx blockquote {
+  border-left: 3px solid var(--color-ink-faded);
+  padding-left: 1em;
+  margin-bottom: 0.75em;
+  font-style: italic;
+  color: var(--color-ink-soft);
+}
+.prose-bx hr {
+  border: none;
+  border-top: 1px solid var(--color-ink-faded);
+  margin: 1em 0;
+}
+
 /* Focus visible for accessibility */
 .focus-ring:focus-visible {
   outline: 2px solid var(--color-candle-glow);

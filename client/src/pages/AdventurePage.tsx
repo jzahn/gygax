@@ -12,6 +12,9 @@ import type {
   Backdrop,
   BackdropListResponse,
   BackdropResponse,
+  Note,
+  NoteListResponse,
+  NoteResponse,
 } from '@gygax/shared'
 import { Button, Divider } from '../components/ui'
 import { CreateAdventureModal, AdventureFormData } from '../components/CreateAdventureModal'
@@ -28,6 +31,9 @@ import { CreateBackdropModal, BackdropFormData } from '../components/CreateBackd
 import { EditBackdropModal, EditBackdropFormData } from '../components/EditBackdropModal'
 import { BackdropPreviewModal } from '../components/BackdropPreviewModal'
 import { DeleteBackdropDialog } from '../components/DeleteBackdropDialog'
+import { NoteCard } from '../components/NoteCard'
+import { CreateNoteModal, NoteFormData } from '../components/CreateNoteModal'
+import { DeleteNoteDialog } from '../components/DeleteNoteDialog'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -55,6 +61,12 @@ export function AdventurePage() {
   const [editingBackdrop, setEditingBackdrop] = React.useState<Backdrop | null>(null)
   const [deletingBackdrop, setDeletingBackdrop] = React.useState<Backdrop | null>(null)
   const [previewingBackdrop, setPreviewingBackdrop] = React.useState<Backdrop | null>(null)
+  const [notes, setNotes] = React.useState<Note[]>([])
+  const [isLoadingNotes, setIsLoadingNotes] = React.useState(true)
+  const [isCreateNoteModalOpen, setIsCreateNoteModalOpen] = React.useState(false)
+  const [viewingNote, setViewingNote] = React.useState<Note | null>(null)
+  const [editingNote, setEditingNote] = React.useState<Note | null>(null)
+  const [deletingNote, setDeletingNote] = React.useState<Note | null>(null)
 
   const fetchAdventure = React.useCallback(async () => {
     if (!id) return
@@ -171,6 +183,33 @@ export function AdventurePage() {
       fetchBackdrops()
     }
   }, [adventure, fetchBackdrops])
+
+  const fetchNotes = React.useCallback(async () => {
+    if (!id) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/adventures/${id}/notes`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        return
+      }
+
+      const data: NoteListResponse = await response.json()
+      setNotes(data.notes)
+    } catch {
+      // Silently fail - notes section will show empty
+    } finally {
+      setIsLoadingNotes(false)
+    }
+  }, [id])
+
+  React.useEffect(() => {
+    if (adventure) {
+      fetchNotes()
+    }
+  }, [adventure, fetchNotes])
 
   // Scroll to top when navigating to this page
   React.useEffect(() => {
@@ -510,6 +549,69 @@ export function AdventurePage() {
     setEditingBackdrop(null)
   }
 
+  const handleCreateNote = async (data: NoteFormData) => {
+    if (!adventure) return
+
+    const response = await fetch(`${API_URL}/api/adventures/${adventure.id}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to create note')
+    }
+
+    const result: NoteResponse = await response.json()
+    setNotes((prev) => [result.note, ...prev])
+    setIsCreateNoteModalOpen(false)
+  }
+
+  const handleEditNote = async (data: NoteFormData) => {
+    if (!editingNote || !adventure) return
+
+    const response = await fetch(
+      `${API_URL}/api/adventures/${adventure.id}/notes/${editingNote.id}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: data.title,
+          content: data.content || null,
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error('Failed to update note')
+    }
+
+    const result: NoteResponse = await response.json()
+    setNotes((prev) => prev.map((n) => (n.id === result.note.id ? result.note : n)))
+    setEditingNote(null)
+  }
+
+  const handleDeleteNote = async () => {
+    if (!deletingNote || !adventure) return
+
+    const response = await fetch(
+      `${API_URL}/api/adventures/${adventure.id}/notes/${deletingNote.id}`,
+      {
+        method: 'DELETE',
+        credentials: 'include',
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error('Failed to delete note')
+    }
+
+    setNotes((prev) => prev.filter((n) => n.id !== deletingNote.id))
+    setDeletingNote(null)
+  }
+
   const handleDeleteBackdrop = async () => {
     if (!deletingBackdrop || !adventure) return
 
@@ -748,6 +850,50 @@ export function AdventurePage() {
           )}
         </div>
 
+        {/* Notes Section */}
+        <div className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg uppercase tracking-wide text-ink">Notes</h2>
+            <Button variant="default" size="sm" onClick={() => setIsCreateNoteModalOpen(true)}>
+              + New Note
+            </Button>
+          </div>
+
+          {isLoadingNotes ? (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <span className="animate-quill-scratch text-2xl">&#9998;</span>
+              <p className="mt-2 font-body text-ink-soft">Loading notes...</p>
+            </div>
+          ) : notes.length === 0 ? (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <div className="mb-4 text-2xl text-ink-soft">&#128221;</div>
+              <p className="font-body text-ink">No notes yet</p>
+              <p className="mt-1 font-body text-sm text-ink-soft">
+                Jot down plot points, NPC details, or session summaries.
+              </p>
+              <Button
+                variant="default"
+                className="mt-4"
+                onClick={() => setIsCreateNoteModalOpen(true)}
+              >
+                Create Note
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {notes.map((note) => (
+                <NoteCard
+                  key={note.id}
+                  note={note}
+                  onView={() => setViewingNote(note)}
+                  onEdit={() => setEditingNote(note)}
+                  onDelete={() => setDeletingNote(note)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Coming Soon Section */}
         <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
           <div className="mb-4 text-2xl text-ink-soft">&#128506;</div>
@@ -840,6 +986,49 @@ export function AdventurePage() {
         onClose={() => setDeletingBackdrop(null)}
         onConfirm={handleDeleteBackdrop}
         backdrop={deletingBackdrop}
+      />
+
+      <CreateNoteModal
+        open={isCreateNoteModalOpen}
+        onClose={() => setIsCreateNoteModalOpen(false)}
+        onSubmit={handleCreateNote}
+      />
+
+      <CreateNoteModal
+        open={!!viewingNote}
+        onClose={() => setViewingNote(null)}
+        onSubmit={async (data) => {
+          if (!viewingNote || !adventure) return
+          const response = await fetch(
+            `${API_URL}/api/adventures/${adventure.id}/notes/${viewingNote.id}`,
+            {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ title: data.title, content: data.content || null }),
+            }
+          )
+          if (!response.ok) throw new Error('Failed to update note')
+          const result: NoteResponse = await response.json()
+          setNotes((prev) => prev.map((n) => (n.id === result.note.id ? result.note : n)))
+          setViewingNote(null)
+        }}
+        note={viewingNote}
+      />
+
+      <CreateNoteModal
+        open={!!editingNote}
+        onClose={() => setEditingNote(null)}
+        onSubmit={handleEditNote}
+        note={editingNote}
+        initialEditing
+      />
+
+      <DeleteNoteDialog
+        open={!!deletingNote}
+        onClose={() => setDeletingNote(null)}
+        onConfirm={handleDeleteNote}
+        note={deletingNote}
       />
     </div>
   )
