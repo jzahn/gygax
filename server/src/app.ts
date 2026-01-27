@@ -10,6 +10,7 @@ import { campaignRoutes } from './routes/campaigns'
 import { mapRoutes } from './routes/maps'
 import { characterRoutes } from './routes/characters'
 import { npcRoutes } from './routes/npcs'
+import { backdropRoutes } from './routes/backdrops'
 import { initializeBucket } from './services/storage'
 
 export async function buildApp() {
@@ -51,6 +52,7 @@ export async function buildApp() {
   await fastify.register(mapRoutes)
   await fastify.register(characterRoutes)
   await fastify.register(npcRoutes)
+  await fastify.register(backdropRoutes)
 
   return fastify
 }

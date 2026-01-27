@@ -571,6 +571,40 @@ export interface UpdateNPCRequest {
   notes?: string | null
 }
 
+// Backdrop types
+export interface Backdrop {
+  id: string
+  name: string
+  title: string | null
+  titleX: number
+  titleY: number
+  description: string | null
+  imageUrl: string
+  focusX: number
+  focusY: number
+  adventureId: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BackdropListResponse {
+  backdrops: Backdrop[]
+}
+
+export interface BackdropResponse {
+  backdrop: Backdrop
+}
+
+export interface UpdateBackdropRequest {
+  name?: string
+  title?: string | null
+  titleX?: number
+  titleY?: number
+  description?: string | null
+  focusX?: number
+  focusY?: number
+}
+
 // NPC export file format
 export interface NPCExportFile {
   version: 1

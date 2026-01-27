@@ -9,6 +9,9 @@ import type {
   NPCListItem,
   NPCListResponse,
   NPCResponse,
+  Backdrop,
+  BackdropListResponse,
+  BackdropResponse,
 } from '@gygax/shared'
 import { Button, Divider } from '../components/ui'
 import { CreateAdventureModal, AdventureFormData } from '../components/CreateAdventureModal'
@@ -20,6 +23,11 @@ import { NPCCard } from '../components/NPCCard'
 import { CreateNPCModal, NPCFormData } from '../components/CreateNPCModal'
 import { DeleteNPCDialog } from '../components/DeleteNPCDialog'
 import { exportNPC } from '../utils/npcExport'
+import { BackdropCard } from '../components/BackdropCard'
+import { CreateBackdropModal, BackdropFormData } from '../components/CreateBackdropModal'
+import { EditBackdropModal, EditBackdropFormData } from '../components/EditBackdropModal'
+import { BackdropPreviewModal } from '../components/BackdropPreviewModal'
+import { DeleteBackdropDialog } from '../components/DeleteBackdropDialog'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -41,6 +49,12 @@ export function AdventurePage() {
   const [isCreateNpcModalOpen, setIsCreateNpcModalOpen] = React.useState(false)
   const [editingNpc, setEditingNpc] = React.useState<NPCListItem | null>(null)
   const [deletingNpc, setDeletingNpc] = React.useState<NPCListItem | null>(null)
+  const [backdrops, setBackdrops] = React.useState<Backdrop[]>([])
+  const [isLoadingBackdrops, setIsLoadingBackdrops] = React.useState(true)
+  const [isCreateBackdropModalOpen, setIsCreateBackdropModalOpen] = React.useState(false)
+  const [editingBackdrop, setEditingBackdrop] = React.useState<Backdrop | null>(null)
+  const [deletingBackdrop, setDeletingBackdrop] = React.useState<Backdrop | null>(null)
+  const [previewingBackdrop, setPreviewingBackdrop] = React.useState<Backdrop | null>(null)
 
   const fetchAdventure = React.useCallback(async () => {
     if (!id) return
@@ -130,6 +144,33 @@ export function AdventurePage() {
       fetchNpcs()
     }
   }, [adventure, fetchNpcs])
+
+  const fetchBackdrops = React.useCallback(async () => {
+    if (!id) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/adventures/${id}/backdrops`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        return
+      }
+
+      const data: BackdropListResponse = await response.json()
+      setBackdrops(data.backdrops)
+    } catch {
+      // Silently fail - backdrops section will show empty
+    } finally {
+      setIsLoadingBackdrops(false)
+    }
+  }, [id])
+
+  React.useEffect(() => {
+    if (adventure) {
+      fetchBackdrops()
+    }
+  }, [adventure, fetchBackdrops])
 
   // Scroll to top when navigating to this page
   React.useEffect(() => {
@@ -390,6 +431,104 @@ export function AdventurePage() {
     }
   }
 
+  const handleCreateBackdrop = async (data: BackdropFormData) => {
+    if (!adventure || !data.image) return
+
+    const formData = new FormData()
+    formData.append('image', data.image)
+    formData.append('name', data.name)
+    if (data.title) formData.append('title', data.title)
+    formData.append('titleX', data.titleX.toString())
+    formData.append('titleY', data.titleY.toString())
+    if (data.description) formData.append('description', data.description)
+    formData.append('focusX', data.focusX.toString())
+    formData.append('focusY', data.focusY.toString())
+
+    const response = await fetch(`${API_URL}/api/adventures/${adventure.id}/backdrops`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to create backdrop')
+    }
+
+    const result: BackdropResponse = await response.json()
+    setBackdrops((prev) => [result.backdrop, ...prev])
+    setIsCreateBackdropModalOpen(false)
+  }
+
+  const handleEditBackdrop = async (data: EditBackdropFormData) => {
+    if (!editingBackdrop || !adventure) return
+
+    // Update metadata via PATCH
+    const patchResponse = await fetch(
+      `${API_URL}/api/adventures/${adventure.id}/backdrops/${editingBackdrop.id}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: data.name,
+          title: data.title,
+          titleX: data.titleX,
+          titleY: data.titleY,
+          description: data.description,
+          focusX: data.focusX,
+          focusY: data.focusY,
+        }),
+      }
+    )
+
+    if (!patchResponse.ok) {
+      throw new Error('Failed to update backdrop')
+    }
+
+    let result: BackdropResponse = await patchResponse.json()
+
+    // Replace image if provided
+    if (data.replaceImage) {
+      const formData = new FormData()
+      formData.append('image', data.replaceImage)
+
+      const imageResponse = await fetch(
+        `${API_URL}/api/adventures/${adventure.id}/backdrops/${editingBackdrop.id}/image`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          body: formData,
+        }
+      )
+
+      if (imageResponse.ok) {
+        result = await imageResponse.json()
+      }
+    }
+
+    setBackdrops((prev) => prev.map((b) => (b.id === result.backdrop.id ? result.backdrop : b)))
+    setEditingBackdrop(null)
+  }
+
+  const handleDeleteBackdrop = async () => {
+    if (!deletingBackdrop || !adventure) return
+
+    const response = await fetch(
+      `${API_URL}/api/adventures/${adventure.id}/backdrops/${deletingBackdrop.id}`,
+      {
+        method: 'DELETE',
+        credentials: 'include',
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error('Failed to delete backdrop')
+    }
+
+    setBackdrops((prev) => prev.filter((b) => b.id !== deletingBackdrop.id))
+    setDeletingBackdrop(null)
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center paper-texture">
@@ -565,6 +704,50 @@ export function AdventurePage() {
           )}
         </div>
 
+        {/* Backdrops Section */}
+        <div className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg uppercase tracking-wide text-ink">Backdrops</h2>
+            <Button variant="default" size="sm" onClick={() => setIsCreateBackdropModalOpen(true)}>
+              + New Backdrop
+            </Button>
+          </div>
+
+          {isLoadingBackdrops ? (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <span className="animate-quill-scratch text-2xl">&#9998;</span>
+              <p className="mt-2 font-body text-ink-soft">Loading backdrops...</p>
+            </div>
+          ) : backdrops.length === 0 ? (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <div className="mb-4 text-2xl text-ink-soft">&#127748;</div>
+              <p className="font-body text-ink">No backdrops yet</p>
+              <p className="mt-1 font-body text-sm text-ink-soft">
+                Upload scene images, battle illustrations, or town views.
+              </p>
+              <Button
+                variant="default"
+                className="mt-4"
+                onClick={() => setIsCreateBackdropModalOpen(true)}
+              >
+                Create Backdrop
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {backdrops.map((backdrop) => (
+                <BackdropCard
+                  key={backdrop.id}
+                  backdrop={backdrop}
+                  onEdit={() => setEditingBackdrop(backdrop)}
+                  onDelete={() => setDeletingBackdrop(backdrop)}
+                  onPreview={() => setPreviewingBackdrop(backdrop)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Coming Soon Section */}
         <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
           <div className="mb-4 text-2xl text-ink-soft">&#128506;</div>
@@ -631,6 +814,32 @@ export function AdventurePage() {
         onClose={() => setDeletingNpc(null)}
         onConfirm={handleDeleteNpc}
         npc={deletingNpc}
+      />
+
+      <CreateBackdropModal
+        open={isCreateBackdropModalOpen}
+        onClose={() => setIsCreateBackdropModalOpen(false)}
+        onSubmit={handleCreateBackdrop}
+      />
+
+      <EditBackdropModal
+        open={!!editingBackdrop}
+        onClose={() => setEditingBackdrop(null)}
+        onSubmit={handleEditBackdrop}
+        backdrop={editingBackdrop}
+      />
+
+      <BackdropPreviewModal
+        open={!!previewingBackdrop}
+        onClose={() => setPreviewingBackdrop(null)}
+        backdrop={previewingBackdrop}
+      />
+
+      <DeleteBackdropDialog
+        open={!!deletingBackdrop}
+        onClose={() => setDeletingBackdrop(null)}
+        onConfirm={handleDeleteBackdrop}
+        backdrop={deletingBackdrop}
       />
     </div>
   )

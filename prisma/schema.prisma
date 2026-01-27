@@ -73,6 +73,7 @@ model Adventure {
   owner      User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   maps       Map[]
   npcs       NPC[]
+  backdrops  Backdrop[]
   campaignId String?
   campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
@@ -204,4 +205,25 @@ model NPC {
 
   @@index([adventureId])
   @@map("npcs")
+}
+
+model Backdrop {
+  id          String   @id @default(cuid())
+  name        String
+  title       String?
+  titleX      Int      @default(50)
+  titleY      Int      @default(50)
+  description String?
+  imageUrl    String
+  focusX      Int      @default(50)
+  focusY      Int      @default(50)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  adventureId String
+  adventure   Adventure @relation(fields: [adventureId], references: [id], onDelete: Cascade)
+
+  @@index([adventureId])
+  @@map("backdrops")
 }
