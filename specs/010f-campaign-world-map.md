@@ -2,480 +2,259 @@
 
 ## Goal
 
-Add a world map to each Campaign that is accessible from the Campaign page and from any Adventure within that Campaign. The world map uses the existing hex map infrastructure and has fog of war state that persists at the Campaign level, shared across all Adventures.
+Allow each Campaign to have one optional world map, accessible from the Campaign detail page and from any Adventure within the Campaign. Reuses existing map infrastructure (MapCanvas, drawing tools, import/export).
 
 ## Scope
 
 ### In Scope
 
-- World map relationship on Campaign model (one-to-one, optional)
-- API endpoints to create/access the Campaign world map
-- "World Map" access from Campaign detail page
-- "World Map" access from Adventure pages (within that Campaign)
-- Reuse existing hex map editor (terrain, labels, paths from 010a-010c)
-- Fog of war state stored at Campaign level (future: spec 012)
+- Schema change: Map can belong to a Campaign (not just an Adventure)
+- One world map per Campaign (optional)
+- Create/open/delete world map from Campaign detail page
+- Open world map from Adventure page (read-only link back to Campaign's map)
+- World map defaults to HEX grid (outdoor/wilderness) but DM can choose
+- World map uses full existing editor (terrain, labels, paths, features, import/export)
 
 ### Out of Scope
 
-- Fog of war reveal mechanics (spec 012)
-- Map linking/transitions between world map and Adventure maps (Phase 2)
+- Shared fog of war (spec 012)
+- Map linking / clicking a hex to jump to an Adventure map (Phase 2)
 - Multiple world maps per Campaign
-- World map for standalone Adventures (no Campaign)
+- Player view of world map (spec 011+)
 
 ## Dependencies
 
-**Builds on:**
-- Spec 005: Campaigns (Campaign model)
-- Spec 010a: Map Foundation (Map model, canvas component)
-- Spec 010b: Wilderness Map Drawing (terrain stamping)
-- Spec 010c: Map Labels & Paths (labels, paths)
+- Spec 005: Campaigns (Campaign entity)
+- Spec 010a–010e: Map foundation, drawing, labels, indoor, import/export
 
 ## Detailed Requirements
 
 ### 1. Database Schema
 
-**Update Map Model (prisma/schema.prisma):**
+**Update Map model** — make `adventureId` optional, add `campaignId`:
 
 ```prisma
 model Map {
-  // ... existing fields
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  gridType    GridType @default(SQUARE)
+  width       Int      @default(30)
+  height      Int      @default(30)
+  cellSize    Int      @default(40)
+  content     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Existing: Adventure maps
-  adventureId  String?
-  adventure    Adventure? @relation(fields: [adventureId], references: [id], onDelete: Cascade)
+  adventureId String?
+  adventure   Adventure? @relation(fields: [adventureId], references: [id], onDelete: Cascade)
 
-  // New: Campaign world map (one-to-one)
-  campaignId   String?    @unique
-  campaign     Campaign?  @relation("CampaignWorldMap", fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId  String?   @unique   // At most one world map per campaign
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@index([adventureId])
-  @@index([campaignId])
   @@map("maps")
 }
 ```
 
-**Update Campaign Model:**
+**Update Campaign model** — add relation:
 
 ```prisma
 model Campaign {
   // ... existing fields
-
-  worldMap    Map?       @relation("CampaignWorldMap")
+  worldMap    Map?
 }
 ```
 
-**Migration:** `010f_campaign_world_map` adds `campaignId` column to maps table with unique constraint.
+Key points:
+- `campaignId` has `@unique` — enforces one world map per Campaign
+- `adventureId` becomes optional (a map belongs to either an Adventure or a Campaign, never both)
+- Application logic validates that exactly one of `adventureId`/`campaignId` is set
 
-**Constraints:**
-- A Map has either `adventureId` OR `campaignId`, never both
-- `campaignId` is unique (only one world map per Campaign)
+**Migration:** `010f_campaign_world_map`
 
 ### 2. API Endpoints
 
-#### GET /api/campaigns/:id/world-map
-
-Get the Campaign's world map. Returns 404 if no world map exists yet.
-
-**Response (200):**
-```json
-{
-  "map": {
-    "id": "clx...",
-    "name": "World of Karameikos",
-    "description": "The Known World",
-    "gridType": "HEX",
-    "width": 50,
-    "height": 40,
-    "cellSize": 40,
-    "content": { ... },
-    "campaignId": "clx...",
-    "createdAt": "2024-01-20T12:00:00.000Z",
-    "updatedAt": "2024-01-20T12:00:00.000Z"
-  }
-}
-```
-
-**Errors:**
-- 401: Not authenticated
-- 403: Email not verified OR not the Campaign owner
-- 404: Campaign not found OR no world map exists
-
 #### POST /api/campaigns/:id/world-map
 
-Create the world map for a Campaign. Fails if one already exists.
+Create the Campaign's world map. Fails if one already exists.
 
 **Request:**
 ```json
 {
-  "name": "World of Karameikos",
-  "description": "The Known World",
-  "width": 50,
-  "height": 40
+  "name": "The Known World",
+  "description": "Campaign overworld",
+  "gridType": "HEX",
+  "width": 40,
+  "height": 30
 }
 ```
 
-**Response (201):**
-```json
-{
-  "map": { ... }
-}
-```
-
-**Validation:**
-- `name`: Required, 1-100 characters, trimmed
-- `description`: Optional, max 1000 characters
-- `width`: Optional, defaults to 50, range 10-200
-- `height`: Optional, defaults to 40, range 10-200
-- Grid type is always HEX (world maps are wilderness)
+**Response (201):** `{ "map": { ... } }`
 
 **Errors:**
-- 400: Invalid input OR world map already exists
-- 401: Not authenticated
-- 403: Email not verified OR not the Campaign owner
-- 404: Campaign not found
+- 409: Campaign already has a world map
+
+#### GET /api/campaigns/:id/world-map
+
+Get the Campaign's world map (metadata + content).
+
+**Response (200):** `{ "map": { ... } }` or `{ "map": null }` if none exists.
 
 #### DELETE /api/campaigns/:id/world-map
 
 Delete the Campaign's world map.
 
-**Response (200):**
-```json
-{
-  "success": true
-}
+**Response (200):** `{ "success": true }`
+
+The world map is also a regular Map, so existing endpoints (`GET /api/maps/:id`, `PATCH /api/maps/:id`, content save) continue to work. Ownership check uses Campaign owner instead of Adventure owner.
+
+### 3. Update Existing Map Endpoints
+
+- `PATCH /api/maps/:id` and `GET /api/maps/:id` — ownership check must handle maps with `campaignId` (check campaign owner) in addition to `adventureId` (check adventure owner)
+- Map content save endpoint — same ownership adjustment
+- Map export — works as-is (operates on map ID)
+
+### 4. Client: Campaign Detail Page
+
+Add a "World Map" section to `CampaignPage.tsx`, above the Adventures list:
+
+**No world map yet:**
+```
+┌─────────────────────────────────────────┐
+│  WORLD MAP                              │
+│                                         │
+│  No world map yet.                      │
+│  Chart the lands your adventures        │
+│  will explore.                          │
+│                                         │
+│  [Create World Map]                     │
+└─────────────────────────────────────────┘
 ```
 
-**Errors:**
-- 401: Not authenticated
-- 403: Email not verified OR not the Campaign owner
-- 404: Campaign not found OR no world map exists
+**World map exists:**
+```
+┌─────────────────────────────────────────┐
+│  WORLD MAP                    [Delete]  │
+│  ┌───────────────────────────────────┐  │
+│  │  The Known World                  │  │
+│  │  40×30 • Hex grid                 │  │
+│  │  Click to open ►                  │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
 
-**Note:** The existing `PATCH /api/maps/:id` and `GET /api/maps/:id` endpoints work for world maps (authorization checks Campaign ownership).
+Clicking the card navigates to `/maps/:id` (existing MapEditorPage). The "back" link in the editor header should return to the Campaign page (not an Adventure page).
 
-### 3. Type Definitions (shared/src/types.ts)
+**Create World Map modal** — reuses `CreateMapModal` with defaults adjusted:
+- Default grid type: HEX
+- Default dimensions: 40×30
+- Title: "CHART THE WORLD"
+
+### 5. Client: Adventure Page
+
+Add a small banner/link in the Adventure page when the Adventure belongs to a Campaign that has a world map:
+
+```
+┌─────────────────────────────────────────┐
+│  🗺 View Campaign World Map →           │
+└─────────────────────────────────────────┘
+```
+
+This links to `/maps/:worldMapId`. Shown only when `campaign.worldMap` exists.
+
+### 6. Client: MapEditorPage Updates
+
+- Back link logic: if the map has `campaignId`, link back to `/campaigns/:campaignId`. If it has `adventureId`, link back to `/adventures/:adventureId` (existing behavior).
+- No other editor changes needed — full drawing tools work.
+
+### 7. Type Updates (shared/src/types.ts)
 
 ```typescript
-// Update Map type to include optional campaignId
-export interface Map {
-  id: string
-  name: string
-  description: string | null
-  gridType: GridType
-  width: number
-  height: number
-  cellSize: number
-  content: MapContent | null
-  adventureId: string | null  // null for world maps
-  campaignId: string | null   // null for adventure maps
-  createdAt: string
-  updatedAt: string
-}
-
-// Update Campaign type to include worldMap reference
+// Add to Campaign type
 export interface Campaign {
   // ... existing fields
-  worldMapId: string | null
+  worldMap?: Map | null
 }
 
-export interface CampaignWithWorldMap extends Campaign {
-  worldMap: Map | null
+// Update Map type
+export interface Map {
+  // ... existing fields
+  adventureId: string | null  // was required
+  campaignId: string | null
+}
+
+export interface CreateWorldMapRequest {
+  name: string
+  description?: string
+  gridType?: GridType
+  width?: number
+  height?: number
 }
 ```
-
-### 4. Client Implementation
-
-#### Campaign Detail Page Updates
-
-Add a "World Map" section/button to the Campaign page:
-
-**With World Map:**
-```
-┌─────────────────────────────────────────────────────┐
-│  [Banner Image]                                     │
-│  CAMPAIGN NAME                                      │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  [World Map Button - Full Width]                    │
-│  ┌───────────────────────────────────────────────┐  │
-│  │  🗺️  WORLD MAP: World of Karameikos          │  │
-│  │      50×40 hexes                         →    │  │
-│  └───────────────────────────────────────────────┘  │
-│                                                     │
-│  ════════════════════════════════════════════════   │
-│  ADVENTURES                          [+ New]        │
-│  ...                                                │
-└─────────────────────────────────────────────────────┘
-```
-
-**Without World Map:**
-```
-│  [Create World Map Button]                          │
-│  ┌───────────────────────────────────────────────┐  │
-│  │  + CREATE WORLD MAP                           │  │
-│  │    Chart the lands of your campaign           │  │
-│  └───────────────────────────────────────────────┘  │
-```
-
-**Interaction:**
-- Click world map button → navigate to `/campaigns/:id/world-map`
-- Click create button → open Create World Map modal
-
-#### Adventure Page Updates
-
-Add a "World Map" link in the Adventure page header for Adventures that belong to a Campaign:
-
-```
-┌─────────────────────────────────────────────────────┐
-│  ← Back to Campaign    |    🗺️ World Map            │
-├─────────────────────────────────────────────────────┤
-│  ADVENTURE NAME                              [Edit] │
-│  ...                                                │
-```
-
-Only shown if:
-- Adventure belongs to a Campaign (has `campaignId`)
-- Campaign has a world map
-
-#### Create World Map Modal
-
-**Title:** "CHART THE WORLD"
-
-**Form Fields:**
-```
-┌────────────────────────────────────────────┐
-│  CHART THE WORLD                       ✕   │
-│  ══════════════════════════════════════    │
-│                                            │
-│  MAP NAME                                  │
-│  ┌────────────────────────────────────┐    │
-│  │ The Known World                    │    │
-│  └────────────────────────────────────┘    │
-│                                            │
-│  DESCRIPTION (optional)                    │
-│  ┌────────────────────────────────────┐    │
-│  │ The lands surrounding the Grand    │    │
-│  │ Duchy of Karameikos...             │    │
-│  └────────────────────────────────────┘    │
-│                                            │
-│  DIMENSIONS                                │
-│  Width: [50] hexes   Height: [40] hexes    │
-│  (10-200 range)                            │
-│                                            │
-│  ℹ️ World maps use hex grids for           │
-│     wilderness exploration                 │
-│                                            │
-│              [Cancel]  [CREATE]            │
-└────────────────────────────────────────────┘
-```
-
-**Notes:**
-- No grid type selector (always HEX)
-- Larger default dimensions than adventure maps (50×40 vs 30×30)
-- Larger max dimensions (200 vs 100)
-
-#### World Map Editor Page
-
-**Route:** `/campaigns/:campaignId/world-map`
-
-Uses the existing MapEditorPage component with modifications:
-
-**Header:**
-```
-← Back to Campaign    World of Karameikos    [Edit] [···]
-```
-
-**Differences from Adventure Map Editor:**
-- Back link goes to Campaign page (not Adventure)
-- Delete option removes world map from Campaign
-- (Future) Fog of war controls apply Campaign-wide
-
-### 5. Routing Updates
-
-**client/src/App.tsx:**
-
-```tsx
-// Add within authenticated routes
-<Route path="/campaigns/:id/world-map" element={<CampaignWorldMapPage />} />
-```
-
-**New Page:** `CampaignWorldMapPage.tsx`
-- Fetches Campaign's world map
-- If no world map exists, shows create prompt
-- If world map exists, renders MapEditorPage-style editor
-- Handles back navigation to Campaign page
-
-### 6. Project Structure Updates
-
-**New Files:**
-```
-client/src/pages/CampaignWorldMapPage.tsx    # World map editor wrapper
-client/src/components/CreateWorldMapModal.tsx # Create world map form
-```
-
-**Modified Files:**
-```
-prisma/schema.prisma           # Add campaignId to Map, relation to Campaign
-server/src/routes/campaigns.ts # Add world-map endpoints
-server/src/routes/maps.ts      # Update auth to handle Campaign ownership
-shared/src/types.ts            # Update Map and Campaign types
-client/src/App.tsx             # Add world map route
-client/src/pages/CampaignPage.tsx    # Add world map section
-client/src/pages/AdventurePage.tsx   # Add world map link (if in Campaign)
-```
-
-## Design Details
-
-### World Map Visual Treatment
-
-The world map uses the same hex map aesthetic as Adventure wilderness maps:
-- B/X pen-and-ink style terrain icons
-- Black ink on white hexes
-- Thin grid lines
-- Labels and paths supported
-
-### World Map Access Hierarchy
-
-```
-Campaign Page
-    └── [World Map Button] → /campaigns/:id/world-map
-    └── Adventures
-            └── Adventure Page
-                    └── [World Map Link] → /campaigns/:id/world-map
-                    └── Adventure Maps → /maps/:id
-```
-
-### Authorization Model
-
-- World map is owned by Campaign owner
-- Any endpoint accessing world map checks Campaign ownership
-- Adventures within the Campaign can link to world map but don't "own" it
 
 ## Acceptance Criteria
 
 ### Database
-- [ ] Map model has optional `campaignId` field with unique constraint
-- [ ] Campaign model has `worldMap` relation
-- [ ] A Map can have `adventureId` OR `campaignId`, not both
-- [ ] Deleting Campaign cascades to delete world map
+- [ ] Map.adventureId is optional
+- [ ] Map.campaignId is optional with unique constraint
+- [ ] Campaign has optional worldMap relation
+- [ ] Deleting a Campaign cascades to its world map
+- [ ] Migration applies cleanly
 
 ### API
-- [ ] GET /api/campaigns/:id/world-map returns world map if exists
-- [ ] GET /api/campaigns/:id/world-map returns 404 if no world map
 - [ ] POST /api/campaigns/:id/world-map creates world map
-- [ ] POST /api/campaigns/:id/world-map fails if world map exists
-- [ ] POST /api/campaigns/:id/world-map validates dimensions (10-200)
-- [ ] POST /api/campaigns/:id/world-map always creates HEX grid
-- [ ] DELETE /api/campaigns/:id/world-map removes world map
-- [ ] PATCH /api/maps/:id works for world maps (Campaign ownership check)
-- [ ] All endpoints enforce authentication and Campaign ownership
+- [ ] POST /api/campaigns/:id/world-map returns 409 if map already exists
+- [ ] GET /api/campaigns/:id/world-map returns map or null
+- [ ] DELETE /api/campaigns/:id/world-map deletes the map
+- [ ] Existing map CRUD endpoints work for campaign world maps
+- [ ] Ownership checks work for campaign-owned maps
 
-### Campaign Page
-- [ ] Shows "Create World Map" button when no world map exists
-- [ ] Shows world map card/button when world map exists
-- [ ] Create button opens modal
-- [ ] World map button navigates to editor
+### Client — Campaign Page
+- [ ] Shows empty state when no world map
+- [ ] Create button opens modal with HEX defaults
+- [ ] World map card shows name, dimensions, grid type
+- [ ] Clicking card opens map editor
+- [ ] Delete button removes world map with confirmation
 
-### Adventure Page
-- [ ] Shows "World Map" link if Adventure belongs to Campaign with world map
-- [ ] Does not show link for standalone Adventures
-- [ ] Does not show link if Campaign has no world map
-- [ ] Link navigates to Campaign's world map editor
+### Client — Adventure Page
+- [ ] Shows "View Campaign World Map" link when applicable
+- [ ] Link navigates to correct map
 
-### World Map Editor
-- [ ] Loads world map data from Campaign
-- [ ] Shows Campaign context in header
-- [ ] Back link returns to Campaign page
-- [ ] All existing map tools work (terrain, labels, paths)
-- [ ] Edit modal updates world map metadata
-- [ ] Delete removes world map from Campaign
-
-### Create Modal
-- [ ] Opens from Campaign page
-- [ ] Name field required
-- [ ] Dimensions default to 50×40
-- [ ] Dimensions validate 10-200 range
-- [ ] No grid type selector (always HEX)
-- [ ] Submit creates world map and navigates to editor
+### Client — Map Editor
+- [ ] Back link goes to Campaign page for campaign maps
+- [ ] All drawing tools work on world maps
+- [ ] Import/export works on world maps
 
 ## Verification Steps
 
-### 1. API Tests
+1. Create a Campaign, verify no world map section (empty state)
+2. Create a world map (HEX, 40×30), verify it appears
+3. Open world map, draw terrain, verify auto-save works
+4. Navigate back, verify returns to Campaign page
+5. Try creating a second world map — verify 409 error
+6. Add an Adventure to the Campaign, open it, verify "View World Map" link
+7. Click link, verify it opens the world map
+8. Delete the world map, verify empty state returns
+9. Verify existing Adventure maps still work (no regression)
 
-```bash
-# Check no world map exists
-curl http://localhost:3000/api/campaigns/{campaignId}/world-map \
-  -b cookies.txt
-# → 404
+## Files to Create/Modify
 
-# Create world map
-curl -X POST http://localhost:3000/api/campaigns/{campaignId}/world-map \
-  -H "Content-Type: application/json" \
-  -d '{"name":"The Known World","width":50,"height":40}' \
-  -b cookies.txt
-# → 201, map object
+**Modified:**
+- `prisma/schema.prisma` — Map model (optional adventureId, add campaignId), Campaign model (add worldMap)
+- `server/src/routes/campaigns.ts` — Add world-map endpoints
+- `server/src/routes/maps.ts` — Update ownership checks for campaign maps
+- `shared/src/types.ts` — Update Map and Campaign types
+- `client/src/pages/CampaignPage.tsx` — Add world map section
+- `client/src/pages/AdventurePage.tsx` — Add world map link
+- `client/src/pages/MapEditorPage.tsx` — Update back link logic
+- `client/src/components/CreateMapModal.tsx` — Support world map defaults
 
-# Get world map
-curl http://localhost:3000/api/campaigns/{campaignId}/world-map \
-  -b cookies.txt
-# → 200, map object
-
-# Try to create again (should fail)
-curl -X POST http://localhost:3000/api/campaigns/{campaignId}/world-map \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Another Map"}' \
-  -b cookies.txt
-# → 400, already exists
-
-# Update world map
-curl -X PATCH http://localhost:3000/api/maps/{mapId} \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Updated World Name"}' \
-  -b cookies.txt
-# → 200
-
-# Delete world map
-curl -X DELETE http://localhost:3000/api/campaigns/{campaignId}/world-map \
-  -b cookies.txt
-# → 200
-```
-
-### 2. Client Flow Tests
-
-1. Open Campaign with no world map
-2. Verify "Create World Map" button shows
-3. Click button - modal opens
-4. Fill name "Test World", leave defaults
-5. Submit - world map created, navigates to editor
-6. Verify hex grid renders (50×40)
-7. Add some terrain stamps
-8. Click back - return to Campaign page
-9. Verify world map card shows with name
-10. Click world map card - editor opens
-11. Create an Adventure in this Campaign
-12. Open Adventure page
-13. Verify "World Map" link appears in header
-14. Click link - navigates to world map editor
-15. Return to Campaign, delete world map
-16. Verify Adventure page no longer shows world map link
-
-### 3. Authorization Tests
-
-1. Create Campaign with world map as User A
-2. Login as User B
-3. Try to access world map via direct URL - 403
-4. Try to create world map via API - 403
-5. Try to delete world map via API - 403
+**New:**
+- Migration file `010f_campaign_world_map`
 
 ## Future Considerations
 
-- **Spec 012 (Fog of War):** World map fog state persists at Campaign level, revealed areas shared across all Adventures
-- **Phase 2 (Map Linking):** Click location on world map to jump to corresponding Adventure map
-- **Session Display:** During live sessions, DM can show world map to players with fog of war active
-
-## References
-
-- [PRD: Key Concepts - Campaign](/prd.md#key-concepts)
-- [PRD: Forge Mode - Campaigns](/prd.md#forge-mode---campaigns) (line 89: world map mention)
-- [Spec 005: Campaigns](/specs/005-campaigns.md)
-- [Spec 010a: Map Foundation](/specs/010a-map-foundation.md)
-- [Spec 010b: Wilderness Map Drawing](/specs/010b-map-drawing.md)
+- Fog of war on world map shared across Adventures (spec 012)
+- Clicking hexes to link to Adventure maps (Phase 2)
+- Player view of world map during sessions (spec 011)
