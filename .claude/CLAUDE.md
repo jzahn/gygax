@@ -140,8 +140,9 @@ Implementation specs in `/specs/` — build in order:
 | 010a-map-foundation | Map data model & basic canvas | Complete |
 | 010b-map-drawing | Terrain stamping tools (hex/wilderness) | Complete |
 | 010c-map-labels-paths | Text labels & path drawing | Complete |
-| 010d-map-indoor | Indoor/dungeon maps (square grid) | Planned |
-| 010e-map-import-export | Save/load maps to JSON files | Planned |
+| 010d-map-indoor | Indoor/dungeon maps (square grid) | Complete |
+| 010e-map-import-export | Save/load maps to JSON files | Complete |
+| 010f-campaign-world-map | Campaign-level world map | Planned |
 | 011-sessions | Live game sessions & player joining | Planned |
 | 012-fog-of-war | Fog of war system | Planned |
 | 013-chat | Real-time chat with dice rolling | Planned |
