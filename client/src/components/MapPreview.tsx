@@ -1,7 +1,7 @@
 import * as React from 'react'
 import type { Map, MapContent } from '@gygax/shared'
 import { hexToPixel } from '../utils/hexUtils'
-import { renderTerrainIcon, preloadTerrainImages, areTerrainImagesLoaded } from '../utils/terrainIcons'
+import { renderTerrainIcon, drawTerrainTint, preloadTerrainImages, areTerrainImagesLoaded } from '../utils/terrainIcons'
 import { renderPath } from '../utils/pathUtils'
 import { renderLabel } from '../utils/labelUtils'
 import { renderWalls, renderFeature, wallsToSet } from '../utils/featureUtils'
@@ -182,10 +182,22 @@ export function MapPreview({ map, className = '' }: MapPreviewProps) {
     }
 
     // 3. Draw terrain icons (hex maps)
+    const showColors = map.gridType === 'HEX' && (() => {
+      try { return localStorage.getItem('gygax-show-terrain-colors') === 'true' } catch { return false }
+    })()
+
     if (map.gridType === 'HEX' && content?.terrain) {
+      // First pass: color tints
+      if (showColors) {
+        for (const stamp of content.terrain) {
+          const { x, y } = hexToPixel(stamp.hex, map.cellSize)
+          drawTerrainTint(ctx, x, y, stamp.terrain, map.cellSize)
+        }
+      }
+      // Second pass: terrain icons
       for (const stamp of content.terrain) {
         const { x, y } = hexToPixel(stamp.hex, map.cellSize)
-        renderTerrainIcon(ctx, x, y, stamp.terrain, map.cellSize, stamp.variant)
+        renderTerrainIcon(ctx, x, y, stamp.terrain, map.cellSize, stamp.variant, showColors)
       }
     }
 
@@ -195,7 +207,7 @@ export function MapPreview({ map, className = '' }: MapPreviewProps) {
       const waterPaths = content.paths.filter(p => p.type === 'river' || p.type === 'stream')
       const otherPaths = content.paths.filter(p => p.type !== 'river' && p.type !== 'stream')
       for (const path of [...waterPaths, ...otherPaths]) {
-        renderPath(ctx, path, zoom)
+        renderPath(ctx, path, zoom, undefined, showColors)
       }
     }
 

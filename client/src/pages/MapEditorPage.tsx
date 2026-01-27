@@ -37,7 +37,13 @@ export function MapEditorPage() {
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [menuOpen, setMenuOpen] = React.useState(false)
-  const [showTerrainColors, setShowTerrainColors] = React.useState(false)
+  const [showTerrainColors, setShowTerrainColors] = React.useState(() => {
+    try {
+      return localStorage.getItem('gygax-show-terrain-colors') === 'true'
+    } catch {
+      return false
+    }
+  })
   const menuRef = React.useRef<HTMLDivElement>(null)
 
   // Save content to API
@@ -337,7 +343,11 @@ export function MapEditorPage() {
                 type="button"
                 role="switch"
                 aria-checked={showTerrainColors}
-                onClick={() => setShowTerrainColors(!showTerrainColors)}
+                onClick={() => {
+                  const next = !showTerrainColors
+                  setShowTerrainColors(next)
+                  try { localStorage.setItem('gygax-show-terrain-colors', String(next)) } catch { /* ignore */ }
+                }}
                 className={`relative h-5 w-10 rounded-full border-2 border-ink transition-colors ${
                   showTerrainColors ? 'bg-ink' : 'bg-parchment-200'
                 }`}
