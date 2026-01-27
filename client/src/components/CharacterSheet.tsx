@@ -120,143 +120,148 @@ export function CharacterSheet({
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
-      {/* Header Section */}
-      <section className="border-3 border-ink bg-parchment-100 p-6">
-        <div className="flex gap-6">
-          {/* Avatar */}
-          <div className="flex-shrink-0">
+      {/* Header Section - Identity Fields */}
+      <section className="border-3 border-ink bg-parchment-100 p-4 md:p-6">
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
+                Character Name
+              </label>
+              <EditableField
+                value={character.name}
+                onChange={(v) => handleFieldUpdate('name', v)}
+                className="text-xl font-display uppercase"
+              />
+            </div>
+            <div>
+              <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
+                Title
+              </label>
+              <EditableField
+                value={character.title || ''}
+                onChange={(v) => handleFieldUpdate('title', v || null)}
+                placeholder="(optional)"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
+                Class
+              </label>
+              <select
+                value={character.class}
+                onChange={(e) => handleFieldUpdate('class', e.target.value as CharacterClass)}
+                className="w-full border-0 border-b-2 border-ink-faded bg-transparent px-1 py-1 font-body text-ink focus:border-ink focus:outline-none"
+              >
+                {CHARACTER_CLASSES.map((cls) => (
+                  <option key={cls} value={cls}>
+                    {cls}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
+                Level
+              </label>
+              <EditableField
+                type="number"
+                value={character.level}
+                onChange={(v) => handleNumberUpdate('level', v)}
+                min={1}
+                max={14}
+              />
+            </div>
+            <div>
+              <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
+                Alignment
+              </label>
+              <select
+                value={character.alignment || ''}
+                onChange={(e) =>
+                  handleFieldUpdate('alignment', e.target.value ? (e.target.value as Alignment) : null)
+                }
+                className="w-full border-0 border-b-2 border-ink-faded bg-transparent px-1 py-1 font-body text-ink focus:border-ink focus:outline-none"
+              >
+                <option value="">—</option>
+                {ALIGNMENTS.map((align) => (
+                  <option key={align} value={align}>
+                    {align}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Portrait & Ability Scores Section */}
+      <section className="border-3 border-ink bg-parchment-100 p-4 md:p-6">
+        <div className="flex flex-col gap-6 md:flex-row">
+          {/* Portrait - centered on mobile, left on desktop */}
+          <div className="flex justify-center md:justify-start">
             <ImageUpload
               value={character.avatarUrl}
               onChange={handleAvatarChange}
               onRemove={onAvatarRemove}
-              className="w-32"
+              className="w-48 md:w-56"
               aspectRatio="3/4"
               compact
             />
           </div>
 
-          {/* Identity Fields */}
-          <div className="flex-1 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
-                  Character Name
-                </label>
-                <EditableField
-                  value={character.name}
-                  onChange={(v) => handleFieldUpdate('name', v)}
-                  className="text-xl font-display uppercase"
-                />
-              </div>
-              <div>
-                <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
-                  Title
-                </label>
-                <EditableField
-                  value={character.title || ''}
-                  onChange={(v) => handleFieldUpdate('title', v || null)}
-                  placeholder="(optional)"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
-                  Class
-                </label>
-                <select
-                  value={character.class}
-                  onChange={(e) => handleFieldUpdate('class', e.target.value as CharacterClass)}
-                  className="w-full border-0 border-b-2 border-ink-faded bg-transparent px-1 py-1 font-body text-ink focus:border-ink focus:outline-none"
-                >
-                  {CHARACTER_CLASSES.map((cls) => (
-                    <option key={cls} value={cls}>
-                      {cls}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
-                  Level
-                </label>
-                <EditableField
-                  type="number"
-                  value={character.level}
-                  onChange={(v) => handleNumberUpdate('level', v)}
-                  min={1}
-                  max={14}
-                />
-              </div>
-              <div>
-                <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
-                  Alignment
-                </label>
-                <select
-                  value={character.alignment || ''}
-                  onChange={(e) =>
-                    handleFieldUpdate('alignment', e.target.value ? (e.target.value as Alignment) : null)
-                  }
-                  className="w-full border-0 border-b-2 border-ink-faded bg-transparent px-1 py-1 font-body text-ink focus:border-ink focus:outline-none"
-                >
-                  <option value="">—</option>
-                  {ALIGNMENTS.map((align) => (
-                    <option key={align} value={align}>
-                      {align}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          {/* Ability Scores - vertical list */}
+          <div className="flex-1">
+            <h2 className="mb-4 font-display text-sm uppercase tracking-wide text-ink md:text-right">
+              Ability Scores
+            </h2>
+            <div className="space-y-2">
+              {[
+                { key: 'strength', label: 'Strength', abbr: 'STR' },
+                { key: 'intelligence', label: 'Intelligence', abbr: 'INT' },
+                { key: 'wisdom', label: 'Wisdom', abbr: 'WIS' },
+                { key: 'dexterity', label: 'Dexterity', abbr: 'DEX' },
+                { key: 'constitution', label: 'Constitution', abbr: 'CON' },
+                { key: 'charisma', label: 'Charisma', abbr: 'CHA' },
+              ].map(({ key, label, abbr }) => {
+                const score = character[key as keyof Character] as number
+                const mod = getModifier(score)
+                return (
+                  <div key={key} className="flex items-center gap-3 md:justify-end">
+                    <label className="w-28 font-display text-xs uppercase tracking-wide text-ink-soft md:text-right">
+                      <span className="hidden sm:inline">{label}</span>
+                      <span className="sm:hidden">{abbr}</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="border-3 border-ink bg-parchment-200 px-3 py-1">
+                        <input
+                          type="number"
+                          value={score}
+                          onChange={(e) => handleNumberUpdate(key as keyof UpdateCharacterRequest, e.target.value)}
+                          min={3}
+                          max={18}
+                          className="w-12 bg-transparent text-center font-body text-xl text-ink focus:outline-none"
+                        />
+                      </div>
+                      <div className="w-10 text-center font-body text-lg text-ink-soft">
+                        {formatModifier(mod)}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Ability Scores */}
-      <section className="border-3 border-ink bg-parchment-100 p-6">
-        <h2 className="mb-4 font-display text-sm uppercase tracking-wide text-ink">
-          Ability Scores
-        </h2>
-        <div className="grid grid-cols-6 gap-4">
-          {[
-            { key: 'strength', label: 'STR' },
-            { key: 'intelligence', label: 'INT' },
-            { key: 'wisdom', label: 'WIS' },
-            { key: 'dexterity', label: 'DEX' },
-            { key: 'constitution', label: 'CON' },
-            { key: 'charisma', label: 'CHA' },
-          ].map(({ key, label }) => {
-            const score = character[key as keyof Character] as number
-            const mod = getModifier(score)
-            return (
-              <div key={key} className="text-center">
-                <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
-                  {label}
-                </label>
-                <div className="mt-1 border-3 border-ink bg-parchment-200 p-2">
-                  <input
-                    type="number"
-                    value={score}
-                    onChange={(e) => handleNumberUpdate(key as keyof UpdateCharacterRequest, e.target.value)}
-                    min={3}
-                    max={18}
-                    className="w-full bg-transparent text-center font-body text-2xl text-ink focus:outline-none"
-                  />
-                  <div className="mt-1 font-body text-sm text-ink-soft">
-                    {formatModifier(mod)}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </section>
-
       {/* Combat Stats */}
-      <section className="border-3 border-ink bg-parchment-100 p-6">
+      <section className="border-3 border-ink bg-parchment-100 p-4 md:p-6">
         <h2 className="mb-4 font-display text-sm uppercase tracking-wide text-ink">Combat</h2>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <div className="text-center">
             <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
               HP
@@ -317,11 +322,11 @@ export function CharacterSheet({
       </section>
 
       {/* Saving Throws */}
-      <section className="border-3 border-ink bg-parchment-100 p-6">
+      <section className="border-3 border-ink bg-parchment-100 p-4 md:p-6">
         <h2 className="mb-4 font-display text-sm uppercase tracking-wide text-ink">
           Saving Throws
         </h2>
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 md:gap-4">
           {[
             { key: 'saveDeathRay', label: 'Death Ray' },
             { key: 'saveWands', label: 'Wands' },
@@ -348,9 +353,9 @@ export function CharacterSheet({
       </section>
 
       {/* Resources */}
-      <section className="border-3 border-ink bg-parchment-100 p-6">
+      <section className="border-3 border-ink bg-parchment-100 p-4 md:p-6">
         <h2 className="mb-4 font-display text-sm uppercase tracking-wide text-ink">Resources</h2>
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-4 md:gap-6">
           <div>
             <label className="block font-display text-xs uppercase tracking-wide text-ink-soft">
               Experience Points
@@ -379,7 +384,7 @@ export function CharacterSheet({
       </section>
 
       {/* Equipment */}
-      <section className="border-3 border-ink bg-parchment-100 p-6">
+      <section className="border-3 border-ink bg-parchment-100 p-4 md:p-6">
         <h2 className="mb-4 font-display text-sm uppercase tracking-wide text-ink">Equipment</h2>
         <EditableField
           type="textarea"
@@ -391,7 +396,7 @@ export function CharacterSheet({
       </section>
 
       {/* Spells */}
-      <section className="border-3 border-ink bg-parchment-100 p-6">
+      <section className="border-3 border-ink bg-parchment-100 p-4 md:p-6">
         <h2 className="mb-4 font-display text-sm uppercase tracking-wide text-ink">Spells</h2>
         <EditableField
           type="textarea"
@@ -403,7 +408,7 @@ export function CharacterSheet({
       </section>
 
       {/* Notes */}
-      <section className="border-3 border-ink bg-parchment-100 p-6">
+      <section className="border-3 border-ink bg-parchment-100 p-4 md:p-6">
         <h2 className="mb-4 font-display text-sm uppercase tracking-wide text-ink">Notes</h2>
         <EditableField
           type="textarea"
