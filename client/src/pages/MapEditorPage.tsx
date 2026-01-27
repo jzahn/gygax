@@ -168,7 +168,7 @@ export function MapEditorPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center paper-texture">
+      <div className="flex h-[calc(100vh-3.5rem)] items-center justify-center">
         <span className="animate-quill-scratch text-4xl">&#9998;</span>
         <span className="ml-4 font-body text-ink-soft">Loading map...</span>
       </div>
@@ -177,14 +177,12 @@ export function MapEditorPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen paper-texture">
-        <div className="mx-auto max-w-2xl p-6 md:p-8">
-          <div className="rounded border-3 border-blood-red bg-parchment-100 p-6 text-center">
-            <p className="font-body text-blood-red">{error}</p>
-            <Button variant="ghost" onClick={() => navigate('/')} className="mt-4">
-              Return to Dashboard
-            </Button>
-          </div>
+      <div className="mx-auto max-w-2xl p-6 md:p-8">
+        <div className="rounded border-3 border-blood-red bg-parchment-100 p-6 text-center">
+          <p className="font-body text-blood-red">{error}</p>
+          <Button variant="ghost" onClick={() => navigate('/')} className="mt-4">
+            Return to Dashboard
+          </Button>
         </div>
       </div>
     )
@@ -195,7 +193,7 @@ export function MapEditorPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col paper-texture">
+    <div className="flex h-[calc(100vh-3.5rem)] flex-col">
       {/* Header */}
       <header className="flex items-center justify-between border-b-3 border-ink bg-parchment-100 px-4 py-3">
         <div className="flex items-center gap-4">

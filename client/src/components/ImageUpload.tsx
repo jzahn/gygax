@@ -111,8 +111,9 @@ export function ImageUpload({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            'relative cursor-pointer border-3 border-dashed bg-parchment-100 transition-colors',
-            isDragging ? 'border-candleGlow bg-parchment-200' : 'border-ink-soft hover:border-ink',
+            'relative cursor-pointer border-3 bg-parchment-100 transition-colors',
+            !previewUrl && 'border-dashed',
+            isDragging ? 'border-candleGlow bg-parchment-200' : previewUrl ? 'border-ink' : 'border-ink-soft hover:border-ink',
             error && 'border-blood-red',
             !previewUrl && 'flex items-center justify-center'
           )}
@@ -140,7 +141,7 @@ export function ImageUpload({
                 <button
                   type="button"
                   onClick={handleRemove}
-                  className="font-body text-xs text-blood-red underline underline-offset-2"
+                  className="font-body text-xs text-parchment-100 underline underline-offset-2"
                 >
                   Remove
                 </button>

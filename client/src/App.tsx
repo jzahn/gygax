@@ -1,10 +1,12 @@
 import { BrowserRouter, Routes, Route } from 'react-router'
 import { AuthProvider } from './contexts'
 import { ProtectedRoute } from './components'
+import { AuthenticatedLayout } from './components/layout'
 import {
   DashboardPage,
   CampaignPage,
   AdventurePage,
+  AdventureModePage,
   MapEditorPage,
   CharacterPage,
   LoginPage,
@@ -20,46 +22,23 @@ export function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          {/* Authenticated routes with NavBar */}
           <Route
-            path="/"
             element={
               <ProtectedRoute>
-                <DashboardPage />
+                <AuthenticatedLayout />
               </ProtectedRoute>
             }
-          />
-          <Route
-            path="/campaigns/:id"
-            element={
-              <ProtectedRoute>
-                <CampaignPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/adventures/:id"
-            element={
-              <ProtectedRoute>
-                <AdventurePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/maps/:id"
-            element={
-              <ProtectedRoute>
-                <MapEditorPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/characters/:id"
-            element={
-              <ProtectedRoute>
-                <CharacterPage />
-              </ProtectedRoute>
-            }
-          />
+          >
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/adventure" element={<AdventureModePage />} />
+            <Route path="/campaigns/:id" element={<CampaignPage />} />
+            <Route path="/adventures/:id" element={<AdventurePage />} />
+            <Route path="/maps/:id" element={<MapEditorPage />} />
+            <Route path="/characters/:id" element={<CharacterPage />} />
+          </Route>
+
+          {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />

@@ -70,11 +70,18 @@ Web application (SPA frontend + API backend)
 
 ### Application Structure
 
-The application has two main navigation modes:
+The application has two main navigation modes accessible via a persistent top navigation bar:
 
-**Forge (DM Tools):** Where DMs create and manage campaigns, adventures, maps, backdrops, NPCs, and notes.
+**Forge (DM Tools):** Where DMs create and manage campaigns, adventures, maps, backdrops, NPCs, and notes. This is the default landing page after login (dashboard at `/`).
 
-**Adventure (Player Experience):** Where players create characters and browse/join active game sessions.
+**Adventure (Player Experience):** Where players create characters and browse/join active game sessions. Accessed via `/adventure`.
+
+**Global Navigation:**
+- A sticky navigation bar appears on all authenticated pages
+- Logo and "GYGAX" brand on the left (links to Forge/dashboard)
+- Forge and Adventure mode links centered in the navbar
+- User avatar with dropdown menu on the right (displays user name, email, and logout option)
+- On mobile (< 768px), the centered nav links collapse into a hamburger menu; avatar remains visible
 
 ### MVP Features (Must Have)
 
@@ -564,6 +571,36 @@ Character sheets should look like the original B/X character sheet from the Mold
 - Minimal chrome—text-based navigation
 - Underline hover states
 - Dropdown menus use neobrutalism card styling
+
+**Navigation Bar (NavBar):**
+
+- Sticky positioning at top of viewport (`top-0`, `z-40`)
+- Height: 56px (`h-14`)
+- Background: parchment with bottom border (`border-b-3 border-ink bg-parchment-100`)
+- Full-width layout with three sections:
+  - **Left:** Dragon logo (32x32px, bordered) + "GYGAX" text in display font, links to dashboard
+  - **Center:** Forge and Adventure links, absolutely centered in viewport, hidden on mobile
+  - **Right:** Square avatar (40x40px) with dropdown, hamburger menu button on mobile
+- Active nav link styling: `text-ink underline underline-offset-4`
+- Inactive nav link styling: `text-ink-soft` with hover to `text-ink`
+- Forge link active when on: `/`, `/campaigns/*`, `/adventures/*`, `/maps/*`
+- Adventure link active when on: `/adventure`, `/characters/*`, `/sessions/*`
+
+**Avatar Component:**
+
+- Square shape (brutalist, not rounded)
+- Size: 40x40px (`w-10 h-10`)
+- Border: `border-3 border-ink`
+- Shadow: `shadow-brutal-sm`
+- Displays user initials (2 characters max) in display font
+- Dropdown menu contains: user name, user email (muted), separator, "Depart" logout action
+
+**Mobile Menu:**
+
+- Hamburger button visible only below 768px (`md:hidden`)
+- Drawer slides in from right side
+- Contains only Forge and Adventure navigation links
+- User info and logout accessed via Avatar dropdown (always visible)
 
 ### Page Layouts
 

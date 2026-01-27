@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { useNavigate } from 'react-router'
 import type {
   Adventure,
   AdventureListResponse,
@@ -7,11 +6,7 @@ import type {
   CampaignListItem,
   CampaignListResponse,
   CampaignResponse,
-  Character,
-  CharacterListResponse,
-  CharacterResponse,
 } from '@gygax/shared'
-import { useAuth } from '../hooks'
 import { Button, Divider } from '../components/ui'
 import { CampaignCard } from '../components/CampaignCard'
 import { CreateCampaignModal, CampaignFormData } from '../components/CreateCampaignModal'
@@ -19,16 +14,10 @@ import { DeleteCampaignDialog } from '../components/DeleteCampaignDialog'
 import { AdventureCard } from '../components/AdventureCard'
 import { CreateAdventureModal, AdventureFormData } from '../components/CreateAdventureModal'
 import { DeleteAdventureDialog } from '../components/DeleteAdventureDialog'
-import { CharacterCard } from '../components/CharacterCard'
-import { CreateCharacterModal, CharacterFormData } from '../components/CreateCharacterModal'
-import { DeleteCharacterDialog } from '../components/DeleteCharacterDialog'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 export function DashboardPage() {
-  const navigate = useNavigate()
-  const { user, logout } = useAuth()
-
   // Campaigns state
   const [campaigns, setCampaigns] = React.useState<CampaignListItem[]>([])
   const [isLoadingCampaigns, setIsLoadingCampaigns] = React.useState(true)
@@ -44,14 +33,6 @@ export function DashboardPage() {
   const [isCreateAdventureModalOpen, setIsCreateAdventureModalOpen] = React.useState(false)
   const [editingAdventure, setEditingAdventure] = React.useState<Adventure | null>(null)
   const [deletingAdventure, setDeletingAdventure] = React.useState<Adventure | null>(null)
-
-  // Characters state
-  const [characters, setCharacters] = React.useState<Character[]>([])
-  const [isLoadingCharacters, setIsLoadingCharacters] = React.useState(true)
-  const [charactersError, setCharactersError] = React.useState<string | null>(null)
-  const [isCreateCharacterModalOpen, setIsCreateCharacterModalOpen] = React.useState(false)
-  const [editingCharacter, setEditingCharacter] = React.useState<Character | null>(null)
-  const [deletingCharacter, setDeletingCharacter] = React.useState<Character | null>(null)
 
   const fetchCampaigns = React.useCallback(async () => {
     try {
@@ -91,35 +72,10 @@ export function DashboardPage() {
     }
   }, [])
 
-  const fetchCharacters = React.useCallback(async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/characters`, {
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch characters')
-      }
-
-      const data: CharacterListResponse = await response.json()
-      setCharacters(data.characters)
-    } catch {
-      setCharactersError('Failed to load characters')
-    } finally {
-      setIsLoadingCharacters(false)
-    }
-  }, [])
-
   React.useEffect(() => {
     fetchCampaigns()
     fetchAdventures()
-    fetchCharacters()
-  }, [fetchCampaigns, fetchAdventures, fetchCharacters])
-
-  const handleLogout = async () => {
-    await logout()
-    navigate('/login')
-  }
+  }, [fetchCampaigns, fetchAdventures])
 
   // Campaign handlers
   const handleCreateCampaign = async (data: CampaignFormData) => {
@@ -375,86 +331,27 @@ export function DashboardPage() {
     setDeletingAdventure(null)
   }
 
-  // Character handlers
-  const handleCreateCharacter = async (data: CharacterFormData) => {
-    const response = await fetch(`${API_URL}/api/characters`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(data),
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to create character')
-    }
-
-    const result: CharacterResponse = await response.json()
-    setCharacters((prev) => [result.character, ...prev])
-    setIsCreateCharacterModalOpen(false)
-  }
-
-  const handleEditCharacter = async (data: CharacterFormData) => {
-    if (!editingCharacter) return
-
-    const response = await fetch(`${API_URL}/api/characters/${editingCharacter.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(data),
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to update character')
-    }
-
-    const result: CharacterResponse = await response.json()
-    setCharacters((prev) => prev.map((c) => (c.id === result.character.id ? result.character : c)))
-    setEditingCharacter(null)
-  }
-
-  const handleDeleteCharacter = async () => {
-    if (!deletingCharacter) return
-
-    const response = await fetch(`${API_URL}/api/characters/${deletingCharacter.id}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to delete character')
-    }
-
-    setCharacters((prev) => prev.filter((c) => c.id !== deletingCharacter.id))
-    setDeletingCharacter(null)
-  }
-
-  const isLoading = isLoadingCampaigns || isLoadingAdventures || isLoadingCharacters
+  const isLoading = isLoadingCampaigns || isLoadingAdventures
   const hasNoCampaigns = !isLoadingCampaigns && campaigns.length === 0
   const hasNoAdventures = !isLoadingAdventures && adventures.length === 0
-  const hasNoCharacters = !isLoadingCharacters && characters.length === 0
-  const isEmpty = hasNoCampaigns && hasNoAdventures && hasNoCharacters
+  const isEmpty = hasNoCampaigns && hasNoAdventures
 
   return (
-    <div className="min-h-screen paper-texture">
+    <>
       <div className="mx-auto max-w-6xl p-6 md:p-8">
-        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="font-display text-2xl uppercase tracking-wide text-ink md:text-3xl">
-              Your Realms
-            </h1>
-            <p className="mt-1 font-body italic text-ink-soft">
-              Select a realm to continue your work, or forge a new one
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="primary" onClick={() => setIsCreateCampaignModalOpen(true)}>
-              + New Campaign
-            </Button>
-            <Button variant="ghost" onClick={handleLogout}>
-              Depart
-            </Button>
-          </div>
-        </header>
+      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-display text-2xl uppercase tracking-wide text-ink md:text-3xl">
+            Your Realms
+          </h1>
+          <p className="mt-1 font-body italic text-ink-soft">
+            Select a realm to continue your work, or forge a new one
+          </p>
+        </div>
+        <Button variant="primary" onClick={() => setIsCreateCampaignModalOpen(true)}>
+          + New Campaign
+        </Button>
+      </header>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
@@ -481,57 +378,6 @@ export function DashboardPage() {
           </div>
         ) : (
           <>
-            {/* Characters Section - First */}
-            <section className="mb-12">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-display text-lg uppercase tracking-wide text-ink">
-                  Your Characters
-                </h2>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setIsCreateCharacterModalOpen(true)}
-                >
-                  + New Character
-                </Button>
-              </div>
-
-              {charactersError ? (
-                <div className="rounded border-3 border-blood-red bg-parchment-100 p-6 text-center">
-                  <p className="font-body text-blood-red">{charactersError}</p>
-                  <Button variant="ghost" onClick={fetchCharacters} className="mt-4">
-                    Try again
-                  </Button>
-                </div>
-              ) : characters.length === 0 ? (
-                <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-6 text-center">
-                  <p className="font-body text-ink-soft">
-                    No characters yet.{' '}
-                    <button
-                      onClick={() => setIsCreateCharacterModalOpen(true)}
-                      className="text-ink underline underline-offset-2 hover:text-ink-soft"
-                    >
-                      Create one
-                    </button>{' '}
-                    to begin your adventures.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {characters.map((character) => (
-                    <CharacterCard
-                      key={character.id}
-                      character={character}
-                      onEdit={setEditingCharacter}
-                      onDelete={setDeletingCharacter}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <Divider className="mb-8" />
-
             {/* Campaigns Section */}
             <section className="mb-12">
               <div className="mb-4 flex items-center justify-between">
@@ -637,12 +483,6 @@ export function DashboardPage() {
             </section>
           </>
         )}
-
-        <footer className="mt-16 text-center">
-          <p className="font-body text-sm text-ink-faded">
-            Signed in as <span className="font-medium">{user?.name}</span>
-          </p>
-        </footer>
       </div>
 
       {/* Campaign Modals */}
@@ -699,27 +539,6 @@ export function DashboardPage() {
         onConfirm={handleDeleteAdventure}
         adventure={deletingAdventure}
       />
-
-      {/* Character Modals */}
-      <CreateCharacterModal
-        open={isCreateCharacterModalOpen}
-        onClose={() => setIsCreateCharacterModalOpen(false)}
-        onSubmit={handleCreateCharacter}
-      />
-
-      <CreateCharacterModal
-        open={!!editingCharacter}
-        onClose={() => setEditingCharacter(null)}
-        onSubmit={handleEditCharacter}
-        character={editingCharacter}
-      />
-
-      <DeleteCharacterDialog
-        open={!!deletingCharacter}
-        onClose={() => setDeletingCharacter(null)}
-        onConfirm={handleDeleteCharacter}
-        character={deletingCharacter}
-      />
-    </div>
+    </>
   )
 }
