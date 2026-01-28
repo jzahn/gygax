@@ -1,5 +1,7 @@
 # Gygax
 
+![Goblin Horde](.github/images/GoblinHorde.png)
+
 Old-school D&D virtual tabletop. A web application that lets a Dungeon Master host B/X D&D games online for a group of players.
 
 Existing VTT solutions like Roll20 and Foundry are complex, expensive, or focused on modern D&D editions. Gygax is a streamlined VTT that embraces the simplicity of old-school (OSR) gameplay with a 1981 Moldvay rulebook aesthetic.
