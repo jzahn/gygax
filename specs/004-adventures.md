@@ -420,8 +420,8 @@ export interface UpdateAdventureRequest {
 
 The main landing page for authenticated users. Replaces/extends HomePage.
 
-**Page Title:** "YOUR ADVENTURES" (IM Fell English, ALL CAPS)
-**Subtitle:** "Select a realm to continue your work, or forge a new one" (Spectral italic)
+**Page Title:** "FORGE" (IM Fell English, ALL CAPS)
+**Subtitle:** "Forge adventures or entire worlds and invite other players to join you" (Spectral italic)
 
 **Layout:**
 - Header with title and "New Adventure" button

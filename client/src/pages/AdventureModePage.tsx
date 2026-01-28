@@ -98,16 +98,31 @@ export function AdventureModePage() {
         <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-display text-2xl uppercase tracking-wide text-ink md:text-3xl">
-              Your Characters
+              Adventure
             </h1>
             <p className="mt-1 font-body italic text-ink-soft">
-              Manage your adventurers and prepare for quests
+              Create characters and embark on epic quests hosted by other players
             </p>
           </div>
           <Button variant="primary" onClick={() => setIsCreateModalOpen(true)}>
             + New Character
           </Button>
         </header>
+
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-lg uppercase tracking-wide text-ink">
+            Characters
+          </h2>
+          {characters.length > 0 && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              + New Character
+            </Button>
+          )}
+        </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16">

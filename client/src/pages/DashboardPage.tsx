@@ -342,10 +342,10 @@ export function DashboardPage() {
       <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl uppercase tracking-wide text-ink md:text-3xl">
-            Your Realms
+            Forge
           </h1>
           <p className="mt-1 font-body italic text-ink-soft">
-            Select a realm to continue your work, or forge a new one
+            Forge adventures or entire worlds and invite other players to join you
           </p>
         </div>
         <Button variant="primary" onClick={() => setIsCreateCampaignModalOpen(true)}>
