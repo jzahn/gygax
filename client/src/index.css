@@ -119,6 +119,74 @@ a, button, [role="button"] {
   75% { transform: rotate(4deg) translateX(1px); }
 }
 
+/* Logo entrance for auth pages */
+@keyframes logoEmerge {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+    filter: blur(4px) saturate(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0) saturate(1);
+  }
+}
+
+@keyframes brandReveal {
+  from {
+    opacity: 0;
+    letter-spacing: 0.6em;
+  }
+  to {
+    opacity: 1;
+    letter-spacing: 0.35em;
+  }
+}
+
+@keyframes ruleExpand {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+@keyframes taglineReveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 0.6;
+    transform: translateY(0);
+  }
+}
+
+.animate-logo-emerge {
+  animation: logoEmerge 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.animate-brand-reveal {
+  animation: brandReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+  opacity: 0;
+}
+
+.animate-rule-expand {
+  animation: ruleExpand 0.6s ease-out 0.6s forwards;
+  opacity: 0;
+  transform-origin: center;
+}
+
+.animate-tagline-reveal {
+  animation: taglineReveal 0.5s ease-out 0.8s forwards;
+  opacity: 0;
+}
+
 /* Ink reveal animation class */
 .animate-ink-reveal {
   animation: inkReveal 0.5s ease-out forwards;
@@ -239,6 +307,51 @@ a, button, [role="button"] {
   border: none;
   border-top: 1px solid var(--color-ink-faded);
   margin: 1em 0;
+}
+
+/* Nav link hover — candlelight underline draws from center */
+.nav-link {
+  position: relative;
+  text-decoration: none !important;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: var(--color-candle-glow);
+  transform: scaleX(0);
+  transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+  opacity: 0;
+}
+
+.nav-link:hover::after {
+  transform: scaleX(1);
+  opacity: 1;
+}
+
+.nav-link:hover {
+  text-shadow: 0 0 8px rgba(212, 165, 116, 0.3);
+}
+
+/* Active nav link gets a solid ink underline, no hover glow */
+.nav-link-active {
+  text-decoration: none !important;
+}
+
+.nav-link-active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: var(--color-ink);
+  transform: scaleX(1);
+  opacity: 1;
 }
 
 /* Focus visible for accessibility */

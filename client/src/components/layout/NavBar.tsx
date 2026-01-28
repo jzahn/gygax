@@ -31,7 +31,7 @@ export function NavBar() {
           <img
             src="/logo/logo.jpg"
             alt="Gygax logo"
-            className="h-8 w-8 border-2 border-ink"
+            className="h-8 w-8 border-2 border-ink shadow-brutal-sm transition-all duration-100 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal active:translate-x-0.5 active:translate-y-0.5 active:shadow-brutal-pressed"
           />
           <span className="font-display text-xl uppercase tracking-wide text-ink">
             Gygax
@@ -44,9 +44,9 @@ export function NavBar() {
             to="/"
             end
             className={({ isActive }) =>
-              `font-display text-sm uppercase tracking-wide transition-colors ${
+              `nav-link font-display text-sm uppercase tracking-wide transition-colors ${
                 isActive || forgeActive
-                  ? 'text-ink underline underline-offset-4'
+                  ? 'nav-link-active text-ink'
                   : 'text-ink-soft hover:text-ink'
               }`
             }
@@ -56,9 +56,9 @@ export function NavBar() {
           <NavLink
             to="/adventure"
             className={() =>
-              `font-display text-sm uppercase tracking-wide transition-colors ${
+              `nav-link font-display text-sm uppercase tracking-wide transition-colors ${
                 adventureActive
-                  ? 'text-ink underline underline-offset-4'
+                  ? 'nav-link-active text-ink'
                   : 'text-ink-soft hover:text-ink'
               }`
             }

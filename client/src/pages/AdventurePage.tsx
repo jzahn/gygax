@@ -779,7 +779,7 @@ export function AdventurePage() {
               {campaignWorldMap && (
                 <Link
                   to={`/maps/${campaignWorldMap.id}`}
-                  className="group block border-3 border-ink bg-parchment-100 shadow-brutal transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
+                  className="group block border-3 border-ink bg-parchment-100 shadow-brutal card-texture transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
                 >
                   <div className="relative border-b-3 border-ink bg-white">
                     <div className="aspect-video w-full">

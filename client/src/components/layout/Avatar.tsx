@@ -6,8 +6,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
 } from '../ui/dropdown-menu'
 
 function getInitials(name: string): string {
@@ -35,23 +33,28 @@ export function Avatar() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex h-10 w-10 items-center justify-center border-3 border-ink bg-parchment-200 font-display text-sm uppercase shadow-brutal-sm transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-brutal focus:outline-none focus-visible:ring-2 focus-visible:ring-candle-glow focus-visible:ring-offset-2"
+          className="relative h-10 w-10 bg-transparent border-0 p-0 focus:outline-none"
           aria-label="User menu"
         >
-          {initials}
+          <span
+            className="flex h-full w-full items-center justify-center border-3 border-ink bg-white font-display text-sm uppercase shadow-brutal-sm transition-all duration-100 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal active:translate-x-0.5 active:translate-y-0.5 active:shadow-brutal-pressed focus-visible:ring-2 focus-visible:ring-candle-glow focus-visible:ring-offset-2"
+          >
+            {initials}
+          </span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="font-display text-sm uppercase tracking-wide text-ink">
-              {user.name}
-            </p>
-            <p className="font-body text-xs text-ink-faded">{user.email}</p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>Depart</DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-56 p-0">
+        <div className="px-3 py-3 paper-texture">
+          <p className="font-display text-sm uppercase tracking-wide text-ink">
+            {user.name}
+          </p>
+          <p className="font-body text-xs text-ink-faded">{user.email}</p>
+        </div>
+        <div className="border-t-3 border-ink" style={{ backgroundColor: 'var(--color-parchment-100)', backgroundImage: 'none' }}>
+          <DropdownMenuItem onClick={handleLogout} className="py-2.5">
+            Depart
+          </DropdownMenuItem>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   )

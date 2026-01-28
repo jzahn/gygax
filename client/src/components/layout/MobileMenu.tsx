@@ -35,7 +35,7 @@ export function MobileMenu({ forgeActive, adventureActive }: MobileMenuProps) {
       {/* Hamburger button - visible only on mobile */}
       <button
         onClick={() => setIsOpen(true)}
-        className="flex h-10 w-10 items-center justify-center border-3 border-ink bg-parchment-200 shadow-brutal-sm md:hidden"
+        className="flex h-10 w-10 items-center justify-center border-3 border-ink bg-white shadow-brutal-sm md:hidden"
         aria-label="Open menu"
       >
         <svg
@@ -76,7 +76,7 @@ export function MobileMenu({ forgeActive, adventureActive }: MobileMenuProps) {
           </span>
           <button
             onClick={() => setIsOpen(false)}
-            className="flex h-8 w-8 items-center justify-center border-2 border-ink bg-parchment-200"
+            className="flex h-8 w-8 items-center justify-center border-2 border-ink bg-white shadow-brutal-sm transition-all duration-100 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal active:translate-x-0.5 active:translate-y-0.5 active:shadow-brutal-pressed"
             aria-label="Close menu"
           >
             <svg

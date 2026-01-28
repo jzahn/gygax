@@ -71,6 +71,21 @@ export function ResetPasswordPage() {
     return (
       <div className="min-h-dvh paper-texture vignette flex items-center justify-center p-4 overflow-x-hidden">
         <div className="w-full max-w-md relative z-10 my-auto">
+        {/* Frontispiece branding */}
+        <div className="mb-3 md:mb-6 flex flex-col items-center text-center">
+          <div className="animate-logo-emerge mb-2 md:mb-4">
+            <img
+              src="/logo/logo.jpg"
+              alt="Gygax — a dragon perched upon ancient tomes"
+              className="h-16 w-16 md:h-28 md:w-28 border-2 md:border-3 border-ink shadow-brutal-sm md:shadow-brutal"
+            />
+          </div>
+          <h1 className="animate-brand-reveal font-display text-2xl md:text-4xl uppercase text-ink" style={{ letterSpacing: '0.35em' }}>
+            Gygax
+          </h1>
+          <div className="animate-rule-expand mt-1 md:mt-2 h-px w-32 md:w-48 bg-gradient-to-r from-transparent via-ink to-transparent" />
+        </div>
+
           <Card className="stagger-children">
             <CardHeader className="text-center">
               <CardTitle className="animate-ink-reveal">
@@ -109,6 +124,21 @@ export function ResetPasswordPage() {
     return (
       <div className="min-h-dvh paper-texture vignette flex items-center justify-center p-4 overflow-x-hidden">
         <div className="w-full max-w-md relative z-10 my-auto">
+        {/* Frontispiece branding */}
+        <div className="mb-3 md:mb-6 flex flex-col items-center text-center">
+          <div className="animate-logo-emerge mb-2 md:mb-4">
+            <img
+              src="/logo/logo.jpg"
+              alt="Gygax — a dragon perched upon ancient tomes"
+              className="h-16 w-16 md:h-28 md:w-28 border-2 md:border-3 border-ink shadow-brutal-sm md:shadow-brutal"
+            />
+          </div>
+          <h1 className="animate-brand-reveal font-display text-2xl md:text-4xl uppercase text-ink" style={{ letterSpacing: '0.35em' }}>
+            Gygax
+          </h1>
+          <div className="animate-rule-expand mt-1 md:mt-2 h-px w-32 md:w-48 bg-gradient-to-r from-transparent via-ink to-transparent" />
+        </div>
+
           <Card className="stagger-children">
             <CardHeader className="text-center">
               <CardTitle className="animate-ink-reveal">
@@ -140,6 +170,21 @@ export function ResetPasswordPage() {
   return (
     <div className="min-h-dvh paper-texture vignette flex items-center justify-center p-4 overflow-x-hidden">
       <div className="w-full max-w-md relative z-10 my-auto">
+        {/* Frontispiece branding */}
+        <div className="mb-3 md:mb-6 flex flex-col items-center text-center">
+          <div className="animate-logo-emerge mb-2 md:mb-4">
+            <img
+              src="/logo/logo.jpg"
+              alt="Gygax — a dragon perched upon ancient tomes"
+              className="h-16 w-16 md:h-28 md:w-28 border-2 md:border-3 border-ink shadow-brutal-sm md:shadow-brutal"
+            />
+          </div>
+          <h1 className="animate-brand-reveal font-display text-2xl md:text-4xl uppercase text-ink" style={{ letterSpacing: '0.35em' }}>
+            Gygax
+          </h1>
+          <div className="animate-rule-expand mt-1 md:mt-2 h-px w-32 md:w-48 bg-gradient-to-r from-transparent via-ink to-transparent" />
+        </div>
+
         <Card className="stagger-children">
           <CardHeader className="text-center">
             <CardTitle className="animate-ink-reveal">

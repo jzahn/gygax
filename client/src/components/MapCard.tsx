@@ -52,7 +52,7 @@ export function MapCard({ map, onEdit, onDelete }: MapCardProps) {
   return (
     <div
       onClick={handleCardClick}
-      className="group cursor-pointer border-3 border-ink bg-parchment-100 shadow-brutal transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
+      className="group cursor-pointer border-3 border-ink bg-parchment-100 shadow-brutal card-texture transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
     >
       {/* Map Preview */}
       <div className="border-b-3 border-ink bg-white">

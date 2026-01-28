@@ -487,7 +487,7 @@ export function CampaignPage() {
           {campaign.worldMap ? (
             <Link
               to={`/maps/${campaign.worldMap.id}`}
-              className="group block border-3 border-ink bg-parchment-100 shadow-brutal transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
+              className="group block border-3 border-ink bg-parchment-100 shadow-brutal card-texture transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
             >
               <div className="relative border-b-3 border-ink bg-white">
                 <div className="h-48 w-full md:h-56">
