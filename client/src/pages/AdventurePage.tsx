@@ -20,6 +20,7 @@ import { Button, Divider } from '../components/ui'
 import { CreateAdventureModal, AdventureFormData } from '../components/CreateAdventureModal'
 import { DeleteAdventureDialog } from '../components/DeleteAdventureDialog'
 import { MapCard } from '../components/MapCard'
+import { MapPreview } from '../components/MapPreview'
 import { CreateMapModal, MapFormData } from '../components/CreateMapModal'
 import { DeleteMapDialog } from '../components/DeleteMapDialog'
 import { NPCCard } from '../components/NPCCard'
@@ -67,6 +68,7 @@ export function AdventurePage() {
   const [viewingNote, setViewingNote] = React.useState<Note | null>(null)
   const [editingNote, setEditingNote] = React.useState<Note | null>(null)
   const [deletingNote, setDeletingNote] = React.useState<Note | null>(null)
+  const [campaignWorldMap, setCampaignWorldMap] = React.useState<Map | null>(null)
 
   const fetchAdventure = React.useCallback(async () => {
     if (!id) return
@@ -210,6 +212,30 @@ export function AdventurePage() {
       fetchNotes()
     }
   }, [adventure, fetchNotes])
+
+  // Fetch campaign world map if adventure belongs to a campaign
+  const fetchCampaignWorldMap = React.useCallback(async () => {
+    if (!adventure?.campaignId) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/campaigns/${adventure.campaignId}/world-map`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) return
+
+      const data: MapResponse = await response.json()
+      setCampaignWorldMap(data.map)
+    } catch {
+      // Silently fail
+    }
+  }, [adventure?.campaignId])
+
+  React.useEffect(() => {
+    if (adventure) {
+      fetchCampaignWorldMap()
+    }
+  }, [adventure, fetchCampaignWorldMap])
 
   // Scroll to top when navigating to this page
   React.useEffect(() => {
@@ -733,7 +759,7 @@ export function AdventurePage() {
               <span className="animate-quill-scratch text-2xl">&#9998;</span>
               <p className="mt-2 font-body text-ink-soft">Loading maps...</p>
             </div>
-          ) : maps.length === 0 ? (
+          ) : maps.length === 0 && !campaignWorldMap ? (
             <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
               <div className="mb-4 text-2xl text-ink-soft">&#128506;</div>
               <p className="font-body text-ink">No maps yet</p>
@@ -750,6 +776,32 @@ export function AdventurePage() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {campaignWorldMap && (
+                <Link
+                  to={`/maps/${campaignWorldMap.id}`}
+                  className="group block border-3 border-ink bg-parchment-100 shadow-brutal transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
+                >
+                  <div className="relative border-b-3 border-ink bg-white">
+                    <div className="aspect-video w-full">
+                      <MapPreview map={campaignWorldMap} />
+                    </div>
+                    <span
+                      className="absolute left-2 top-2 border-2 border-ink bg-white/80 px-1.5 py-0.5 font-display text-xs uppercase tracking-wide text-ink"
+                    >
+                      &#127758; Campaign Map
+                    </span>
+                  </div>
+                  <div className="p-3">
+                    <h3 className="line-clamp-1 font-display text-sm uppercase tracking-wide text-ink">
+                      {campaignWorldMap.name}
+                    </h3>
+                    <p className="mt-1 font-body text-xs text-ink-soft">
+                      {campaignWorldMap.width}&times;{campaignWorldMap.height} &bull;{' '}
+                      {campaignWorldMap.gridType === 'HEX' ? 'Hex' : 'Square'} grid
+                    </p>
+                  </div>
+                </Link>
+              )}
               {maps.map((map) => (
                 <MapCard
                   key={map.id}

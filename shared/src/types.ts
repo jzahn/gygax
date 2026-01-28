@@ -81,6 +81,7 @@ export interface Campaign {
 
 export interface CampaignWithAdventures extends Campaign {
   adventures: Adventure[]
+  worldMap: Map | null
 }
 
 export interface CampaignListItem extends Campaign {
@@ -107,6 +108,15 @@ export interface CreateCampaignRequest {
 export interface UpdateCampaignRequest {
   name?: string
   description?: string | null
+}
+
+export interface CreateWorldMapRequest {
+  name: string
+  description?: string
+  gridType?: GridType
+  width?: number
+  height?: number
+  content?: MapContent
 }
 
 // Adventure types (individual adventure, may belong to a Campaign)
@@ -298,7 +308,8 @@ export interface Map {
   height: number
   cellSize: number
   content: MapContent | null
-  adventureId: string
+  adventureId: string | null
+  campaignId: string | null
   createdAt: string
   updatedAt: string
 }

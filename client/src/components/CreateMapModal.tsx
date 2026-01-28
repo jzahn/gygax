@@ -27,6 +27,10 @@ interface CreateMapModalProps {
   onClose: () => void
   onSubmit: (data: MapFormData) => Promise<void>
   map?: Map | null
+  title?: string
+  defaultGridType?: GridType
+  defaultWidth?: number
+  defaultHeight?: number
 }
 
 const MAX_NAME_LENGTH = 100
@@ -35,7 +39,7 @@ const MIN_DIMENSION = 5
 const MAX_DIMENSION = 100
 const DEFAULT_DIMENSION = 30
 
-export function CreateMapModal({ open, onClose, onSubmit, map }: CreateMapModalProps) {
+export function CreateMapModal({ open, onClose, onSubmit, map, title, defaultGridType, defaultWidth, defaultHeight }: CreateMapModalProps) {
   const [name, setName] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [gridType, setGridType] = React.useState<GridType>('SQUARE')
@@ -69,16 +73,16 @@ export function CreateMapModal({ open, onClose, onSubmit, map }: CreateMapModalP
       } else {
         setName('')
         setDescription('')
-        setGridType('SQUARE')
-        setWidth(DEFAULT_DIMENSION)
-        setHeight(DEFAULT_DIMENSION)
+        setGridType(defaultGridType ?? 'SQUARE')
+        setWidth(defaultWidth ?? DEFAULT_DIMENSION)
+        setHeight(defaultHeight ?? DEFAULT_DIMENSION)
       }
       setErrors({})
       setImportedData(null)
       setImportFileName(null)
       setImportError(null)
     }
-  }, [open, map])
+  }, [open, map, defaultGridType, defaultWidth, defaultHeight])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -193,7 +197,7 @@ export function CreateMapModal({ open, onClose, onSubmit, map }: CreateMapModalP
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Map' : 'Chart New Territory'}</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Map' : (title ?? 'Chart New Territory')}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -6,6 +6,7 @@ import type {
   CampaignResponse,
   Adventure,
   AdventureResponse,
+  MapResponse,
 } from '@gygax/shared'
 import { Button, Divider } from '../components/ui'
 import { CreateCampaignModal, CampaignFormData } from '../components/CreateCampaignModal'
@@ -13,6 +14,9 @@ import { DeleteCampaignDialog } from '../components/DeleteCampaignDialog'
 import { AdventureCard } from '../components/AdventureCard'
 import { CreateAdventureModal, AdventureFormData } from '../components/CreateAdventureModal'
 import { DeleteAdventureDialog } from '../components/DeleteAdventureDialog'
+import { CreateMapModal, MapFormData } from '../components/CreateMapModal'
+import { DeleteMapDialog } from '../components/DeleteMapDialog'
+import { MapPreview } from '../components/MapPreview'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -27,6 +31,8 @@ export function CampaignPage() {
   const [isCreateAdventureModalOpen, setIsCreateAdventureModalOpen] = React.useState(false)
   const [editingAdventure, setEditingAdventure] = React.useState<Adventure | null>(null)
   const [deletingAdventure, setDeletingAdventure] = React.useState<Adventure | null>(null)
+  const [isCreateWorldMapModalOpen, setIsCreateWorldMapModalOpen] = React.useState(false)
+  const [isDeletingWorldMap, setIsDeletingWorldMap] = React.useState(false)
 
   const fetchCampaign = React.useCallback(async () => {
     if (!id) return
@@ -300,6 +306,48 @@ export function CampaignPage() {
     setDeletingAdventure(null)
   }
 
+  const handleCreateWorldMap = async (data: MapFormData) => {
+    if (!campaign) return
+
+    const response = await fetch(`${API_URL}/api/campaigns/${campaign.id}/world-map`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        name: data.name,
+        description: data.description || null,
+        gridType: data.gridType,
+        width: data.width,
+        height: data.height,
+        content: data.content,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to create world map')
+    }
+
+    const result: MapResponse = await response.json()
+    setCampaign((prev) => (prev ? { ...prev, worldMap: result.map } : null))
+    setIsCreateWorldMapModalOpen(false)
+  }
+
+  const handleDeleteWorldMap = async () => {
+    if (!campaign) return
+
+    const response = await fetch(`${API_URL}/api/campaigns/${campaign.id}/world-map`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to delete world map')
+    }
+
+    setCampaign((prev) => (prev ? { ...prev, worldMap: null } : null))
+    setIsDeletingWorldMap(false)
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center paper-texture">
@@ -430,13 +478,64 @@ export function CampaignPage() {
           )}
         </div>
 
-        {/* World Map Placeholder */}
-        <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
-          <div className="mb-4 text-2xl text-ink-soft">&#127758;</div>
-          <h2 className="font-display text-lg uppercase tracking-wide text-ink">World Map</h2>
-          <p className="mt-2 font-body text-ink-soft">
-            Campaign-level world map coming in a future update.
-          </p>
+        {/* World Map Section */}
+        <div className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg uppercase tracking-wide text-ink">Campaign Map</h2>
+          </div>
+
+          {campaign.worldMap ? (
+            <Link
+              to={`/maps/${campaign.worldMap.id}`}
+              className="group block border-3 border-ink bg-parchment-100 shadow-brutal transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
+            >
+              <div className="relative border-b-3 border-ink bg-white">
+                <div className="h-48 w-full md:h-56">
+                  <MapPreview map={campaign.worldMap} />
+                </div>
+                <span className="absolute left-2 top-2 border-2 border-ink bg-white/80 px-1.5 py-0.5 font-display text-xs uppercase tracking-wide text-ink">
+                  &#127758; Campaign Map
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3">
+                <div>
+                  <h3 className="line-clamp-1 font-display text-sm uppercase tracking-wide text-ink">
+                    {campaign.worldMap.name}
+                  </h3>
+                  <p className="mt-1 font-body text-xs text-ink-soft">
+                    {campaign.worldMap.width}&times;{campaign.worldMap.height} &bull;{' '}
+                    {campaign.worldMap.gridType === 'HEX' ? 'Hex' : 'Square'} grid
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setIsDeletingWorldMap(true)
+                  }}
+                  className="text-blood-red opacity-0 group-hover:opacity-100"
+                >
+                  Delete
+                </Button>
+              </div>
+            </Link>
+          ) : (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <div className="mb-4 text-2xl text-ink-soft">&#127758;</div>
+              <p className="font-body text-ink">No world map yet</p>
+              <p className="mt-1 font-body text-sm text-ink-soft">
+                Chart the world your adventures inhabit.
+              </p>
+              <Button
+                variant="default"
+                className="mt-4"
+                onClick={() => setIsCreateWorldMapModalOpen(true)}
+              >
+                Create World Map
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -483,6 +582,23 @@ export function CampaignPage() {
         onClose={() => setDeletingAdventure(null)}
         onConfirm={handleDeleteAdventure}
         adventure={deletingAdventure}
+      />
+
+      <CreateMapModal
+        open={isCreateWorldMapModalOpen}
+        onClose={() => setIsCreateWorldMapModalOpen(false)}
+        onSubmit={handleCreateWorldMap}
+        title="Chart the World"
+        defaultGridType="HEX"
+        defaultWidth={40}
+        defaultHeight={30}
+      />
+
+      <DeleteMapDialog
+        open={isDeletingWorldMap}
+        onClose={() => setIsDeletingWorldMap(false)}
+        onConfirm={handleDeleteWorldMap}
+        map={campaign.worldMap}
       />
     </div>
   )

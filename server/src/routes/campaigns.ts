@@ -10,6 +10,10 @@ import type {
   Adventure,
   AdventureResponse,
   CreateAdventureRequest,
+  CreateWorldMapRequest,
+  Map as MapType,
+  MapResponse,
+  GridType,
 } from '@gygax/shared'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../services/storage.js'
 
@@ -36,6 +40,36 @@ function formatCampaign(campaign: {
     bannerHotspotY: campaign.bannerHotspotY,
     createdAt: campaign.createdAt.toISOString(),
     updatedAt: campaign.updatedAt.toISOString(),
+  }
+}
+
+function formatMap(map: {
+  id: string
+  name: string
+  description: string | null
+  gridType: string
+  width: number
+  height: number
+  cellSize: number
+  content: unknown
+  adventureId: string | null
+  campaignId: string | null
+  createdAt: Date
+  updatedAt: Date
+}): MapType {
+  return {
+    id: map.id,
+    name: map.name,
+    description: map.description,
+    gridType: map.gridType as GridType,
+    width: map.width,
+    height: map.height,
+    cellSize: map.cellSize,
+    content: map.content as MapType['content'],
+    adventureId: map.adventureId,
+    campaignId: map.campaignId,
+    createdAt: map.createdAt.toISOString(),
+    updatedAt: map.updatedAt.toISOString(),
   }
 }
 
@@ -210,6 +244,7 @@ export async function campaignRoutes(fastify: FastifyInstance) {
           adventures: {
             orderBy: { updatedAt: 'desc' },
           },
+          worldMap: true,
         },
       })
 
@@ -231,6 +266,7 @@ export async function campaignRoutes(fastify: FastifyInstance) {
         campaign: {
           ...formatCampaign(campaign),
           adventures: campaign.adventures.map(formatAdventure),
+          worldMap: campaign.worldMap ? formatMap(campaign.worldMap) : null,
         },
       }
 
@@ -715,6 +751,219 @@ export async function campaignRoutes(fastify: FastifyInstance) {
       }
 
       return reply.status(201).send(response)
+    }
+  )
+
+  // POST /api/campaigns/:id/world-map - Create world map for campaign
+  fastify.post<{ Params: { id: string }; Body: CreateWorldMapRequest }>(
+    '/api/campaigns/:id/world-map',
+    async (
+      request: FastifyRequest<{ Params: { id: string }; Body: CreateWorldMapRequest }>,
+      reply: FastifyReply
+    ) => {
+      const user = await requireVerifiedUser(fastify, request, reply)
+      if (!user) return
+
+      const { id: campaignId } = request.params
+      const { name, description, gridType, width, height, content } = request.body
+
+      const campaign = await fastify.prisma.campaign.findUnique({
+        where: { id: campaignId },
+        include: { worldMap: true },
+      })
+
+      if (!campaign) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Campaign not found',
+        })
+      }
+
+      if (campaign.ownerId !== user.id) {
+        return reply.status(403).send({
+          error: 'Forbidden',
+          message: 'Not authorized to modify this campaign',
+        })
+      }
+
+      if (campaign.worldMap) {
+        return reply.status(409).send({
+          error: 'Conflict',
+          message: 'Campaign already has a world map',
+        })
+      }
+
+      // Validate name
+      if (!name || typeof name !== 'string') {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Name is required',
+        })
+      }
+
+      const trimmedName = name.trim()
+      if (trimmedName.length === 0) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Name is required',
+        })
+      }
+
+      if (trimmedName.length > MAX_NAME_LENGTH) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: `Name must be ${MAX_NAME_LENGTH} characters or less`,
+        })
+      }
+
+      // Validate description
+      let trimmedDescription: string | null = null
+      if (description !== undefined && description !== null) {
+        if (typeof description !== 'string') {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: 'Description must be a string',
+          })
+        }
+        trimmedDescription = description.trim()
+        if (trimmedDescription.length > MAX_DESCRIPTION_LENGTH) {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`,
+          })
+        }
+        if (trimmedDescription.length === 0) {
+          trimmedDescription = null
+        }
+      }
+
+      // Validate gridType
+      let validGridType: 'SQUARE' | 'HEX' = 'HEX'
+      if (gridType !== undefined) {
+        if (gridType !== 'SQUARE' && gridType !== 'HEX') {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: 'Grid type must be SQUARE or HEX',
+          })
+        }
+        validGridType = gridType
+      }
+
+      // Validate dimensions
+      const validWidth = width !== undefined ? width : 40
+      const validHeight = height !== undefined ? height : 30
+
+      if (typeof validWidth !== 'number' || !Number.isInteger(validWidth) || validWidth < 5 || validWidth > 100) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Width must be an integer between 5 and 100',
+        })
+      }
+
+      if (typeof validHeight !== 'number' || !Number.isInteger(validHeight) || validHeight < 5 || validHeight > 100) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Height must be an integer between 5 and 100',
+        })
+      }
+
+      const map = await fastify.prisma.map.create({
+        data: {
+          name: trimmedName,
+          description: trimmedDescription,
+          gridType: validGridType,
+          width: validWidth,
+          height: validHeight,
+          cellSize: 40,
+          campaignId,
+          content: content ?? undefined,
+        },
+      })
+
+      const mapResponse: MapResponse = {
+        map: formatMap(map),
+      }
+
+      return reply.status(201).send(mapResponse)
+    }
+  )
+
+  // GET /api/campaigns/:id/world-map - Get campaign's world map
+  fastify.get<{ Params: { id: string } }>(
+    '/api/campaigns/:id/world-map',
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const user = await requireVerifiedUser(fastify, request, reply)
+      if (!user) return
+
+      const { id } = request.params
+
+      const campaign = await fastify.prisma.campaign.findUnique({
+        where: { id },
+        include: { worldMap: true },
+      })
+
+      if (!campaign) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Campaign not found',
+        })
+      }
+
+      if (campaign.ownerId !== user.id) {
+        return reply.status(403).send({
+          error: 'Forbidden',
+          message: 'Not authorized to access this campaign',
+        })
+      }
+
+      const mapResponse: MapResponse | { map: null } = {
+        map: campaign.worldMap ? formatMap(campaign.worldMap) : null,
+      }
+
+      return reply.status(200).send(mapResponse)
+    }
+  )
+
+  // DELETE /api/campaigns/:id/world-map - Delete campaign's world map
+  fastify.delete<{ Params: { id: string } }>(
+    '/api/campaigns/:id/world-map',
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const user = await requireVerifiedUser(fastify, request, reply)
+      if (!user) return
+
+      const { id } = request.params
+
+      const campaign = await fastify.prisma.campaign.findUnique({
+        where: { id },
+        include: { worldMap: true },
+      })
+
+      if (!campaign) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Campaign not found',
+        })
+      }
+
+      if (campaign.ownerId !== user.id) {
+        return reply.status(403).send({
+          error: 'Forbidden',
+          message: 'Not authorized to modify this campaign',
+        })
+      }
+
+      if (!campaign.worldMap) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Campaign has no world map',
+        })
+      }
+
+      await fastify.prisma.map.delete({
+        where: { id: campaign.worldMap.id },
+      })
+
+      return reply.status(200).send({ success: true })
     }
   )
 }

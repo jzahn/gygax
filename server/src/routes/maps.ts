@@ -63,7 +63,8 @@ function formatMap(map: {
   height: number
   cellSize: number
   content: unknown
-  adventureId: string
+  adventureId: string | null
+  campaignId: string | null
   createdAt: Date
   updatedAt: Date
 }): Map {
@@ -77,6 +78,7 @@ function formatMap(map: {
     cellSize: map.cellSize,
     content: map.content as MapContent | null,
     adventureId: map.adventureId,
+    campaignId: map.campaignId,
     createdAt: map.createdAt.toISOString(),
     updatedAt: map.updatedAt.toISOString(),
   }
@@ -628,7 +630,10 @@ export async function mapRoutes(fastify: FastifyInstance) {
 
       const map = await fastify.prisma.map.findUnique({
         where: { id },
-        include: { adventure: { select: { ownerId: true } } },
+        include: {
+          adventure: { select: { ownerId: true } },
+          campaign: { select: { ownerId: true } },
+        },
       })
 
       if (!map) {
@@ -638,7 +643,8 @@ export async function mapRoutes(fastify: FastifyInstance) {
         })
       }
 
-      if (map.adventure.ownerId !== user.id) {
+      const ownerId = map.adventure?.ownerId ?? map.campaign?.ownerId
+      if (ownerId !== user.id) {
         return reply.status(403).send({
           error: 'Forbidden',
           message: 'Not authorized to access this map',
@@ -668,7 +674,10 @@ export async function mapRoutes(fastify: FastifyInstance) {
 
       const map = await fastify.prisma.map.findUnique({
         where: { id },
-        include: { adventure: { select: { ownerId: true } } },
+        include: {
+          adventure: { select: { ownerId: true } },
+          campaign: { select: { ownerId: true } },
+        },
       })
 
       if (!map) {
@@ -678,7 +687,8 @@ export async function mapRoutes(fastify: FastifyInstance) {
         })
       }
 
-      if (map.adventure.ownerId !== user.id) {
+      const ownerId = map.adventure?.ownerId ?? map.campaign?.ownerId
+      if (ownerId !== user.id) {
         return reply.status(403).send({
           error: 'Forbidden',
           message: 'Not authorized to modify this map',
@@ -812,7 +822,10 @@ export async function mapRoutes(fastify: FastifyInstance) {
 
       const map = await fastify.prisma.map.findUnique({
         where: { id },
-        include: { adventure: { select: { ownerId: true } } },
+        include: {
+          adventure: { select: { ownerId: true } },
+          campaign: { select: { ownerId: true } },
+        },
       })
 
       if (!map) {
@@ -822,7 +835,8 @@ export async function mapRoutes(fastify: FastifyInstance) {
         })
       }
 
-      if (map.adventure.ownerId !== user.id) {
+      const ownerId = map.adventure?.ownerId ?? map.campaign?.ownerId
+      if (ownerId !== user.id) {
         return reply.status(403).send({
           error: 'Forbidden',
           message: 'Not authorized to delete this map',
