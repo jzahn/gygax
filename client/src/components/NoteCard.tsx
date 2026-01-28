@@ -52,7 +52,7 @@ export function NoteCard({ note, onView, onEdit, onDelete }: NoteCardProps) {
   return (
     <div
       onClick={handleCardClick}
-      className="group cursor-pointer border-2 border-ink bg-parchment-100 p-4 shadow-brutal-sm card-texture transition-all hover:-translate-y-0.5 hover:shadow-brutal"
+      className="group cursor-pointer border-3 border-ink bg-parchment-100 p-4 shadow-brutal card-texture transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-display text-sm uppercase tracking-wide text-ink line-clamp-1">

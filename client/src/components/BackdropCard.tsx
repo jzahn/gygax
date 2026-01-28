@@ -36,7 +36,7 @@ export function BackdropCard({ backdrop, onEdit, onDelete, onPreview }: Backdrop
   return (
     <div
       onClick={handleCardClick}
-      className="group cursor-pointer border-2 border-ink bg-parchment-100 shadow-brutal-sm card-texture transition-all hover:-translate-y-0.5 hover:shadow-brutal"
+      className="group cursor-pointer border-3 border-ink bg-parchment-100 shadow-brutal card-texture transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
     >
       <div className="relative aspect-video overflow-hidden">
         <img

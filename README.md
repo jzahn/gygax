@@ -1,4 +1,4 @@
-# Gygax
+# Gygax - Virtual Tabletop
 
 ![Goblin Horde](.github/images/GoblinHorde.png)
 

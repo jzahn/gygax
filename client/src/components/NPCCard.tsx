@@ -58,7 +58,7 @@ export function NPCCard({ npc, onEdit, onDelete, onExport }: NPCCardProps) {
   return (
     <div
       onClick={handleCardClick}
-      className="group cursor-pointer border-2 border-ink bg-parchment-100 shadow-brutal-sm card-texture transition-all hover:-translate-y-0.5 hover:shadow-brutal"
+      className="group cursor-pointer border-3 border-ink bg-parchment-100 shadow-brutal card-texture transition-all hover:-translate-y-1 hover:shadow-brutal-lg"
     >
       <div className="flex gap-3 p-3">
         {/* Portrait */}
