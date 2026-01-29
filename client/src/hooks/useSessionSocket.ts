@@ -43,7 +43,20 @@ export function useSessionSocket({
   const mountedRef = useRef(true)
 
   const connect = useCallback(async () => {
-    if (!enabled || !sessionId) return
+    if (!enabled || !sessionId || !mountedRef.current) return
+
+    // Close existing socket before creating a new one
+    if (socketRef.current) {
+      socketRef.current.onclose = null // Prevent onclose from firing during cleanup
+      socketRef.current.close()
+      socketRef.current = null
+    }
+
+    // Clear any existing ping interval
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current)
+      pingIntervalRef.current = null
+    }
 
     try {
       // Get WS token from REST API
@@ -171,18 +184,18 @@ export function useSessionSocket({
       }
 
       ws.onclose = () => {
-        if (!mountedRef.current) return
-
-        setIsConnected(false)
-
         // Clear ping interval
         if (pingIntervalRef.current) {
           clearInterval(pingIntervalRef.current)
           pingIntervalRef.current = null
         }
 
-        // Schedule reconnect with exponential backoff
-        if (enabled) {
+        if (!mountedRef.current) return
+
+        setIsConnected(false)
+
+        // Schedule reconnect with exponential backoff (only if still mounted and enabled)
+        if (enabled && mountedRef.current) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptRef.current), 30000)
           reconnectAttemptRef.current += 1
 
@@ -215,13 +228,19 @@ export function useSessionSocket({
       // Clear timers
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
       }
       if (pingIntervalRef.current) {
         clearInterval(pingIntervalRef.current)
+        pingIntervalRef.current = null
       }
 
-      // Close socket
+      // Close socket - null out handlers first to prevent any callbacks
       if (socketRef.current) {
+        socketRef.current.onopen = null
+        socketRef.current.onmessage = null
+        socketRef.current.onclose = null
+        socketRef.current.onerror = null
         socketRef.current.close()
         socketRef.current = null
       }
