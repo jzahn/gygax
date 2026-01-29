@@ -31,7 +31,7 @@ function SizeButton({ size, isSelected, onClick, onHover }: SizeButtonProps) {
       onMouseEnter={() => onHover?.(size)}
       onMouseLeave={() => onHover?.(null)}
       className={`
-        flex h-7 w-16 items-center justify-center border-2 transition-all
+        flex h-[32px] w-[68px] items-center justify-center border-2 transition-all
         ${
           isSelected
             ? '-translate-y-0.5 border-ink bg-white shadow-brutal'

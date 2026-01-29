@@ -331,13 +331,13 @@ export function MapEditorPage() {
 
       {/* Footer/Status Bar */}
       <footer className="flex items-center justify-between border-t-3 border-ink bg-parchment-100 px-4 py-2">
-        <div className="flex items-center gap-4 font-body text-xs text-ink-soft">
+        <div className="hidden items-center gap-4 font-body text-xs text-ink-soft sm:flex">
           {map.description && <span>{map.description}</span>}
           <SaveStatusIndicator status={drawing.state.saveStatus} />
         </div>
-        <div className="flex items-center gap-4">
+        <div className="ml-auto flex items-center gap-4">
           {map.gridType === 'HEX' && (
-            <label className="flex cursor-pointer items-center gap-2 font-body text-xs text-ink-soft">
+            <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap font-body text-xs text-ink-soft">
               <span>Color tint</span>
               <button
                 type="button"

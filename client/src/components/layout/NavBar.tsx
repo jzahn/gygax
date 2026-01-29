@@ -31,7 +31,7 @@ export function NavBar() {
           <img
             src="/logo/logo.jpg"
             alt="Gygax logo"
-            className="h-8 w-8 border-2 border-ink shadow-brutal-sm transition-all duration-100 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal active:translate-x-0.5 active:translate-y-0.5 active:shadow-brutal-pressed"
+            className="h-10 w-10 border-3 border-ink shadow-brutal-sm transition-all duration-100 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal active:translate-x-0.5 active:translate-y-0.5 active:shadow-brutal-pressed"
           />
           <span className="font-display text-xl uppercase tracking-wide text-ink">
             Gygax

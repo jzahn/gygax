@@ -54,6 +54,11 @@ export function NPCPage() {
     fetchNpc()
   }, [fetchNpc])
 
+  // Scroll to top when navigating to this page
+  React.useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [npcId])
+
   const handleUpdate = async (data: UpdateNPCRequest) => {
     if (!npc) return
 
