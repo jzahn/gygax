@@ -14,11 +14,11 @@ Establish the Session data model, REST API for session lifecycle management, and
 - Session access types (Open, Campaign, Invite)
 - Campaign membership model and API
 - Session invite model and API
-- Session lifecycle (active, paused, ended)
+- Session lifecycle (forming, active, paused, ended)
 - WebSocket server setup with authentication
 - WebSocket connection management (connect, disconnect, reconnect)
 - Real-time presence events (player joined, player left)
-- Session browsing for players (active sessions list)
+- Session browsing for players (FORMING for all; ACTIVE for Campaign/Invite late-join)
 - Adventure page "Start Session" button
 - Adventure mode session list page
 
@@ -51,10 +51,11 @@ Establish the Session data model, REST API for session lifecycle management, and
 ```prisma
 model Session {
   id          String            @id @default(cuid())
-  status      SessionStatus     @default(ACTIVE)
+  status      SessionStatus     @default(FORMING)
   accessType  SessionAccessType @default(OPEN)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+  startedAt   DateTime?         // When DM started the session (FORMING → ACTIVE)
   pausedAt    DateTime?
   endedAt     DateTime?
 
@@ -79,9 +80,10 @@ model Session {
 }
 
 enum SessionStatus {
-  ACTIVE
-  PAUSED
-  ENDED
+  FORMING  // DM is gathering players, session visible in browse lists
+  ACTIVE   // Session is live, removed from browse lists
+  PAUSED   // Session paused mid-game
+  ENDED    // Session complete
 }
 
 enum SessionAccessType {
@@ -210,7 +212,7 @@ Start a new session from an adventure. Only the adventure owner (DM) can start s
 {
   "session": {
     "id": "clx...",
-    "status": "ACTIVE",
+    "status": "FORMING",
     "accessType": "OPEN",
     "adventureId": "clx...",
     "dmId": "clx...",
@@ -218,6 +220,7 @@ Start a new session from an adventure. Only the adventure owner (DM) can start s
     "activeBackdropId": null,
     "createdAt": "2026-01-27T12:00:00.000Z",
     "updatedAt": "2026-01-27T12:00:00.000Z",
+    "startedAt": null,
     "pausedAt": null,
     "endedAt": null,
     "adventure": {
@@ -238,13 +241,13 @@ Start a new session from an adventure. Only the adventure owner (DM) can start s
 **Validation:**
 - Adventure must exist and be owned by the authenticated user
 - User's email must be verified
-- Adventure must not already have an ACTIVE or PAUSED session (one live session per adventure at a time)
+- Adventure must not already have a FORMING, ACTIVE, or PAUSED session (one live session per adventure at a time)
 
 **Errors:**
 - 401: Not authenticated
 - 403: Email not verified OR not the adventure owner
 - 404: Adventure not found
-- 409: Adventure already has an active/paused session
+- 409: Adventure already has a forming/active/paused session
 
 #### GET /api/sessions
 
@@ -252,15 +255,17 @@ List sessions. Behavior differs by context:
 
 **Query params:**
 - `adventureId` (optional): Filter to a specific adventure's sessions (DM view)
-- `status` (optional): Filter by status (`ACTIVE`, `PAUSED`, `ENDED`)
+- `status` (optional): Filter by status (`FORMING`, `ACTIVE`, `PAUSED`, `ENDED`)
 - `browse` (optional, boolean): If true, returns all joinable sessions across all adventures (player browse view)
 
 **DM view** (with `adventureId`): Returns all sessions for that adventure, requires adventure ownership.
 
-**Player browse view** (with `browse=true`): Returns ACTIVE sessions the player can join, filtered by access type:
-- **OPEN sessions:** All active OPEN sessions (not owned by player)
-- **CAMPAIGN sessions:** Active CAMPAIGN sessions where player is a Campaign member
-- **INVITE sessions:** Active INVITE sessions where player has been invited
+**Player browse view** (with `browse=true`): Returns joinable sessions the player can access, filtered by access type:
+- **OPEN sessions:** Only FORMING OPEN sessions (strangers can't join mid-game)
+- **CAMPAIGN sessions:** FORMING or ACTIVE CAMPAIGN sessions where player is a Campaign member (members can join late)
+- **INVITE sessions:** FORMING or ACTIVE INVITE sessions where player has been invited (invitees can join late)
+
+PAUSED sessions are not shown in browse lists (the game is on hold).
 
 Results are sorted by access type: INVITE first, then CAMPAIGN, then OPEN. Within each type, sorted by creation date (newest first).
 
@@ -384,15 +389,20 @@ Join a session as a player with a selected character.
 ```
 
 **Validation:**
-- Session must be ACTIVE
+- Session must be in a joinable state (see below)
 - Character must be owned by the authenticated user
 - User must not already be a participant in this session
 - User must not be the DM of this session (DMs don't join their own session as players)
 - Maximum 8 players per session
 - User must have access based on session accessType:
-  - OPEN: Anyone can join
-  - CAMPAIGN: Must be a member of the adventure's campaign
-  - INVITE: Must have a SessionInvite record
+  - OPEN: Anyone can join, but only during FORMING
+  - CAMPAIGN: Must be a member of the adventure's campaign, can join during FORMING or ACTIVE
+  - INVITE: Must have a SessionInvite record, can join during FORMING or ACTIVE
+
+**Joinable states by access type:**
+- OPEN sessions: FORMING only (strangers can't join mid-game)
+- CAMPAIGN sessions: FORMING or ACTIVE (members can join late)
+- INVITE sessions: FORMING or ACTIVE (invitees can join late)
 
 **Errors:**
 - 400: Missing characterId, or character not owned by user
@@ -400,7 +410,7 @@ Join a session as a player with a selected character.
 - 403: Cannot join own session as player, or no access (CAMPAIGN/INVITE restrictions)
 - 404: Session not found, or character not found
 - 409: Already a participant, or session is full (8 players)
-- 410: Session is paused or ended
+- 410: Session is not in a joinable state (OPEN sessions must be FORMING; all sessions reject PAUSED/ENDED)
 
 #### POST /api/sessions/:id/leave
 
@@ -432,8 +442,12 @@ Update session state. DM only.
 ```
 
 Valid status transitions:
+- FORMING → ACTIVE (sets `startedAt`, session removed from browse lists)
+- FORMING → ENDED (cancel before starting)
 - ACTIVE → PAUSED (sets `pausedAt`)
+- ACTIVE → FORMING (re-open for more players, clears `startedAt`)
 - PAUSED → ACTIVE (clears `pausedAt`)
+- PAUSED → FORMING (re-open for more players, clears `startedAt` and `pausedAt`)
 - ACTIVE → ENDED (sets `endedAt`)
 - PAUSED → ENDED (sets `endedAt`)
 
@@ -754,14 +768,14 @@ The client doesn't send much in this spec — most actions go through REST endpo
 
 - Client sends `ping` every 30 seconds
 - Server responds with WebSocket pong frame (built-in)
-- If no ping received in 60 seconds, server closes the connection
+- If no ping received in 120 seconds, server closes the connection
 - Client detects close and triggers reconnection
 
 ### 7. Type Definitions (shared/src/types.ts)
 
 ```typescript
 // Session types
-export type SessionStatus = 'ACTIVE' | 'PAUSED' | 'ENDED'
+export type SessionStatus = 'FORMING' | 'ACTIVE' | 'PAUSED' | 'ENDED'
 export type SessionAccessType = 'OPEN' | 'CAMPAIGN' | 'INVITE'
 
 export interface Session {
@@ -774,6 +788,7 @@ export interface Session {
   activeBackdropId: string | null
   createdAt: string
   updatedAt: string
+  startedAt: string | null
   pausedAt: string | null
   endedAt: string | null
 }
@@ -993,25 +1008,25 @@ Clicking "Start Session" opens a **StartSessionModal** that shows:
 │  START A SESSION                                   ✕   │
 │  ══════════════════════════════════════════════════    │
 │                                                        │
-│  ACTIVE SESSIONS                                       │
+│  YOUR SESSIONS                                         │
 │  ┌──────────────────────────────────────────────────┐  │
-│  │  ● The Keep on the Borderlands     [Resume]      │  │
+│  │  ○ The Keep on the Borderlands     [View]        │  │
+│  │    FORMING • 2 players waiting                   │  │
+│  └──────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  ● Tomb of Horrors                 [View]        │  │
 │  │    ACTIVE • 3 players                            │  │
 │  └──────────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────┐  │
-│  │  ◐ Tomb of Horrors                 [Return]      │  │
+│  │  ◐ Caves of Chaos                  [View]        │  │
 │  │    PAUSED • 2 players                            │  │
 │  └──────────────────────────────────────────────────┘  │
 │                                                        │
-│  ──────────── OR START NEW ────────────                │
+│  ──────────── OR CREATE NEW ────────────               │
 │                                                        │
 │  SELECT AN ADVENTURE                                   │
 │  ┌──────────────────────────────────────────────────┐  │
-│  │  Caves of Chaos                    [Start]       │  │
-│  │    Campaign: Greyhawk                            │  │
-│  └──────────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  Village of Hommlet                [Start]       │  │
+│  │  Village of Hommlet                [Create]      │  │
 │  │    Standalone                                    │  │
 │  └──────────────────────────────────────────────────┘  │
 │                                                        │
@@ -1020,8 +1035,13 @@ Clicking "Start Session" opens a **StartSessionModal** that shows:
 └────────────────────────────────────────────────────────┘
 ```
 
-- **Active Sessions**: Shows any ACTIVE/PAUSED sessions the DM owns. "Resume" navigates to the session page.
-- **Start New**: Lists all adventures (from campaigns + standalone) that don't have an active session. Clicking "Start" opens the access type selection modal, then creates the session.
+**Status indicators:**
+- ○ FORMING - gathering players (visible in browse lists)
+- ● ACTIVE - session in progress
+- ◐ PAUSED - session paused
+
+- **Your Sessions**: Shows any FORMING/ACTIVE/PAUSED sessions the DM owns. "View" navigates to the session page.
+- **Create New**: Lists adventures that don't have an existing session. Clicking "Create" opens the access type selection modal, then creates a FORMING session.
 
 **Adventure Mode Page (client/src/pages/AdventureModePage.tsx)**
 
@@ -1045,19 +1065,19 @@ Clicking "Join Session" opens a **JoinSessionModal** that shows available sessio
 │  (Sorted: Invited → Campaign → Open)                   │
 │                                                        │
 │  ┌──────────────────────────────────────────────────┐  │
-│  │  🔒 Invite                                        │  │
+│  │  🔒 Invite  ● ACTIVE                              │  │
 │  │  The Keep on the Borderlands                     │  │
 │  │  DM: Gary • 3 players              [JOIN]        │  │
 │  └──────────────────────────────────────────────────┘  │
 │                                                        │
 │  ┌──────────────────────────────────────────────────┐  │
-│  │  👥 Campaign                                      │  │
+│  │  👥 Campaign  ○ FORMING                           │  │
 │  │  Tomb of the Serpent Kings                       │  │
 │  │  DM: Erol • 1 player               [JOIN]        │  │
 │  └──────────────────────────────────────────────────┘  │
 │                                                        │
 │  ┌──────────────────────────────────────────────────┐  │
-│  │  🌐 Open                                          │  │
+│  │  🌐 Open  ○ FORMING                               │  │
 │  │  Caves of Chaos                                  │  │
 │  │  DM: Mike • 0 players              [JOIN]        │  │
 │  └──────────────────────────────────────────────────┘  │
@@ -1066,6 +1086,8 @@ Clicking "Join Session" opens a **JoinSessionModal** that shows available sessio
 │  No quests await... check back later.                  │
 └────────────────────────────────────────────────────────┘
 ```
+
+**Note:** Invite and Campaign sessions show both FORMING and ACTIVE states (late join allowed). Open sessions only show FORMING (must join before the session starts).
 
 The modal includes the join flow: session browsing and character selection.
 
@@ -1080,20 +1102,22 @@ Add a "Start Session" button to the adventure detail page. Only visible to the a
 ```
 ┌─────────────────────────────────────────────────────┐
 │  [Hero/Header - existing]                           │
-│                              [Start Session] [Edit]  │
+│                            [Create Session] [Edit]  │
 ├─────────────────────────────────────────────────────┤
 │  ...existing content...                             │
 ```
 
 **Behavior:**
-- If no active/paused session exists: button says "START SESSION", clicking creates a new session and navigates to `/sessions/:id`
-- If an active/paused session exists: button says "RESUME SESSION" (active) or "RETURN TO SESSION" (paused), clicking navigates to existing session
+- If no session exists: button says "CREATE SESSION", clicking opens access type selection, then creates a FORMING session and navigates to `/sessions/:id`
+- If a FORMING session exists: button says "VIEW SESSION", clicking navigates to existing session (lobby)
+- If an ACTIVE session exists: button says "RESUME SESSION", clicking navigates to existing session
+- If a PAUSED session exists: button says "RETURN TO SESSION", clicking navigates to existing session
 
 #### Adventure Mode Session List (client/src/pages/SessionBrowsePage.tsx)
 
 **Route:** `/adventure/sessions`
 
-A page where players can browse active sessions they have access to.
+A page where players can browse joinable sessions they have access to.
 
 **Layout:**
 ```
@@ -1105,19 +1129,19 @@ A page where players can browse active sessions they have access to.
 │  (Sorted: Invited → Campaign → Open)                │
 │                                                     │
 │  ┌─────────────────────────────────────────────┐    │
-│  │  🔒 Invite                                   │    │
+│  │  🔒 Invite  ● ACTIVE                         │    │
 │  │  The Keep on the Borderlands                │    │
 │  │  DM: Gary • 3 players            [JOIN]      │    │
 │  └─────────────────────────────────────────────┘    │
 │                                                     │
 │  ┌─────────────────────────────────────────────┐    │
-│  │  👥 Campaign                                 │    │
+│  │  👥 Campaign  ○ FORMING                      │    │
 │  │  Tomb of the Serpent Kings                  │    │
 │  │  DM: Erol • 1 player             [JOIN]      │    │
 │  └─────────────────────────────────────────────┘    │
 │                                                     │
 │  ┌─────────────────────────────────────────────┐    │
-│  │  🌐 Open                                     │    │
+│  │  🌐 Open  ○ FORMING                          │    │
 │  │  Caves of Chaos                             │    │
 │  │  DM: Mike • 0 players            [JOIN]      │    │
 │  └─────────────────────────────────────────────┘    │
@@ -1126,6 +1150,8 @@ A page where players can browse active sessions they have access to.
 │  No quests await... check back later.               │
 └─────────────────────────────────────────────────────┘
 ```
+
+**Note:** Invite and Campaign sessions can be joined during FORMING or ACTIVE (late join). Open sessions can only be joined during FORMING.
 
 **Sorting Logic:**
 Sessions are automatically sorted by access type priority:
@@ -1266,14 +1292,38 @@ Add a "Members" section to the Campaign detail page where DMs can manage who bel
 **Route:** `/sessions/:id`
 
 For this spec, the session page is a minimal view showing:
-- Session status (active/paused) and access type
-- Connected users list
-- DM controls: Pause/Resume/End session buttons
+- Session status (forming/active/paused) and access type
+- Connected users list (participants who have joined)
+- DM controls vary by state:
+  - FORMING: Start Session, Cancel Session
+  - ACTIVE: Pause, Re-open (back to FORMING), End Session
+  - PAUSED: Resume, Re-open (back to FORMING), End Session
 - Player: Leave session button
 
 The full game UI (map, chat, player cards sidebar) is spec 011b.
 
-**DM View:**
+**DM View — FORMING (Lobby):**
+```
+┌─────────────────────────────────────────────────────┐
+│  ← Back to Adventure    SESSION: The Keep on the... │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  STATUS: ○ FORMING         ACCESS: 🔒 Invite        │
+│  Waiting for players to join...                     │
+│                                                     │
+│  PLAYERS (2/8)                                      │
+│  ┌─────────────────────────────────────────────┐    │
+│  │ ★ Gary (DM)                          ● Online│   │
+│  │   Dave — Theron the Bold (Ftr 3)     ● Online│   │
+│  │   Sarah — Elara (M-U 2)             ● Online│   │
+│  └─────────────────────────────────────────────┘    │
+│                                                     │
+│  [Start Session]  [Cancel]                          │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+**DM View — ACTIVE:**
 ```
 ┌─────────────────────────────────────────────────────┐
 │  ← Back to Adventure    SESSION: The Keep on the... │
@@ -1281,19 +1331,21 @@ The full game UI (map, chat, player cards sidebar) is spec 011b.
 │                                                     │
 │  STATUS: ● ACTIVE          ACCESS: 🔒 Invite        │
 │                                                     │
-│  CONNECTED                                          │
+│  PLAYERS (2/8)                                      │
 │  ┌─────────────────────────────────────────────┐    │
 │  │ ★ Gary (DM)                          ● Online│   │
 │  │   Dave — Theron the Bold (Ftr 3)     ● Online│   │
 │  │   Sarah — Elara (M-U 2)             ○ Away  │   │
 │  └─────────────────────────────────────────────┘    │
 │                                                     │
-│  [Pause Session]  [End Session]                     │
+│  [Pause]  [Re-open]  [End Session]                  │
 │                                                     │
 └─────────────────────────────────────────────────────┘
 ```
 
-**Player View:**
+"Re-open" moves the session back to FORMING state so more players can join (useful if someone drops out mid-session).
+
+**Player View — FORMING (Waiting):**
 ```
 ┌─────────────────────────────────────────────────────┐
 │  ← Back to Sessions    SESSION: The Keep on the...  │
@@ -1301,7 +1353,30 @@ The full game UI (map, chat, player cards sidebar) is spec 011b.
 │                                                     │
 │  Playing as: Theron the Bold (Fighter, Level 3)     │
 │                                                     │
-│  CONNECTED                                          │
+│  STATUS: ○ FORMING                                  │
+│  Waiting for the DM to start the session...         │
+│                                                     │
+│  PLAYERS (2/8)                                      │
+│  ┌─────────────────────────────────────────────┐    │
+│  │ ★ Gary (DM)                          ● Online│   │
+│  │   Dave — Theron the Bold (Ftr 3)     ● Online│   │
+│  │   Sarah — Elara (M-U 2)             ● Online│   │
+│  └─────────────────────────────────────────────┘    │
+│                                                     │
+│  [Leave Session]                                    │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+**Player View — ACTIVE:**
+```
+┌─────────────────────────────────────────────────────┐
+│  ← Back to Sessions    SESSION: The Keep on the...  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  Playing as: Theron the Bold (Fighter, Level 3)     │
+│                                                     │
+│  PLAYERS (2/8)                                      │
 │  ┌─────────────────────────────────────────────┐    │
 │  │ ★ Gary (DM)                          ● Online│   │
 │  │   Dave — Theron the Bold (Ftr 3)     ● Online│   │
@@ -1399,10 +1474,14 @@ Session cards in the browse list follow the B/X aesthetic:
 
 ### Status Indicators
 
+**Session status:**
+- **Forming:** Empty circle ○ (gathering players, visible in browse lists)
 - **Active:** Filled black circle ●
-- **Paused:** Half-filled circle ◐ (or use "PAUSED" text badge)
+- **Paused:** Half-filled circle ◐
+
+**Connection status:**
 - **Online (connected via WS):** Green dot (one of the rare uses of color per the design system — connection status is important)
-- **Offline (not connected):** Empty circle ○
+- **Offline (not connected):** Gray empty circle
 
 ## Acceptance Criteria
 
@@ -1425,7 +1504,7 @@ Session cards in the browse list follow the B/X aesthetic:
 
 ### API - Sessions
 - [ ] POST /api/adventures/:id/sessions creates a session with accessType
-- [ ] POST returns 409 if adventure already has active/paused session
+- [ ] POST returns 409 if adventure already has forming/active/paused session
 - [ ] GET /api/sessions?adventureId=x returns sessions for that adventure
 - [ ] GET /api/sessions?browse=true returns sessions filtered by access type (OPEN, CAMPAIGN membership, INVITE)
 - [ ] GET /api/sessions?browse=true sorts results: INVITE → CAMPAIGN → OPEN
@@ -1463,28 +1542,32 @@ Session cards in the browse list follow the B/X aesthetic:
 - [ ] `user:disconnected` broadcast on leave
 - [ ] `session:updated` broadcast when session state changes
 - [ ] Ping/pong keepalive works
-- [ ] Stale connections cleaned up after 60s no ping
+- [ ] Stale connections cleaned up after 120s no ping
 - [ ] Multiple users in same session receive each other's events
 
 ### Client - Entry Points
 - [ ] Forge dashboard header button changed from "+ New Campaign" to "Start Session"
-- [ ] StartSessionModal opens showing active sessions + adventures to start from
-- [ ] DM can resume active/paused sessions from StartSessionModal
-- [ ] DM can start new session from any adventure in StartSessionModal
+- [ ] StartSessionModal opens showing FORMING/ACTIVE/PAUSED sessions + adventures to create from
+- [ ] DM can view any of their sessions from StartSessionModal
+- [ ] DM can create new FORMING session from any available adventure
 - [ ] Adventure mode header button changed from "+ New Character" to "Join Session"
-- [ ] JoinSessionModal opens showing browsable sessions
+- [ ] JoinSessionModal opens showing browsable FORMING sessions
 - [ ] Player can join from browse list in JoinSessionModal
 
 ### Client - Session Management
-- [ ] Adventure page shows Start/Resume Session button
-- [ ] Start Session flow allows selecting access type (Open, Campaign, Invite)
-- [ ] Session browse page lists active sessions filtered by access
+- [ ] Adventure page shows Create/View Session button based on existing session state
+- [ ] Create Session flow allows selecting access type (Open, Campaign, Invite)
+- [ ] Session browse page lists joinable sessions: FORMING for all types, plus ACTIVE for CAMPAIGN/INVITE
 - [ ] Session browse page sorts sessions: Invite → Campaign → Open
 - [ ] SessionTypeChip displays correct icon and label for each access type
 - [ ] Character selection modal appears for multi-character players
 - [ ] Session page shows connected users in real-time
-- [ ] Session page shows access type indicator
-- [ ] DM can pause/resume/end session
+- [ ] Session page shows status (FORMING/ACTIVE/PAUSED) and access type
+- [ ] DM can start session (FORMING → ACTIVE)
+- [ ] DM can pause session (ACTIVE → PAUSED)
+- [ ] DM can resume session (PAUSED → ACTIVE)
+- [ ] DM can re-open session for more players (ACTIVE/PAUSED → FORMING)
+- [ ] DM can end/cancel session
 - [ ] Player can leave session
 - [ ] WebSocket auto-reconnects on disconnect
 - [ ] Campaign page shows Members section (owner only)
@@ -1508,76 +1591,91 @@ Session cards in the browse list follow the B/X aesthetic:
 1. Login as DM, navigate to Forge dashboard
 2. Verify header button says "Start Session" (not "+ New Campaign")
 3. Click "Start Session" → StartSessionModal opens
-4. Verify modal shows any active/paused sessions (if any)
-5. Verify modal lists adventures available to start from
-6. Click "Start" on an adventure → access type selection appears
+4. Verify modal shows any FORMING/ACTIVE/PAUSED sessions (if any)
+5. Verify modal lists adventures available to create new sessions from
+6. Click "Create" on an adventure → access type selection appears
 7. Close modal, verify campaign section still has "+ New Campaign" button
 
 **Adventure Mode:**
 1. Switch to Adventure mode
 2. Verify header button says "Join Session" (not "+ New Character")
 3. Click "Join Session" → JoinSessionModal opens
-4. Verify modal shows session browse list
+4. Verify modal shows joinable sessions (FORMING for all, plus ACTIVE for CAMPAIGN/INVITE types)
 5. Close modal, verify characters section still has "+ New Character" button
 
 ### 2. Session Lifecycle (OPEN session)
 
 1. Login as DM, click "Start Session" on Forge dashboard
 2. Select an adventure, then select "Open" access type
-3. Session created, redirected to session page
-4. Verify session shows status and access type
+3. Session created in FORMING state, redirected to session page
+4. Verify session shows ○ FORMING status and 🌐 Open access type
 5. Open incognito window, login as player
 6. Navigate to Adventure > Sessions (or use Join Session button)
-7. Verify the active session appears in the browse list with 🌐 Open chip
+7. Verify the FORMING session appears in the browse list with 🌐 Open chip
 8. Click JOIN, select character → join session
-9. Verify DM's session page shows player connected
-10. DM clicks Pause → status updates for both users
-11. DM clicks Resume → session active again
-12. Player clicks Leave → removed from participant list
-13. DM clicks End Session → session ended
+9. Verify DM's session page shows player in the players list
+10. DM clicks "Start Session" → status changes to ● ACTIVE
+11. Player's view updates to show session is now active
+12. Verify OPEN session NO LONGER appears in browse list (OPEN = FORMING only)
+13. New player cannot join an ACTIVE OPEN session (would need to wait for re-open)
+14. DM clicks Pause → status changes to ◐ PAUSED
+15. DM clicks Resume → status back to ● ACTIVE
+16. DM clicks "Re-open" → status back to ○ FORMING (session reappears in browse list)
+17. Player clicks Leave → removed from participant list
+18. DM clicks End Session → session ended
 
-### 3. Campaign Membership Flow
+### 3. Campaign Membership Flow (late join)
 
 1. Login as DM, navigate to a campaign
 2. Click "Add Member" in the Members section
 3. Enter player's email → member added
 4. Verify member appears in the members list
-5. Open incognito window, login as that player
-6. Navigate to Adventure > Sessions
-7. Player should NOT see the session yet (no session created)
-8. DM creates a CAMPAIGN-type session from an adventure in that campaign
-9. Player refreshes sessions page → sees session with 👥 Campaign chip
-10. Player joins session successfully
-11. DM removes player from campaign members
-12. Player can no longer see new CAMPAIGN sessions (but stays in current session)
+5. DM creates a CAMPAIGN-type session from an adventure in that campaign (FORMING state)
+6. DM starts the session (FORMING → ACTIVE)
+7. Open incognito window, login as the campaign member (late arrival)
+8. Navigate to Adventure > Sessions
+9. Player sees the ACTIVE session with 👥 Campaign chip (campaign members can join late!)
+10. Player joins the ACTIVE session successfully
+11. Verify DM's session page shows the late player connected
+12. DM removes player from campaign members
+13. If player leaves and tries to rejoin, they can no longer see/join the session
 
-### 4. Session Invite Flow
+### 4. Session Invite Flow (late join)
 
 1. Login as DM, navigate to an adventure
 2. Click "Start Session" → select "Invite Only" access type
-3. Session created, DM sees invite management UI
+3. Session created in FORMING state, DM sees invite management UI
 4. DM clicks "Invite Player" → enters player's email
 5. Invite created and shown in invites list
-6. Open incognito window, login as invited player
-7. Navigate to Adventure > Sessions
-8. Player sees session with 🔒 Invite chip (appears first in list)
-9. Player joins session successfully
-10. Login as different player (not invited)
-11. Navigate to Adventure > Sessions
-12. This player does NOT see the INVITE session in their list
-13. DM removes invite → invited player can no longer see new INVITE sessions
+6. DM starts the session (FORMING → ACTIVE)
+7. Open incognito window, login as invited player (late arrival)
+8. Navigate to Adventure > Sessions
+9. Player sees ACTIVE session with 🔒 Invite chip (invitees can join late!)
+10. Player joins the ACTIVE session successfully
+11. Login as different player (not invited)
+12. Navigate to Adventure > Sessions
+13. This player does NOT see the INVITE session (not invited)
+14. DM removes invite from the first player
+15. If that player leaves and tries to rejoin, they can no longer see/join the session
 
-### 5. Session List Sorting
+### 5. Session List Sorting & Late Join
 
-1. Create multiple sessions with different access types
+1. Create sessions with different access types and states:
+   - OPEN session in FORMING state
+   - OPEN session in ACTIVE state
+   - CAMPAIGN session in ACTIVE state
+   - INVITE session in ACTIVE state
 2. Login as a player who is: invited to one, campaign member of another, and can see open ones
 3. Navigate to Adventure > Sessions
-4. Verify order: Invite sessions first, Campaign sessions second, Open sessions last
-5. Within each group, verify newest sessions appear first
+4. Verify OPEN ACTIVE session does NOT appear (OPEN = FORMING only)
+5. Verify CAMPAIGN ACTIVE session DOES appear (members can join late)
+6. Verify INVITE ACTIVE session DOES appear (invitees can join late)
+7. Verify order: Invite sessions first, Campaign sessions second, Open sessions last
+8. Within each group, verify newest sessions appear first
 
 ### 6. WebSocket Tests
 
-1. DM starts session, opens session page
+1. DM creates session (FORMING), opens session page
 2. Player joins session, opens session page
 3. Verify both see each other as "Online"
 4. Player refreshes page → reconnects, still shows online
@@ -1587,16 +1685,19 @@ Session cards in the browse list follow the B/X aesthetic:
 
 ### 7. Edge Cases
 
-1. Try to start session when one already active → 409 error
+1. Try to create session when one already exists (FORMING/ACTIVE/PAUSED) → 409 error
 2. Try to join with someone else's character → 400 error
 3. Try to join as DM of the session → 403 error
 4. Try to join when session is full (8 players) → 409 error
-5. Try to join paused/ended session → 410 error
-6. Try to join CAMPAIGN session without membership → 403 error
-7. Try to join INVITE session without invite → 403 error
-8. Delete adventure with active session → cascade deletes session
-9. Delete campaign → cascade deletes campaign members
-10. Two players join simultaneously → both succeed, both see each other
+5. Try to join PAUSED or ENDED session → 410 error
+6. Try to join ACTIVE OPEN session → 410 error (OPEN = FORMING only)
+7. Try to join ACTIVE CAMPAIGN session as non-member → 403 error
+8. Try to join ACTIVE INVITE session without invite → 403 error
+9. Join ACTIVE CAMPAIGN session as member → succeeds (late join allowed)
+10. Join ACTIVE INVITE session with invite → succeeds (late join allowed)
+11. Delete adventure with session → cascade deletes session
+12. Delete campaign → cascade deletes campaign members
+13. Two players join simultaneously → both succeed, both see each other
 
 ### 8. Authorization Tests
 

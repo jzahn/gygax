@@ -28,7 +28,7 @@ Currently most pen and paper D&D games are played via Discord, which lacks purpo
 | ----------------------- | ------------------------------------------------------------------------------------------------------- |
 | **Campaign**            | A collection of Adventures with a name, description, and landscape banner image. Contains a world map accessible from all Adventures within it (with shared fog of war). |
 | **Adventure**           | A DM's playable unit containing maps, encounters, backdrops, NPCs, and notes. The core organizational unit for game content that persists between sessions. |
-| **Session**             | A live game instance started from an Adventure that players join. Real-time sync of map, chat, and audio. Players browse and join active Sessions (don't see Campaign/Adventure hierarchy). |
+| **Session**             | A game instance created from an Adventure. Begins in FORMING state (players can browse and join), then DM starts it (ACTIVE state, removed from browse lists). Can be paused and re-opened for more players. |
 | **Map**                 | A drawable grid (hex for outdoor/wilderness, square for indoor/dungeon) in B/X black-and-white style.   |
 | **Transition**          | Moving between maps. In Phase 1, DM manually switches the displayed map. Phase 2 adds formal linking.   |
 | **Encounter**           | A meeting with creatures/NPCs. Can be **static** (placed on map) or **random** (triggered from tables). |
@@ -223,16 +223,17 @@ The application has two main navigation modes accessible via a persistent top na
 #### Flow 4: DM Starts a Live Game Session
 
 1. DM navigates to an Adventure from within a Campaign
-2. DM clicks "Start Session" to go live
+2. DM clicks "Start Session"
 3. DM selects session access type:
-   - **Open:** Anyone can browse and join
-   - **Campaign:** Only Campaign members can see and join
-   - **Invite:** DM explicitly invites specific players (by email/username)
+   - **Open:** Anyone can browse and join during FORMING only
+   - **Campaign:** Campaign members can join anytime (including late, during ACTIVE)
+   - **Invite:** Invited players can join anytime (including late, during ACTIVE)
 4. If Invite type, DM specifies players to invite
-5. Session is created and players with access can see it in their session list
-6. DM waits in lobby as players join
-7. Once players are ready, DM begins the session
-8. Adventure is now in "live" mode with real-time sync
+5. Session is created in **FORMING** state — players with access can see it in their session list
+6. Players browse and join the session during the forming phase
+7. Once players are ready, DM clicks "Start" to begin — session moves to **ACTIVE** state
+8. Open sessions are removed from browse lists; Campaign/Invite sessions remain visible for late joiners
+9. If a player leaves mid-session, DM can "Re-open" (for Open sessions) or invite replacements (for Invite sessions)
 
 #### Flow 5: Player Creates a Character
 
