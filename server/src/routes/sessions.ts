@@ -16,7 +16,7 @@ import type {
   WSTokenResponse,
   CharacterClass,
 } from '@gygax/shared'
-import { broadcastSessionUpdate } from '../websocket/handlers.js'
+import { broadcastSessionUpdate, broadcastParticipantJoined, broadcastParticipantLeft } from '../websocket/handlers.js'
 
 const MAX_PLAYERS = 8
 
@@ -747,6 +747,9 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         })
       }
 
+      // Broadcast participant joined to all connected WebSocket clients
+      broadcastParticipantJoined(id, formatSessionParticipant(participant))
+
       const response: SessionParticipantResponse = {
         participant: formatSessionParticipant(participant),
       }
@@ -791,6 +794,9 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         where: { id: participant.id },
         data: { leftAt: new Date() },
       })
+
+      // Broadcast participant left to all connected WebSocket clients
+      broadcastParticipantLeft(id, user.id)
 
       return reply.status(200).send({ success: true })
     }
