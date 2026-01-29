@@ -676,3 +676,224 @@ export interface NPCExportFile {
     notes: string | null
   }
 }
+
+// Session types
+export type SessionStatus = 'FORMING' | 'ACTIVE' | 'PAUSED' | 'ENDED'
+export type SessionAccessType = 'OPEN' | 'CAMPAIGN' | 'INVITE'
+
+export interface Session {
+  id: string
+  status: SessionStatus
+  accessType: SessionAccessType
+  adventureId: string
+  dmId: string
+  activeMapId: string | null
+  activeBackdropId: string | null
+  createdAt: string
+  updatedAt: string
+  startedAt: string | null
+  pausedAt: string | null
+  endedAt: string | null
+}
+
+export interface SessionWithDetails extends Session {
+  adventure: {
+    id: string
+    name: string
+  }
+  dm: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+  participants: SessionParticipantWithDetails[]
+  invites: SessionInviteWithDetails[]
+}
+
+export interface SessionListItem {
+  id: string
+  status: SessionStatus
+  accessType: SessionAccessType
+  adventureId: string
+  createdAt: string
+  adventure: {
+    id: string
+    name: string
+  }
+  dm: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+  participantCount: number
+}
+
+export interface SessionParticipant {
+  id: string
+  sessionId: string
+  userId: string
+  characterId: string
+  joinedAt: string
+  leftAt: string | null
+}
+
+export interface SessionParticipantWithDetails extends SessionParticipant {
+  user: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+  character: {
+    id: string
+    name: string
+    class: CharacterClass
+    level: number
+    hitPointsCurrent: number
+    hitPointsMax: number
+    armorClass: number
+    avatarUrl: string | null
+  }
+}
+
+// Campaign Membership types
+export interface CampaignMember {
+  id: string
+  campaignId: string
+  userId: string
+  joinedAt: string
+}
+
+export interface CampaignMemberWithDetails extends CampaignMember {
+  user: {
+    id: string
+    name: string
+    email: string
+    avatarUrl: string | null
+  }
+}
+
+export interface CampaignMembersResponse {
+  members: CampaignMemberWithDetails[]
+}
+
+export interface CampaignMemberResponse {
+  member: CampaignMemberWithDetails
+}
+
+export interface AddCampaignMemberRequest {
+  email?: string
+  userId?: string
+}
+
+// Session Invite types
+export interface SessionInvite {
+  id: string
+  sessionId: string
+  userId: string | null
+  email: string | null
+  createdAt: string
+  acceptedAt: string | null
+  declinedAt: string | null
+}
+
+export interface SessionInviteWithDetails extends SessionInvite {
+  user: {
+    id: string
+    name: string
+    email: string
+  } | null
+}
+
+export interface SessionInvitesResponse {
+  invites: SessionInviteWithDetails[]
+}
+
+export interface SessionInviteResponse {
+  invite: SessionInviteWithDetails
+}
+
+export interface CreateSessionInviteRequest {
+  email?: string
+  userId?: string
+}
+
+export interface CreateSessionRequest {
+  accessType?: SessionAccessType
+}
+
+export interface SessionListResponse {
+  sessions: SessionListItem[]
+}
+
+export interface SessionResponse {
+  session: SessionWithDetails
+}
+
+export interface JoinSessionRequest {
+  characterId: string
+}
+
+export interface SessionParticipantResponse {
+  participant: SessionParticipantWithDetails
+}
+
+export interface UpdateSessionRequest {
+  status?: SessionStatus
+}
+
+export interface WSTokenResponse {
+  token: string
+}
+
+// WebSocket message types
+export interface WSMessage<T = unknown> {
+  type: string
+  payload: T
+}
+
+export interface WSSessionState {
+  session: SessionWithDetails
+  connectedUsers: WSConnectedUser[]
+}
+
+export interface WSConnectedUser {
+  userId: string
+  userName: string
+  avatarUrl: string | null
+  role: 'dm' | 'player'
+  characterId?: string
+  characterName?: string
+}
+
+export interface WSUserConnected {
+  userId: string
+  userName: string
+  avatarUrl: string | null
+  role: 'dm' | 'player'
+  characterId?: string
+  characterName?: string
+}
+
+export interface WSUserDisconnected {
+  userId: string
+}
+
+export interface WSSessionUpdated {
+  status: SessionStatus
+  activeMapId: string | null
+  activeBackdropId: string | null
+  pausedAt: string | null
+  endedAt: string | null
+}
+
+export interface WSParticipantJoined {
+  participant: SessionParticipantWithDetails
+}
+
+export interface WSParticipantLeft {
+  userId: string
+}
+
+export interface WSError {
+  message: string
+}

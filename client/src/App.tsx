@@ -10,6 +10,8 @@ import {
   MapEditorPage,
   CharacterPage,
   NPCPage,
+  SessionBrowsePage,
+  SessionPage,
   LoginPage,
   RegisterPage,
   VerifyEmailPage,
@@ -33,6 +35,8 @@ export function App() {
           >
             <Route path="/" element={<DashboardPage />} />
             <Route path="/adventure" element={<AdventureModePage />} />
+            <Route path="/adventure/sessions" element={<SessionBrowsePage />} />
+            <Route path="/sessions/:id" element={<SessionPage />} />
             <Route path="/campaigns/:id" element={<CampaignPage />} />
             <Route path="/adventures/:id" element={<AdventurePage />} />
             <Route path="/maps/:id" element={<MapEditorPage />} />

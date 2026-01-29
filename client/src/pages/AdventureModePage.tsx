@@ -4,6 +4,7 @@ import { Button } from '../components/ui'
 import { CharacterCard } from '../components/CharacterCard'
 import { CreateCharacterModal, CharacterFormData } from '../components/CreateCharacterModal'
 import { DeleteCharacterDialog } from '../components/DeleteCharacterDialog'
+import { JoinSessionModal } from '../components/JoinSessionModal'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -14,6 +15,7 @@ export function AdventureModePage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false)
   const [editingCharacter, setEditingCharacter] = React.useState<Character | null>(null)
   const [deletingCharacter, setDeletingCharacter] = React.useState<Character | null>(null)
+  const [isJoinSessionModalOpen, setIsJoinSessionModalOpen] = React.useState(false)
 
   const fetchCharacters = React.useCallback(async () => {
     try {
@@ -104,8 +106,8 @@ export function AdventureModePage() {
               Create characters and embark on epic quests hosted by other players
             </p>
           </div>
-          <Button variant="primary" onClick={() => setIsCreateModalOpen(true)}>
-            + New Character
+          <Button variant="primary" onClick={() => setIsJoinSessionModalOpen(true)}>
+            Join Session
           </Button>
         </header>
 
@@ -187,6 +189,11 @@ export function AdventureModePage() {
         onClose={() => setDeletingCharacter(null)}
         onConfirm={handleDeleteCharacter}
         character={deletingCharacter}
+      />
+
+      <JoinSessionModal
+        open={isJoinSessionModalOpen}
+        onClose={() => setIsJoinSessionModalOpen(false)}
       />
     </>
   )

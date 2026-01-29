@@ -7,6 +7,9 @@ import type {
   Adventure,
   AdventureResponse,
   MapResponse,
+  CampaignMemberWithDetails,
+  CampaignMembersResponse,
+  CampaignMemberResponse,
 } from '@gygax/shared'
 import { Button, Divider } from '../components/ui'
 import { CreateCampaignModal, CampaignFormData } from '../components/CreateCampaignModal'
@@ -17,6 +20,7 @@ import { DeleteAdventureDialog } from '../components/DeleteAdventureDialog'
 import { CreateMapModal, MapFormData } from '../components/CreateMapModal'
 import { DeleteMapDialog } from '../components/DeleteMapDialog'
 import { MapPreview } from '../components/MapPreview'
+import { AddCampaignMemberModal } from '../components/AddCampaignMemberModal'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -33,6 +37,10 @@ export function CampaignPage() {
   const [deletingAdventure, setDeletingAdventure] = React.useState<Adventure | null>(null)
   const [isCreateWorldMapModalOpen, setIsCreateWorldMapModalOpen] = React.useState(false)
   const [isDeletingWorldMap, setIsDeletingWorldMap] = React.useState(false)
+  const [members, setMembers] = React.useState<CampaignMemberWithDetails[]>([])
+  const [isLoadingMembers, setIsLoadingMembers] = React.useState(true)
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = React.useState(false)
+  const [removingMemberId, setRemovingMemberId] = React.useState<string | null>(null)
 
   const fetchCampaign = React.useCallback(async () => {
     if (!id) return
@@ -68,6 +76,31 @@ export function CampaignPage() {
   React.useEffect(() => {
     fetchCampaign()
   }, [fetchCampaign])
+
+  const fetchMembers = React.useCallback(async () => {
+    if (!id) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/campaigns/${id}/members`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        return
+      }
+
+      const data: CampaignMembersResponse = await response.json()
+      setMembers(data.members)
+    } catch {
+      // Silently fail - members section will be empty
+    } finally {
+      setIsLoadingMembers(false)
+    }
+  }, [id])
+
+  React.useEffect(() => {
+    fetchMembers()
+  }, [fetchMembers])
 
   // Scroll to top when navigating to this page
   React.useEffect(() => {
@@ -348,6 +381,47 @@ export function CampaignPage() {
     setIsDeletingWorldMap(false)
   }
 
+  const handleAddMember = async (email: string) => {
+    if (!campaign) return
+
+    const response = await fetch(`${API_URL}/api/campaigns/${campaign.id}/members`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || 'Failed to add member')
+    }
+
+    const result: CampaignMemberResponse = await response.json()
+    setMembers((prev) => [...prev, result.member])
+    setIsAddMemberModalOpen(false)
+  }
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!campaign) return
+
+    setRemovingMemberId(memberId)
+
+    try {
+      const response = await fetch(`${API_URL}/api/campaigns/${campaign.id}/members/${memberId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to remove member')
+      }
+
+      setMembers((prev) => prev.filter((m) => m.id !== memberId))
+    } finally {
+      setRemovingMemberId(null)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center paper-texture">
@@ -537,6 +611,81 @@ export function CampaignPage() {
             </div>
           )}
         </div>
+
+        {/* Members Section */}
+        <div className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg uppercase tracking-wide text-ink">
+              Campaign Members
+            </h2>
+            <Button variant="default" size="sm" onClick={() => setIsAddMemberModalOpen(true)}>
+              + Add Member
+            </Button>
+          </div>
+
+          {isLoadingMembers ? (
+            <div className="flex items-center gap-2 py-4">
+              <span className="animate-quill-scratch text-xl">&#9998;</span>
+              <span className="font-body text-ink-soft">Loading members...</span>
+            </div>
+          ) : members.length === 0 ? (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <div className="mb-4 text-2xl text-ink-soft">&#128100;</div>
+              <p className="font-body text-ink">No members yet</p>
+              <p className="mt-1 font-body text-sm text-ink-soft">
+                Add players to your campaign. Members can auto-join Campaign-type sessions.
+              </p>
+              <Button
+                variant="default"
+                className="mt-4"
+                onClick={() => setIsAddMemberModalOpen(true)}
+              >
+                Add Member
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {members.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between border-3 border-ink bg-parchment-100 p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    {member.user.avatarUrl ? (
+                      <img
+                        src={member.user.avatarUrl}
+                        alt={member.user.name}
+                        className="h-10 w-10 rounded-full border-2 border-ink object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-parchment-200">
+                        <span className="font-display text-sm uppercase text-ink">
+                          {member.user.name.charAt(0)}
+                        </span>
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-display text-sm uppercase tracking-wide text-ink">
+                        {member.user.name}
+                      </p>
+                      <p className="font-body text-xs text-ink-soft">{member.user.email}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveMember(member.id)}
+                    loading={removingMemberId === member.id}
+                    loadingText="Removing..."
+                    className="text-blood-red"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <CreateCampaignModal
@@ -599,6 +748,12 @@ export function CampaignPage() {
         onClose={() => setIsDeletingWorldMap(false)}
         onConfirm={handleDeleteWorldMap}
         map={campaign.worldMap}
+      />
+
+      <AddCampaignMemberModal
+        open={isAddMemberModalOpen}
+        onClose={() => setIsAddMemberModalOpen(false)}
+        onSubmit={handleAddMember}
       />
     </div>
   )

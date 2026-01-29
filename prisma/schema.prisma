@@ -27,6 +27,11 @@ model User {
   campaigns      Campaign[]
   characters     Character[]
 
+  dmSessions        Session[]             @relation("dm_sessions")
+  participations    SessionParticipant[]
+  campaignMembers   CampaignMember[]
+  sessionInvites    SessionInvite[]
+
   @@map("users")
 }
 
@@ -56,6 +61,7 @@ model Campaign {
   owner      User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   adventures Adventure[]
   worldMap   Map?
+  members    CampaignMember[]
 
   @@map("campaigns")
 }
@@ -76,6 +82,7 @@ model Adventure {
   npcs       NPC[]
   backdrops  Backdrop[]
   notes      Note[]
+  sessions   Session[]
   campaignId String?
   campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
@@ -155,6 +162,8 @@ model Character {
 
   ownerId          String
   owner            User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  participations   SessionParticipant[]
 
   @@index([ownerId])
   @@map("characters")
@@ -246,4 +255,105 @@ model Note {
 
   @@index([adventureId])
   @@map("notes")
+}
+
+enum SessionStatus {
+  FORMING  // DM is gathering players, session visible in browse lists
+  ACTIVE   // Session is live, removed from browse lists
+  PAUSED   // Session paused mid-game
+  ENDED    // Session complete
+}
+
+enum SessionAccessType {
+  OPEN      // Anyone can browse and join
+  CAMPAIGN  // Campaign members have automatic access
+  INVITE    // DM explicitly invites specific players
+}
+
+model Session {
+  id          String            @id @default(cuid())
+  status      SessionStatus     @default(FORMING)
+  accessType  SessionAccessType @default(OPEN)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  startedAt   DateTime?         // When DM started the session (FORMING → ACTIVE)
+  pausedAt    DateTime?
+  endedAt     DateTime?
+
+  adventureId String
+  adventure   Adventure     @relation(fields: [adventureId], references: [id], onDelete: Cascade)
+
+  dmId        String
+  dm          User          @relation("dm_sessions", fields: [dmId], references: [id], onDelete: Cascade)
+
+  // Current display state
+  activeMapId      String?
+  activeBackdropId String?
+
+  participants SessionParticipant[]
+  invites      SessionInvite[]
+
+  @@index([adventureId])
+  @@index([dmId])
+  @@index([status])
+  @@index([accessType])
+  @@map("sessions")
+}
+
+model SessionParticipant {
+  id        String   @id @default(cuid())
+  joinedAt  DateTime @default(now())
+  leftAt    DateTime?
+
+  sessionId   String
+  session     Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@index([sessionId])
+  @@index([userId])
+  @@map("session_participants")
+}
+
+model CampaignMember {
+  id         String   @id @default(cuid())
+  joinedAt   DateTime @default(now())
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@index([campaignId])
+  @@index([userId])
+  @@map("campaign_members")
+}
+
+model SessionInvite {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  acceptedAt DateTime?
+  declinedAt DateTime?
+
+  sessionId  String
+  session    Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  userId     String?   // Existing user (if known)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  email      String?   // Or invite by email (for users not yet registered)
+
+  @@unique([sessionId, userId])
+  @@unique([sessionId, email])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([email])
+  @@map("session_invites")
 }

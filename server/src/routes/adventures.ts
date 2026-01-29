@@ -75,25 +75,32 @@ async function requireVerifiedUser(
 }
 
 export async function adventureRoutes(fastify: FastifyInstance) {
-  // GET /api/adventures - List user's standalone adventures (not in a campaign)
-  fastify.get('/api/adventures', async (request: FastifyRequest, reply: FastifyReply) => {
-    const user = await requireVerifiedUser(fastify, request, reply)
-    if (!user) return
+  // GET /api/adventures - List user's adventures
+  // By default, returns only standalone adventures (not in a campaign)
+  // Use ?all=true to include adventures in campaigns
+  fastify.get<{ Querystring: { all?: string } }>(
+    '/api/adventures',
+    async (request: FastifyRequest<{ Querystring: { all?: string } }>, reply: FastifyReply) => {
+      const user = await requireVerifiedUser(fastify, request, reply)
+      if (!user) return
 
-    const adventures = await fastify.prisma.adventure.findMany({
-      where: {
-        ownerId: user.id,
-        campaignId: null, // Only standalone adventures
-      },
-      orderBy: { updatedAt: 'desc' },
-    })
+      const includeAll = request.query.all === 'true'
 
-    const response: AdventureListResponse = {
-      adventures: adventures.map(formatAdventure),
+      const adventures = await fastify.prisma.adventure.findMany({
+        where: {
+          ownerId: user.id,
+          ...(includeAll ? {} : { campaignId: null }),
+        },
+        orderBy: { updatedAt: 'desc' },
+      })
+
+      const response: AdventureListResponse = {
+        adventures: adventures.map(formatAdventure),
+      }
+
+      return reply.status(200).send(response)
     }
-
-    return reply.status(200).send(response)
-  })
+  )
 
   // POST /api/adventures - Create adventure
   fastify.post<{ Body: CreateAdventureRequest }>(

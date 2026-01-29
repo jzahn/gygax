@@ -15,8 +15,12 @@ import type {
   Note,
   NoteListResponse,
   NoteResponse,
+  SessionListItem,
+  SessionListResponse,
+  SessionResponse,
+  SessionAccessType,
 } from '@gygax/shared'
-import { Button, Divider } from '../components/ui'
+import { Button, Divider, Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui'
 import { CreateAdventureModal, AdventureFormData } from '../components/CreateAdventureModal'
 import { DeleteAdventureDialog } from '../components/DeleteAdventureDialog'
 import { MapCard } from '../components/MapCard'
@@ -35,6 +39,7 @@ import { DeleteBackdropDialog } from '../components/DeleteBackdropDialog'
 import { NoteCard } from '../components/NoteCard'
 import { CreateNoteModal, NoteFormData } from '../components/CreateNoteModal'
 import { DeleteNoteDialog } from '../components/DeleteNoteDialog'
+import { SessionTypeChip } from '../components/SessionTypeChip'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -69,6 +74,11 @@ export function AdventurePage() {
   const [editingNote, setEditingNote] = React.useState<Note | null>(null)
   const [deletingNote, setDeletingNote] = React.useState<Note | null>(null)
   const [campaignWorldMap, setCampaignWorldMap] = React.useState<Map | null>(null)
+
+  // Session state
+  const [existingSession, setExistingSession] = React.useState<SessionListItem | null>(null)
+  const [isAccessTypeModalOpen, setIsAccessTypeModalOpen] = React.useState(false)
+  const [isCreatingSession, setIsCreatingSession] = React.useState(false)
 
   const fetchAdventure = React.useCallback(async () => {
     if (!id) return
@@ -236,6 +246,82 @@ export function AdventurePage() {
       fetchCampaignWorldMap()
     }
   }, [adventure, fetchCampaignWorldMap])
+
+  // Fetch existing session for this adventure
+  const fetchSession = React.useCallback(async () => {
+    if (!id) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/sessions?adventureId=${id}`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) return
+
+      const data: SessionListResponse = await response.json()
+      // Find any forming/active/paused session
+      const activeSession = data.sessions.find(
+        (s) => s.status !== 'ENDED'
+      )
+      setExistingSession(activeSession || null)
+    } catch {
+      // Silently fail
+    }
+  }, [id])
+
+  React.useEffect(() => {
+    if (adventure) {
+      fetchSession()
+    }
+  }, [adventure, fetchSession])
+
+  const handleCreateSession = async (accessType: SessionAccessType) => {
+    if (!id) return
+
+    setIsCreatingSession(true)
+    try {
+      const response = await fetch(`${API_URL}/api/adventures/${id}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ accessType }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create session')
+      }
+
+      const data: SessionResponse = await response.json()
+      navigate(`/sessions/${data.session.id}`)
+    } catch {
+      // Could add error handling
+    } finally {
+      setIsCreatingSession(false)
+      setIsAccessTypeModalOpen(false)
+    }
+  }
+
+  const getSessionButtonText = () => {
+    if (!existingSession) return 'Create Session'
+    switch (existingSession.status) {
+      case 'FORMING':
+        return 'View Session'
+      case 'ACTIVE':
+        return 'Resume Session'
+      case 'PAUSED':
+        return 'Return to Session'
+      default:
+        return 'Create Session'
+    }
+  }
+
+  const handleSessionButtonClick = () => {
+    if (existingSession) {
+      navigate(`/sessions/${existingSession.id}`)
+    } else {
+      setIsAccessTypeModalOpen(true)
+    }
+  }
 
   // Scroll to top when navigating to this page
   React.useEffect(() => {
@@ -738,9 +824,14 @@ export function AdventurePage() {
               <p className="max-w-2xl font-body text-ink-soft">{adventure.description}</p>
             )}
           </div>
-          <Button variant="default" onClick={() => setIsEditModalOpen(true)}>
-            Edit Adventure
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="primary" onClick={handleSessionButtonClick}>
+              {getSessionButtonText()}
+            </Button>
+            <Button variant="default" onClick={() => setIsEditModalOpen(true)}>
+              Edit
+            </Button>
+          </div>
         </div>
 
         <Divider className="my-8" />
@@ -1082,6 +1173,72 @@ export function AdventurePage() {
         onConfirm={handleDeleteNote}
         note={deletingNote}
       />
+
+      {/* Access Type Selection Modal */}
+      <Dialog
+        open={isAccessTypeModalOpen}
+        onOpenChange={(isOpen) => !isOpen && setIsAccessTypeModalOpen(false)}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Start New Session</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <p className="font-body text-sm text-ink">Who can join this session?</p>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => handleCreateSession('OPEN')}
+                disabled={isCreatingSession}
+                className="flex w-full items-start gap-3 border-3 border-ink bg-parchment-100 p-3 text-left transition-colors hover:bg-parchment-200 disabled:opacity-50"
+              >
+                <SessionTypeChip accessType="OPEN" />
+                <div>
+                  <p className="font-body text-sm text-ink">Anyone can browse and join</p>
+                </div>
+              </button>
+
+              {adventure.campaignId && (
+                <button
+                  type="button"
+                  onClick={() => handleCreateSession('CAMPAIGN')}
+                  disabled={isCreatingSession}
+                  className="flex w-full items-start gap-3 border-3 border-ink bg-parchment-100 p-3 text-left transition-colors hover:bg-parchment-200 disabled:opacity-50"
+                >
+                  <SessionTypeChip accessType="CAMPAIGN" />
+                  <div>
+                    <p className="font-body text-sm text-ink">Only campaign members can join</p>
+                  </div>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleCreateSession('INVITE')}
+                disabled={isCreatingSession}
+                className="flex w-full items-start gap-3 border-3 border-ink bg-parchment-100 p-3 text-left transition-colors hover:bg-parchment-200 disabled:opacity-50"
+              >
+                <SessionTypeChip accessType="INVITE" />
+                <div>
+                  <p className="font-body text-sm text-ink">You'll invite specific players</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setIsAccessTypeModalOpen(false)}
+                disabled={isCreatingSession}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

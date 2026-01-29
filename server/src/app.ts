@@ -1,6 +1,7 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import multipart from '@fastify/multipart'
+import websocket from '@fastify/websocket'
 import { prismaPlugin } from './plugins/prisma'
 import { authPlugin } from './plugins/auth'
 import { healthRoutes } from './routes/health'
@@ -12,6 +13,10 @@ import { characterRoutes } from './routes/characters'
 import { npcRoutes } from './routes/npcs'
 import { backdropRoutes } from './routes/backdrops'
 import { noteRoutes } from './routes/notes'
+import { sessionRoutes } from './routes/sessions'
+import { campaignMemberRoutes } from './routes/campaignMembers'
+import { sessionInviteRoutes } from './routes/sessionInvites'
+import { websocketRoutes } from './websocket/index'
 import { initializeBucket } from './services/storage'
 
 export async function buildApp() {
@@ -32,6 +37,9 @@ export async function buildApp() {
       fileSize: 5 * 1024 * 1024, // 5MB
     },
   })
+
+  // Register WebSocket support
+  await fastify.register(websocket)
 
   // Register plugins
   await fastify.register(prismaPlugin)
@@ -55,6 +63,10 @@ export async function buildApp() {
   await fastify.register(npcRoutes)
   await fastify.register(backdropRoutes)
   await fastify.register(noteRoutes)
+  await fastify.register(sessionRoutes)
+  await fastify.register(campaignMemberRoutes)
+  await fastify.register(sessionInviteRoutes)
+  await fastify.register(websocketRoutes)
 
   return fastify
 }

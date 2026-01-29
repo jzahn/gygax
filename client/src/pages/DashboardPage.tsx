@@ -14,6 +14,7 @@ import { DeleteCampaignDialog } from '../components/DeleteCampaignDialog'
 import { AdventureCard } from '../components/AdventureCard'
 import { CreateAdventureModal, AdventureFormData } from '../components/CreateAdventureModal'
 import { DeleteAdventureDialog } from '../components/DeleteAdventureDialog'
+import { StartSessionModal } from '../components/StartSessionModal'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -33,6 +34,9 @@ export function DashboardPage() {
   const [isCreateAdventureModalOpen, setIsCreateAdventureModalOpen] = React.useState(false)
   const [editingAdventure, setEditingAdventure] = React.useState<Adventure | null>(null)
   const [deletingAdventure, setDeletingAdventure] = React.useState<Adventure | null>(null)
+
+  // Session modal state
+  const [isStartSessionModalOpen, setIsStartSessionModalOpen] = React.useState(false)
 
   const fetchCampaigns = React.useCallback(async () => {
     try {
@@ -348,8 +352,8 @@ export function DashboardPage() {
             Forge adventures or entire worlds and invite other players to join you
           </p>
         </div>
-        <Button variant="primary" onClick={() => setIsCreateCampaignModalOpen(true)}>
-          + New Campaign
+        <Button variant="primary" onClick={() => setIsStartSessionModalOpen(true)}>
+          Start Session
         </Button>
       </header>
 
@@ -538,6 +542,12 @@ export function DashboardPage() {
         onClose={() => setDeletingAdventure(null)}
         onConfirm={handleDeleteAdventure}
         adventure={deletingAdventure}
+      />
+
+      {/* Session Modal */}
+      <StartSessionModal
+        open={isStartSessionModalOpen}
+        onClose={() => setIsStartSessionModalOpen(false)}
       />
     </>
   )
