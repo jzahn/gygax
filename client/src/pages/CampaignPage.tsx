@@ -616,7 +616,7 @@ export function CampaignPage() {
         <div className="mb-8">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-lg uppercase tracking-wide text-ink">
-              Campaign Members
+              Members
             </h2>
             <Button variant="default" size="sm" onClick={() => setIsAddMemberModalOpen(true)}>
               + Add Member

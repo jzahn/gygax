@@ -4,10 +4,11 @@ import type {
   SessionWithDetails,
   SessionResponse,
   SessionStatus,
-  WSConnectedUser,
+  SessionInviteResponse,
 } from '@gygax/shared'
 import { Button } from '../components/ui'
 import { SessionTypeChip } from '../components/SessionTypeChip'
+import { InvitePlayerModal } from '../components/InvitePlayerModal'
 import { useSessionSocket } from '../hooks/useSessionSocket'
 import { useAuth } from '../hooks/useAuth'
 
@@ -35,6 +36,8 @@ export function SessionPage() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [isUpdating, setIsUpdating] = React.useState(false)
+  const [isInviteModalOpen, setIsInviteModalOpen] = React.useState(false)
+  const [cancellingInviteId, setCancellingInviteId] = React.useState<string | null>(null)
 
   // WebSocket connection
   const {
@@ -48,7 +51,17 @@ export function SessionPage() {
   })
 
   // Use WebSocket session state if available, otherwise fall back to REST data
-  const currentSession = sessionState?.session || session
+  // Merge invites from local session state since we update that locally when inviting
+  const currentSession = React.useMemo(() => {
+    if (sessionState?.session) {
+      return {
+        ...sessionState.session,
+        // Use local session invites if available (we update these locally after inviting)
+        invites: session?.invites ?? sessionState.session.invites,
+      }
+    }
+    return session
+  }, [sessionState?.session, session])
 
   const fetchSession = React.useCallback(async () => {
     if (!id) return
@@ -137,6 +150,66 @@ export function SessionPage() {
       setError(err instanceof Error ? err.message : 'Failed to leave session')
     } finally {
       setIsUpdating(false)
+    }
+  }
+
+  const handleInvitePlayer = async (email: string) => {
+    if (!id) return
+
+    const response = await fetch(`${API_URL}/api/sessions/${id}/invites`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email }),
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.message || 'Failed to send invite')
+    }
+
+    const data: SessionInviteResponse = await response.json()
+
+    // Update local session state with new invite
+    setSession((prev) =>
+      prev
+        ? {
+            ...prev,
+            invites: [...prev.invites, data.invite],
+          }
+        : null
+    )
+  }
+
+  const handleCancelInvite = async (inviteId: string) => {
+    if (!id) return
+
+    setCancellingInviteId(inviteId)
+
+    try {
+      const response = await fetch(`${API_URL}/api/sessions/${id}/invites/${inviteId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Failed to cancel invite')
+      }
+
+      // Remove invite from local session state
+      setSession((prev) =>
+        prev
+          ? {
+              ...prev,
+              invites: prev.invites.filter((i) => i.id !== inviteId),
+            }
+          : null
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel invite')
+    } finally {
+      setCancellingInviteId(null)
     }
   }
 
@@ -291,6 +364,54 @@ export function SessionPage() {
         </div>
       </section>
 
+      {/* Pending Invites (DM only, INVITE sessions) */}
+      {isDm && currentSession.accessType === 'INVITE' && currentSession.status !== 'ENDED' && (
+        <section className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg uppercase tracking-wide text-ink">
+              Pending Invites
+            </h2>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsInviteModalOpen(true)}
+            >
+              + Invite Player
+            </Button>
+          </div>
+          <div className="space-y-2 rounded border-3 border-ink bg-parchment-100 p-4">
+            {currentSession.invites.filter((i) => !i.acceptedAt && !i.declinedAt).length === 0 ? (
+              <p className="py-2 text-center font-body text-sm text-ink-faded">
+                No pending invites
+              </p>
+            ) : (
+              currentSession.invites
+                .filter((i) => !i.acceptedAt && !i.declinedAt)
+                .map((invite) => (
+                  <div key={invite.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-body text-sm text-ink-faded">✉</span>
+                      <span className="font-body text-ink">
+                        {invite.user?.name || invite.email}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCancelInvite(invite.id)}
+                      loading={cancellingInviteId === invite.id}
+                      loadingText="..."
+                      className="text-blood-red"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ))
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Actions */}
       <section>
         {error && (
@@ -398,6 +519,13 @@ export function SessionPage() {
           )}
         </div>
       </section>
+
+      <InvitePlayerModal
+        open={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        onSubmit={handleInvitePlayer}
+        sessionName={currentSession.adventure.name}
+      />
     </div>
   )
 }
