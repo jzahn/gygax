@@ -76,12 +76,12 @@ The application has two main navigation modes accessible via a persistent top na
 
 **Forge (DM Tools):** Where DMs create and manage campaigns, adventures, maps, backdrops, NPCs, and notes. This is the default landing page after login (dashboard at `/`).
 
-**Adventure (Player Experience):** Where players create characters and browse/join active game sessions. Accessed via `/adventure`.
+**Quest (Player Experience):** Where players create characters and browse/join active game sessions. Accessed via `/adventure`.
 
 **Global Navigation:**
 - A sticky navigation bar appears on all authenticated pages
 - Logo and "GYGAX" brand on the left (links to Forge/dashboard)
-- Forge and Adventure mode links centered in the navbar
+- Forge and Quest mode links centered in the navbar
 - User avatar with dropdown menu on the right (displays user name, email, and logout option)
 - On mobile (< 768px), the centered nav links collapse into a hamburger menu; avatar remains visible
 
@@ -128,12 +128,12 @@ The application has two main navigation modes accessible via a persistent top na
 24. The DM should be able to place static encounters on the map in addition to random encounters.
 25. Encounters can be both friendly or hostile.
 
-#### Adventure Mode - Characters
+#### Quest Mode - Characters
 26. Players can create characters in the Adventure section.
 27. Characters are displayed on a B/X-style character sheet (matching Moldvay Basic rulebook).
 28. Players can create multiple characters and choose which one to play when joining a session.
 
-#### Adventure Mode - Sessions
+#### Quest Mode - Sessions
 29. Players can browse sessions they have access to (invited, campaign member, or open).
 30. Session list displays Invite sessions first, then Campaign sessions, then Open sessions.
 31. Visual chips indicate session type: 🔒 Invite, 👥 Campaign, 🌐 Open.
@@ -593,7 +593,7 @@ Character sheets should look like the original B/X character sheet from the Mold
 - Background: parchment with bottom border (`border-b-3 border-ink bg-parchment-100`)
 - Full-width layout with three sections:
   - **Left:** Dragon logo (32x32px, bordered) + "GYGAX" text in display font, links to dashboard
-  - **Center:** Forge and Adventure links, absolutely centered in viewport, hidden on mobile
+  - **Center:** Forge and Quest links, absolutely centered in viewport, hidden on mobile
   - **Right:** Square avatar (40x40px) with dropdown, hamburger menu button on mobile
 - Active nav link styling: `text-ink underline underline-offset-4`
 - Inactive nav link styling: `text-ink-soft` with hover to `text-ink`
@@ -613,7 +613,7 @@ Character sheets should look like the original B/X character sheet from the Mold
 
 - Hamburger button visible only below 768px (`md:hidden`)
 - Drawer slides in from right side
-- Contains only Forge and Adventure navigation links
+- Contains only Forge and Quest navigation links
 - User info and logout accessed via Avatar dropdown (always visible)
 
 ### Page Layouts
@@ -731,7 +731,7 @@ Modular monolith with clear separation between:
 
 #### Authentication & Navigation
 - [ ] A DM can create an account and log in
-- [ ] Application has two main modes: Forge (DM) and Adventure (Player)
+- [ ] Application has two main modes: Forge (DM) and Quest (Player)
 
 #### Forge Mode - Campaigns
 - [ ] DM sees a dashboard listing all their saved Campaigns
@@ -753,7 +753,7 @@ Modular monolith with clear separation between:
 - [ ] DM can create random encounter tables and assign to map regions
 - [ ] DM can place static encounters on the map
 
-#### Adventure Mode - Players
+#### Quest Mode - Players
 - [ ] Players can create characters with B/X-style character sheets
 - [ ] Players can browse and join active game sessions
 - [ ] Players select which character to play when joining a session

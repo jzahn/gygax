@@ -63,7 +63,7 @@ export function NavBar() {
               }`
             }
           >
-            Adventure
+            Quest
           </NavLink>
         </div>
 

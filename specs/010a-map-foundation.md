@@ -69,7 +69,7 @@ enum GridType {
 }
 ```
 
-**Update Adventure Model:**
+**Update Quest Model:**
 
 ```prisma
 model Adventure {

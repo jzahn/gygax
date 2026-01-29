@@ -116,7 +116,7 @@ export function MobileMenu({ forgeActive, adventureActive }: MobileMenuProps) {
                 : 'text-ink-soft hover:text-ink'
             }`}
           >
-            Adventure
+            Quest
           </button>
         </div>
       </div>

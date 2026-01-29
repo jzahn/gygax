@@ -153,8 +153,8 @@ export function CharacterPage() {
       <header className="border-b-3 border-ink bg-parchment-100">
         <div className="mx-auto flex max-w-4xl items-center justify-between p-4">
           <div className="flex items-center gap-4">
-            <Link to="/" className="font-body text-sm text-ink-soft hover:text-ink">
-              &larr; Back to Dashboard
+            <Link to="/adventure" className="font-body text-sm text-ink-soft hover:text-ink">
+              &larr; Back to Quest
             </Link>
             <div className="h-4 w-px bg-ink-faded" />
             <h1 className="font-display text-lg uppercase tracking-wide text-ink">

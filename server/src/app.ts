@@ -16,6 +16,7 @@ import { noteRoutes } from './routes/notes'
 import { sessionRoutes } from './routes/sessions'
 import { campaignMemberRoutes } from './routes/campaignMembers'
 import { sessionInviteRoutes } from './routes/sessionInvites'
+import { sessionBrowseSSERoutes } from './routes/sessionBrowseSSE'
 import { websocketRoutes } from './websocket/index'
 import { initializeBucket } from './services/storage'
 
@@ -66,6 +67,7 @@ export async function buildApp() {
   await fastify.register(sessionRoutes)
   await fastify.register(campaignMemberRoutes)
   await fastify.register(sessionInviteRoutes)
+  await fastify.register(sessionBrowseSSERoutes)
   await fastify.register(websocketRoutes)
 
   return fastify

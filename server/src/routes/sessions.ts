@@ -17,6 +17,7 @@ import type {
   CharacterClass,
 } from '@gygax/shared'
 import { broadcastSessionUpdate, broadcastParticipantJoined, broadcastParticipantLeft } from '../websocket/handlers.js'
+import { broadcastSessionEvent, broadcastSessionEnded, fetchSessionForBroadcast } from './sessionBrowseSSE.js'
 
 const MAX_PLAYERS = 8
 
@@ -356,6 +357,12 @@ export async function sessionRoutes(fastify: FastifyInstance) {
           },
         },
       })
+
+      // Broadcast to SSE clients that a new session is available
+      const sessionForBroadcast = await fetchSessionForBroadcast(fastify.prisma, session.id)
+      if (sessionForBroadcast) {
+        broadcastSessionEvent('session:created', sessionForBroadcast)
+      }
 
       const response: SessionResponse = {
         session: formatSessionWithDetails(session),
@@ -750,6 +757,12 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       // Broadcast participant joined to all connected WebSocket clients
       broadcastParticipantJoined(id, formatSessionParticipant(participant))
 
+      // Broadcast to SSE clients for browse list participant count update
+      const sessionForBroadcast = await fetchSessionForBroadcast(fastify.prisma, id)
+      if (sessionForBroadcast) {
+        broadcastSessionEvent('session:updated', sessionForBroadcast)
+      }
+
       const response: SessionParticipantResponse = {
         participant: formatSessionParticipant(participant),
       }
@@ -797,6 +810,12 @@ export async function sessionRoutes(fastify: FastifyInstance) {
 
       // Broadcast participant left to all connected WebSocket clients
       broadcastParticipantLeft(id, user.id)
+
+      // Broadcast to SSE clients for browse list participant count update
+      const sessionForBroadcast = await fetchSessionForBroadcast(fastify.prisma, id)
+      if (sessionForBroadcast) {
+        broadcastSessionEvent('session:updated', sessionForBroadcast)
+      }
 
       return reply.status(200).send({ success: true })
     }
@@ -913,6 +932,16 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         pausedAt: updatedSession.pausedAt?.toISOString() ?? null,
         endedAt: updatedSession.endedAt?.toISOString() ?? null,
       })
+
+      // Broadcast to SSE clients for browse list updates
+      if (newStatus === 'ENDED') {
+        broadcastSessionEnded(id)
+      } else {
+        const sessionForBroadcast = await fetchSessionForBroadcast(fastify.prisma, id)
+        if (sessionForBroadcast) {
+          broadcastSessionEvent('session:updated', sessionForBroadcast)
+        }
+      }
 
       const response: SessionResponse = {
         session: formatSessionWithDetails(updatedSession),

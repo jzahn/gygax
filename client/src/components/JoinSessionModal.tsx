@@ -16,6 +16,7 @@ import {
 import { Button } from './ui/button'
 import { SessionTypeChip } from './SessionTypeChip'
 import { SelectCharacterModal } from './SelectCharacterModal'
+import { useSessionBrowseSSE } from '../hooks/useSessionBrowseSSE'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -64,11 +65,32 @@ export function JoinSessionModal({ open, onClose }: JoinSessionModalProps) {
     }
   }, [])
 
+  // Initial fetch when modal opens
   React.useEffect(() => {
     if (open) {
       fetchData()
     }
   }, [open, fetchData])
+
+  // SSE for real-time session updates
+  useSessionBrowseSSE({
+    enabled: open && !isLoading,
+    onSessionCreated: (session) => {
+      setSessions((prev) => {
+        // Don't add if already exists
+        if (prev.some((s) => s.id === session.id)) return prev
+        return [session, ...prev]
+      })
+    },
+    onSessionUpdated: (session) => {
+      setSessions((prev) =>
+        prev.map((s) => (s.id === session.id ? session : s))
+      )
+    },
+    onSessionEnded: (sessionId) => {
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId))
+    },
+  })
 
   const handleJoinClick = (session: SessionListItem) => {
     if (characters.length === 0) {

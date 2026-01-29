@@ -93,7 +93,7 @@ model Backdrop {
 }
 ```
 
-### Adventure Model Update
+### Quest Model Update
 
 ```prisma
 model Adventure {

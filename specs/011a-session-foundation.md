@@ -163,7 +163,7 @@ model User {
 }
 ```
 
-**Update Adventure Model:**
+**Update Quest Model:**
 
 ```prisma
 model Adventure {
@@ -1043,7 +1043,7 @@ Clicking "Start Session" opens a **StartSessionModal** that shows:
 - **Your Sessions**: Shows any FORMING/ACTIVE/PAUSED sessions the DM owns. "View" navigates to the session page.
 - **Create New**: Lists adventures that don't have an existing session. Clicking "Create" opens the access type selection modal, then creates a FORMING session.
 
-**Adventure Mode Page (client/src/pages/AdventureModePage.tsx)**
+**Quest Mode Page (client/src/pages/AdventureModePage.tsx)**
 
 Replace the header "+ New Character" button with "Join Session":
 
@@ -1113,7 +1113,7 @@ Add a "Start Session" button to the adventure detail page. Only visible to the a
 - If an ACTIVE session exists: button says "RESUME SESSION", clicking navigates to existing session
 - If a PAUSED session exists: button says "RETURN TO SESSION", clicking navigates to existing session
 
-#### Adventure Mode Session List (client/src/pages/SessionBrowsePage.tsx)
+#### Quest Mode Session List (client/src/pages/SessionBrowsePage.tsx)
 
 **Route:** `/adventure/sessions`
 
@@ -1596,7 +1596,7 @@ Session cards in the browse list follow the B/X aesthetic:
 6. Click "Create" on an adventure → access type selection appears
 7. Close modal, verify campaign section still has "+ New Campaign" button
 
-**Adventure Mode:**
+**Quest Mode:**
 1. Switch to Adventure mode
 2. Verify header button says "Join Session" (not "+ New Character")
 3. Click "Join Session" → JoinSessionModal opens

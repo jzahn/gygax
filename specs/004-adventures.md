@@ -59,7 +59,7 @@ Implement Adventure CRUD functionality allowing DMs to create, view, edit, and d
 
 ### 1. Database Schema
 
-**Adventure Model (prisma/schema.prisma):**
+**Quest Model (prisma/schema.prisma):**
 
 ```prisma
 model Adventure {

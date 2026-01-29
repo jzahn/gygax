@@ -352,7 +352,11 @@ export function DashboardPage() {
             Forge adventures or entire worlds and invite other players to join you
           </p>
         </div>
-        <Button variant="primary" onClick={() => setIsStartSessionModalOpen(true)}>
+        <Button
+          variant="primary"
+          onClick={() => setIsStartSessionModalOpen(true)}
+          disabled={isLoading || isEmpty}
+        >
           Start Session
         </Button>
       </header>

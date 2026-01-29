@@ -459,5 +459,5 @@ export function getThac0(characterClass: string, level: number): number {
 - [PRD: Key Concepts - Player](/prd.md#key-concepts)
 - [PRD: Character Sheets](/prd.md#character-sheets)
 - [PRD: Flow 5 - Player Creates Character](/prd.md#flow-5-player-creates-a-character)
-- [PRD: MVP Features - Adventure Mode](/prd.md#adventure-mode---characters)
+- [PRD: MVP Features - Quest Mode](/prd.md#adventure-mode---characters)
 - [Spec 002: Design System](/specs/002-auth.md#design-system-setup)
