@@ -2,7 +2,7 @@
 
 ## Goal
 
-Establish the Session data model, REST API for session lifecycle management, and WebSocket server infrastructure. This creates the foundation for live game sessions — DMs can create sessions from adventures, generate join codes, and players can discover and join them. WebSocket connections enable real-time presence tracking.
+Establish the Session data model, REST API for session lifecycle management, and WebSocket server infrastructure. This creates the foundation for live game sessions — DMs can create sessions from adventures, and players can discover and join them based on access type (Open, Campaign, or Invite). WebSocket connections enable real-time presence tracking.
 
 ## Scope
 
@@ -11,7 +11,9 @@ Establish the Session data model, REST API for session lifecycle management, and
 - Session database model linked to adventures
 - Session participant model (players in a session with their character)
 - Session CRUD API endpoints
-- Join code generation and redemption
+- Session access types (Open, Campaign, Invite)
+- Campaign membership model and API
+- Session invite model and API
 - Session lifecycle (active, paused, ended)
 - WebSocket server setup with authentication
 - WebSocket connection management (connect, disconnect, reconnect)
@@ -34,11 +36,11 @@ Establish the Session data model, REST API for session lifecycle management, and
 **Builds on:**
 - Spec 002: Authentication (JWT, user context)
 - Spec 004: Adventures (sessions belong to adventures)
+- Spec 005: Campaigns (campaign membership for access control)
 - Spec 006: Characters (players select a character when joining)
 
 **New dependencies:**
 - `@fastify/websocket` — WebSocket support for Fastify
-- `nanoid` — Short, URL-safe join code generation
 
 ## Detailed Requirements
 
@@ -48,11 +50,11 @@ Establish the Session data model, REST API for session lifecycle management, and
 
 ```prisma
 model Session {
-  id          String        @id @default(cuid())
-  joinCode    String        @unique
-  status      SessionStatus @default(ACTIVE)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id          String            @id @default(cuid())
+  status      SessionStatus     @default(ACTIVE)
+  accessType  SessionAccessType @default(OPEN)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   pausedAt    DateTime?
   endedAt     DateTime?
 
@@ -67,11 +69,12 @@ model Session {
   activeBackdropId String?
 
   participants SessionParticipant[]
+  invites      SessionInvite[]
 
   @@index([adventureId])
   @@index([dmId])
   @@index([status])
-  @@index([joinCode])
+  @@index([accessType])
   @@map("sessions")
 }
 
@@ -79,6 +82,12 @@ enum SessionStatus {
   ACTIVE
   PAUSED
   ENDED
+}
+
+enum SessionAccessType {
+  OPEN      // Anyone can browse and join
+  CAMPAIGN  // Campaign members have automatic access
+  INVITE    // DM explicitly invites specific players
 }
 
 model SessionParticipant {
@@ -100,6 +109,44 @@ model SessionParticipant {
   @@index([userId])
   @@map("session_participants")
 }
+
+model CampaignMember {
+  id         String   @id @default(cuid())
+  joinedAt   DateTime @default(now())
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@index([campaignId])
+  @@index([userId])
+  @@map("campaign_members")
+}
+
+model SessionInvite {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  acceptedAt DateTime?
+  declinedAt DateTime?
+
+  sessionId  String
+  session    Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  userId     String?   // Existing user (if known)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  email      String?   // Or invite by email (for users not yet registered)
+
+  @@unique([sessionId, userId])
+  @@unique([sessionId, email])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([email])
+  @@map("session_invites")
+}
 ```
 
 **Update User Model:**
@@ -107,8 +154,10 @@ model SessionParticipant {
 ```prisma
 model User {
   // ... existing fields
-  dmSessions     Session[]             @relation("dm_sessions")
-  participations SessionParticipant[]
+  dmSessions        Session[]             @relation("dm_sessions")
+  participations    SessionParticipant[]
+  campaignMembers   CampaignMember[]
+  sessionInvites    SessionInvite[]
 }
 ```
 
@@ -121,6 +170,15 @@ model Adventure {
 }
 ```
 
+**Update Campaign Model:**
+
+```prisma
+model Campaign {
+  // ... existing fields
+  members CampaignMember[]
+}
+```
+
 **Update Character Model:**
 
 ```prisma
@@ -130,19 +188,9 @@ model Character {
 }
 ```
 
-**Migration:** `011a_sessions` creates the sessions and session_participants tables.
+**Migration:** `011a_sessions` creates the sessions, session_participants, campaign_members, and session_invites tables.
 
-### 2. Join Code Generation
-
-Join codes are short, human-readable codes that players use to find and join sessions. They should be easy to read aloud over voice chat.
-
-- Format: 6 uppercase alphanumeric characters (e.g., `K7X9M2`)
-- Alphabet: `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no 0/O/1/I/l to avoid confusion)
-- Generated using `nanoid` with custom alphabet
-- Unique constraint in database prevents collisions
-- Retry on collision (up to 3 attempts)
-
-### 3. API Endpoints
+### 2. API Endpoints
 
 All session endpoints require authentication.
 
@@ -150,15 +198,20 @@ All session endpoints require authentication.
 
 Start a new session from an adventure. Only the adventure owner (DM) can start sessions.
 
-**Request:** (no body required)
+**Request:**
+```json
+{
+  "accessType": "OPEN"  // Optional, defaults to OPEN. Values: "OPEN", "CAMPAIGN", "INVITE"
+}
+```
 
 **Response (201):**
 ```json
 {
   "session": {
     "id": "clx...",
-    "joinCode": "K7X9M2",
     "status": "ACTIVE",
+    "accessType": "OPEN",
     "adventureId": "clx...",
     "dmId": "clx...",
     "activeMapId": null,
@@ -176,7 +229,8 @@ Start a new session from an adventure. Only the adventure owner (DM) can start s
       "name": "Gary",
       "avatarUrl": null
     },
-    "participants": []
+    "participants": [],
+    "invites": []
   }
 }
 ```
@@ -203,7 +257,12 @@ List sessions. Behavior differs by context:
 
 **DM view** (with `adventureId`): Returns all sessions for that adventure, requires adventure ownership.
 
-**Player browse view** (with `browse=true`): Returns all ACTIVE sessions the player can join (not their own adventures). Includes adventure name and DM name for discovery.
+**Player browse view** (with `browse=true`): Returns ACTIVE sessions the player can join, filtered by access type:
+- **OPEN sessions:** All active OPEN sessions (not owned by player)
+- **CAMPAIGN sessions:** Active CAMPAIGN sessions where player is a Campaign member
+- **INVITE sessions:** Active INVITE sessions where player has been invited
+
+Results are sorted by access type: INVITE first, then CAMPAIGN, then OPEN. Within each type, sorted by creation date (newest first).
 
 **Response (200):**
 ```json
@@ -211,8 +270,8 @@ List sessions. Behavior differs by context:
   "sessions": [
     {
       "id": "clx...",
-      "joinCode": "K7X9M2",
       "status": "ACTIVE",
+      "accessType": "INVITE",
       "adventureId": "clx...",
       "createdAt": "2026-01-27T12:00:00.000Z",
       "adventure": {
@@ -243,8 +302,8 @@ Get a single session with full details. Accessible to the DM or any participant.
 {
   "session": {
     "id": "clx...",
-    "joinCode": "K7X9M2",
     "status": "ACTIVE",
+    "accessType": "OPEN",
     "adventureId": "clx...",
     "dmId": "clx...",
     "activeMapId": null,
@@ -292,36 +351,6 @@ Get a single session with full details. Accessible to the DM or any participant.
 - 403: Not the DM or a participant of this session
 - 404: Session not found
 
-#### GET /api/sessions/join/:joinCode
-
-Look up a session by join code. Used by players to preview a session before joining.
-
-**Response (200):**
-```json
-{
-  "session": {
-    "id": "clx...",
-    "joinCode": "K7X9M2",
-    "status": "ACTIVE",
-    "adventure": {
-      "id": "clx...",
-      "name": "The Keep on the Borderlands"
-    },
-    "dm": {
-      "id": "clx...",
-      "name": "Gary",
-      "avatarUrl": null
-    },
-    "participantCount": 3
-  }
-}
-```
-
-**Errors:**
-- 401: Not authenticated
-- 404: No active session with that join code
-- 410: Session is paused or ended
-
 #### POST /api/sessions/:id/join
 
 Join a session as a player with a selected character.
@@ -360,11 +389,15 @@ Join a session as a player with a selected character.
 - User must not already be a participant in this session
 - User must not be the DM of this session (DMs don't join their own session as players)
 - Maximum 8 players per session
+- User must have access based on session accessType:
+  - OPEN: Anyone can join
+  - CAMPAIGN: Must be a member of the adventure's campaign
+  - INVITE: Must have a SessionInvite record
 
 **Errors:**
 - 400: Missing characterId, or character not owned by user
 - 401: Not authenticated
-- 403: Cannot join own session as player
+- 403: Cannot join own session as player, or no access (CAMPAIGN/INVITE restrictions)
 - 404: Session not found, or character not found
 - 409: Already a participant, or session is full (8 players)
 - 410: Session is paused or ended
@@ -436,7 +469,194 @@ Delete a session permanently. DM only. Only ENDED sessions can be deleted.
 - 403: Not the DM of this session
 - 404: Session not found
 
-### 4. WebSocket Infrastructure
+### 4. Campaign Membership API
+
+Campaign membership allows DMs to add players to their campaigns. Members have automatic access to CAMPAIGN-type sessions.
+
+#### GET /api/campaigns/:campaignId/members
+
+List all members of a campaign. Campaign owner only.
+
+**Response (200):**
+```json
+{
+  "members": [
+    {
+      "id": "clx...",
+      "joinedAt": "2026-01-27T12:00:00.000Z",
+      "user": {
+        "id": "clx...",
+        "name": "Dave",
+        "email": "dave@example.com",
+        "avatarUrl": null
+      }
+    }
+  ]
+}
+```
+
+**Errors:**
+- 401: Not authenticated
+- 403: Not the campaign owner
+- 404: Campaign not found
+
+#### POST /api/campaigns/:campaignId/members
+
+Add a member to a campaign. Campaign owner only.
+
+**Request:**
+```json
+{
+  "email": "player@example.com"  // OR
+  "userId": "clx..."             // One of email or userId required
+}
+```
+
+**Response (201):**
+```json
+{
+  "member": {
+    "id": "clx...",
+    "joinedAt": "2026-01-27T12:00:00.000Z",
+    "user": {
+      "id": "clx...",
+      "name": "Dave",
+      "email": "dave@example.com",
+      "avatarUrl": null
+    }
+  }
+}
+```
+
+**Validation:**
+- If email provided, user must exist with that email
+- User must not already be a member
+- Cannot add campaign owner as a member (they're the DM)
+
+**Errors:**
+- 400: Neither email nor userId provided, or user not found
+- 401: Not authenticated
+- 403: Not the campaign owner
+- 404: Campaign not found
+- 409: User is already a member
+
+#### DELETE /api/campaigns/:campaignId/members/:userId
+
+Remove a member from a campaign. Campaign owner only.
+
+**Response (200):**
+```json
+{
+  "success": true
+}
+```
+
+**Errors:**
+- 401: Not authenticated
+- 403: Not the campaign owner
+- 404: Campaign or member not found
+
+### 5. Session Invites API (for INVITE-type sessions)
+
+Session invites allow DMs to explicitly invite players to INVITE-type sessions.
+
+#### GET /api/sessions/:sessionId/invites
+
+List all invites for a session. DM only.
+
+**Response (200):**
+```json
+{
+  "invites": [
+    {
+      "id": "clx...",
+      "createdAt": "2026-01-27T12:00:00.000Z",
+      "acceptedAt": null,
+      "declinedAt": null,
+      "user": {
+        "id": "clx...",
+        "name": "Dave",
+        "email": "dave@example.com"
+      },
+      "email": null
+    },
+    {
+      "id": "clx...",
+      "createdAt": "2026-01-27T12:01:00.000Z",
+      "acceptedAt": null,
+      "declinedAt": null,
+      "user": null,
+      "email": "newplayer@example.com"
+    }
+  ]
+}
+```
+
+**Errors:**
+- 401: Not authenticated
+- 403: Not the DM of this session
+- 404: Session not found
+
+#### POST /api/sessions/:sessionId/invites
+
+Create an invite for a player. DM only. Only valid for INVITE-type sessions.
+
+**Request:**
+```json
+{
+  "email": "player@example.com"  // OR
+  "userId": "clx..."             // One of email or userId required
+}
+```
+
+**Response (201):**
+```json
+{
+  "invite": {
+    "id": "clx...",
+    "createdAt": "2026-01-27T12:00:00.000Z",
+    "acceptedAt": null,
+    "declinedAt": null,
+    "user": {
+      "id": "clx...",
+      "name": "Dave",
+      "email": "dave@example.com"
+    },
+    "email": null
+  }
+}
+```
+
+**Validation:**
+- Session must be INVITE type
+- Cannot invite the DM
+- Cannot invite someone who's already invited
+- If userId provided, user must exist
+
+**Errors:**
+- 400: Neither email nor userId provided, or session is not INVITE type
+- 401: Not authenticated
+- 403: Not the DM of this session
+- 404: Session not found, or user not found
+- 409: User/email already invited
+
+#### DELETE /api/sessions/:sessionId/invites/:inviteId
+
+Remove an invite. DM only.
+
+**Response (200):**
+```json
+{
+  "success": true
+}
+```
+
+**Errors:**
+- 401: Not authenticated
+- 403: Not the DM of this session
+- 404: Session or invite not found
+
+### 6. WebSocket Infrastructure
 
 #### Server Setup
 
@@ -537,16 +757,17 @@ The client doesn't send much in this spec — most actions go through REST endpo
 - If no ping received in 60 seconds, server closes the connection
 - Client detects close and triggers reconnection
 
-### 5. Type Definitions (shared/src/types.ts)
+### 7. Type Definitions (shared/src/types.ts)
 
 ```typescript
 // Session types
 export type SessionStatus = 'ACTIVE' | 'PAUSED' | 'ENDED'
+export type SessionAccessType = 'OPEN' | 'CAMPAIGN' | 'INVITE'
 
 export interface Session {
   id: string
-  joinCode: string
   status: SessionStatus
+  accessType: SessionAccessType
   adventureId: string
   dmId: string
   activeMapId: string | null
@@ -568,12 +789,13 @@ export interface SessionWithDetails extends Session {
     avatarUrl: string | null
   }
   participants: SessionParticipantWithDetails[]
+  invites: SessionInviteWithDetails[]
 }
 
 export interface SessionListItem {
   id: string
-  joinCode: string
   status: SessionStatus
+  accessType: SessionAccessType
   adventureId: string
   createdAt: string
   adventure: {
@@ -613,6 +835,72 @@ export interface SessionParticipantWithDetails extends SessionParticipant {
     armorClass: number
     avatarUrl: string | null
   }
+}
+
+// Campaign Membership types
+export interface CampaignMember {
+  id: string
+  campaignId: string
+  userId: string
+  joinedAt: string
+}
+
+export interface CampaignMemberWithDetails extends CampaignMember {
+  user: {
+    id: string
+    name: string
+    email: string
+    avatarUrl: string | null
+  }
+}
+
+export interface CampaignMembersResponse {
+  members: CampaignMemberWithDetails[]
+}
+
+export interface CampaignMemberResponse {
+  member: CampaignMemberWithDetails
+}
+
+export interface AddCampaignMemberRequest {
+  email?: string
+  userId?: string
+}
+
+// Session Invite types
+export interface SessionInvite {
+  id: string
+  sessionId: string
+  userId: string | null
+  email: string | null
+  createdAt: string
+  acceptedAt: string | null
+  declinedAt: string | null
+}
+
+export interface SessionInviteWithDetails extends SessionInvite {
+  user: {
+    id: string
+    name: string
+    email: string
+  } | null
+}
+
+export interface SessionInvitesResponse {
+  invites: SessionInviteWithDetails[]
+}
+
+export interface SessionInviteResponse {
+  invite: SessionInviteWithDetails
+}
+
+export interface CreateSessionInviteRequest {
+  email?: string
+  userId?: string
+}
+
+export interface CreateSessionRequest {
+  accessType?: SessionAccessType
 }
 
 export interface SessionListResponse {
@@ -681,7 +969,107 @@ export interface WSSessionUpdated {
 }
 ```
 
-### 6. Client Implementation
+### 8. Client Implementation
+
+#### Entry Points: Top-Level Session Buttons
+
+The primary entry points for sessions are prominent buttons in the page headers of both Forge and Adventure modes. These replace the redundant "New Campaign" and "New Character" buttons that duplicate functionality already available in section headers.
+
+**Forge Dashboard (client/src/pages/DashboardPage.tsx)**
+
+Replace the header "+ New Campaign" button with "Start Session":
+
+```
+┌─────────────────────────────────────────────────────┐
+│  FORGE                             [Start Session]  │
+│  Forge adventures or entire worlds...               │
+├─────────────────────────────────────────────────────┤
+```
+
+Clicking "Start Session" opens a **StartSessionModal** that shows:
+
+```
+┌────────────────────────────────────────────────────────┐
+│  START A SESSION                                   ✕   │
+│  ══════════════════════════════════════════════════    │
+│                                                        │
+│  ACTIVE SESSIONS                                       │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  ● The Keep on the Borderlands     [Resume]      │  │
+│  │    ACTIVE • 3 players                            │  │
+│  └──────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  ◐ Tomb of Horrors                 [Return]      │  │
+│  │    PAUSED • 2 players                            │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                        │
+│  ──────────── OR START NEW ────────────                │
+│                                                        │
+│  SELECT AN ADVENTURE                                   │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Caves of Chaos                    [Start]       │  │
+│  │    Campaign: Greyhawk                            │  │
+│  └──────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Village of Hommlet                [Start]       │  │
+│  │    Standalone                                    │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                        │
+│  (No adventures available)                             │
+│  Create an adventure first to start a session.         │
+└────────────────────────────────────────────────────────┘
+```
+
+- **Active Sessions**: Shows any ACTIVE/PAUSED sessions the DM owns. "Resume" navigates to the session page.
+- **Start New**: Lists all adventures (from campaigns + standalone) that don't have an active session. Clicking "Start" opens the access type selection modal, then creates the session.
+
+**Adventure Mode Page (client/src/pages/AdventureModePage.tsx)**
+
+Replace the header "+ New Character" button with "Join Session":
+
+```
+┌─────────────────────────────────────────────────────┐
+│  ADVENTURE                           [Join Session]  │
+│  Create characters and embark on epic quests...      │
+├─────────────────────────────────────────────────────┤
+```
+
+Clicking "Join Session" opens a **JoinSessionModal** that shows available sessions:
+
+```
+┌────────────────────────────────────────────────────────┐
+│  JOIN A SESSION                                    ✕   │
+│  ══════════════════════════════════════════════════    │
+│                                                        │
+│  AVAILABLE SESSIONS                                    │
+│  (Sorted: Invited → Campaign → Open)                   │
+│                                                        │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  🔒 Invite                                        │  │
+│  │  The Keep on the Borderlands                     │  │
+│  │  DM: Gary • 3 players              [JOIN]        │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                        │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  👥 Campaign                                      │  │
+│  │  Tomb of the Serpent Kings                       │  │
+│  │  DM: Erol • 1 player               [JOIN]        │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                        │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  🌐 Open                                          │  │
+│  │  Caves of Chaos                                  │  │
+│  │  DM: Mike • 0 players              [JOIN]        │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                        │
+│  (No sessions available)                               │
+│  No quests await... check back later.                  │
+└────────────────────────────────────────────────────────┘
+```
+
+The modal includes the join flow: session browsing and character selection.
+
+**Note:** The `/adventure/sessions` route (SessionBrowsePage) still exists for direct navigation, but the modal provides quick access without leaving the current page.
 
 #### Adventure Page Updates (client/src/pages/AdventurePage.tsx)
 
@@ -705,7 +1093,7 @@ Add a "Start Session" button to the adventure detail page. Only visible to the a
 
 **Route:** `/adventure/sessions`
 
-A page where players can browse active sessions or enter a join code.
+A page where players can browse active sessions they have access to.
 
 **Layout:**
 ```
@@ -713,35 +1101,42 @@ A page where players can browse active sessions or enter a join code.
 │  FIND A SESSION                                     │
 │  ═══════════════════════════════════════════════    │
 │                                                     │
-│  JOIN BY CODE                                       │
-│  ┌──────────────────────┐  [JOIN]                   │
-│  │ Enter join code...   │                           │
-│  └──────────────────────┘                           │
-│                                                     │
-│  ──────────── OR ────────────                       │
-│                                                     │
-│  ACTIVE SESSIONS                                    │
+│  AVAILABLE SESSIONS                                 │
+│  (Sorted: Invited → Campaign → Open)                │
 │                                                     │
 │  ┌─────────────────────────────────────────────┐    │
+│  │  🔒 Invite                                   │    │
 │  │  The Keep on the Borderlands                │    │
-│  │  DM: Gary • 3 players                       │    │
-│  │  Code: K7X9M2                    [JOIN]      │    │
+│  │  DM: Gary • 3 players            [JOIN]      │    │
 │  └─────────────────────────────────────────────┘    │
 │                                                     │
 │  ┌─────────────────────────────────────────────┐    │
+│  │  👥 Campaign                                 │    │
 │  │  Tomb of the Serpent Kings                  │    │
-│  │  DM: Erol • 1 player                       │    │
-│  │  Code: T3N8P5                    [JOIN]      │    │
+│  │  DM: Erol • 1 player             [JOIN]      │    │
 │  └─────────────────────────────────────────────┘    │
 │                                                     │
-│  (No active sessions)                               │
-│  No quests await... check back later                │
-│  or enter a join code from your DM.                 │
+│  ┌─────────────────────────────────────────────┐    │
+│  │  🌐 Open                                     │    │
+│  │  Caves of Chaos                             │    │
+│  │  DM: Mike • 0 players            [JOIN]      │    │
+│  └─────────────────────────────────────────────┘    │
+│                                                     │
+│  (No sessions available)                            │
+│  No quests await... check back later.               │
 └─────────────────────────────────────────────────────┘
 ```
 
+**Sorting Logic:**
+Sessions are automatically sorted by access type priority:
+1. **INVITE** sessions first (you were specifically invited)
+2. **CAMPAIGN** sessions second (you're a campaign member)
+3. **OPEN** sessions last (available to everyone)
+
+Within each group, sessions are sorted by creation date (newest first).
+
 **Join flow:**
-1. Player clicks JOIN on a session (or enters code and clicks JOIN)
+1. Player clicks JOIN on a session
 2. If player has no characters → show message: "You need a character to join. Create one first." with link to character creation
 3. If player has one character → auto-select it, show confirmation
 4. If player has multiple characters → show character selection modal
@@ -770,13 +1165,108 @@ A page where players can browse active sessions or enter a join code.
 
 Displays the player's characters as selectable cards. Clicking one selects it, then "JOIN SESSION" confirms.
 
+#### SessionTypeChip Component (client/src/components/SessionTypeChip.tsx)
+
+A small chip/badge that indicates the session access type. Used in session lists to help players understand their access.
+
+```
+┌─────────────────────┐
+│ 🔒 Invite           │  - Lock icon, for sessions you're specifically invited to
+└─────────────────────┘
+
+┌─────────────────────┐
+│ 👥 Campaign         │  - Users icon, for sessions in a campaign you belong to
+└─────────────────────┘
+
+┌─────────────────────┐
+│ 🌐 Open             │  - Globe icon, for public sessions anyone can join
+└─────────────────────┘
+```
+
+**Styling:**
+- Small pill/badge shape
+- Subtle background color to differentiate:
+  - Invite: Light amber/gold background (stands out as "special")
+  - Campaign: Light blue background
+  - Open: Light gray background
+- Black text and icon
+
+**Props:**
+```typescript
+interface SessionTypeChipProps {
+  accessType: SessionAccessType
+}
+```
+
+#### Start Session Flow Updates (AdventurePage.tsx)
+
+When DM clicks "Start Session", show a modal to select access type:
+
+```
+┌────────────────────────────────────────────┐
+│  START NEW SESSION                     ✕   │
+│  ══════════════════════════════════════    │
+│                                            │
+│  Who can join this session?                │
+│                                            │
+│  ○ Open                                    │
+│    Anyone can browse and join              │
+│                                            │
+│  ○ Campaign Members                        │
+│    Only members of "Greyhawk" can join     │
+│                                            │
+│  ○ Invite Only                             │
+│    You'll invite specific players          │
+│                                            │
+│              [Cancel]  [START SESSION]      │
+└────────────────────────────────────────────┘
+```
+
+#### Campaign Members Section (CampaignPage.tsx)
+
+Add a "Members" section to the Campaign detail page where DMs can manage who belongs to their campaign.
+
+```
+┌─────────────────────────────────────────────────────┐
+│  MEMBERS                              [Add Member]  │
+│  ─────────────────────────────────────────────      │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐    │
+│  │ 👤 Dave the Brave                           │    │
+│  │   dave@example.com              [Remove]    │    │
+│  └─────────────────────────────────────────────┘    │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐    │
+│  │ 👤 Sarah Spellslinger                       │    │
+│  │   sarah@example.com             [Remove]    │    │
+│  └─────────────────────────────────────────────┘    │
+│                                                     │
+│  (Campaign members can join any Campaign-type       │
+│   sessions in this campaign automatically)          │
+└─────────────────────────────────────────────────────┘
+```
+
+**Add Member Modal:**
+```
+┌────────────────────────────────────────────┐
+│  ADD CAMPAIGN MEMBER                   ✕   │
+│  ══════════════════════════════════════    │
+│                                            │
+│  Enter player's email address:             │
+│  ┌──────────────────────────────────┐      │
+│  │ player@example.com               │      │
+│  └──────────────────────────────────┘      │
+│                                            │
+│              [Cancel]  [ADD MEMBER]         │
+└────────────────────────────────────────────┘
+```
+
 #### Session Page Placeholder (client/src/pages/SessionPage.tsx)
 
 **Route:** `/sessions/:id`
 
 For this spec, the session page is a minimal view showing:
-- Session status (active/paused)
-- Join code (for DM to share)
+- Session status (active/paused) and access type
 - Connected users list
 - DM controls: Pause/Resume/End session buttons
 - Player: Leave session button
@@ -789,12 +1279,7 @@ The full game UI (map, chat, player cards sidebar) is spec 011b.
 │  ← Back to Adventure    SESSION: The Keep on the... │
 ├─────────────────────────────────────────────────────┤
 │                                                     │
-│  JOIN CODE: K7X9M2              [Copy]              │
-│  Share this code with your players                  │
-│                                                     │
-│  ─────────────────────────────────────────────      │
-│                                                     │
-│  STATUS: ● ACTIVE                                   │
+│  STATUS: ● ACTIVE          ACCESS: 🔒 Invite        │
 │                                                     │
 │  CONNECTED                                          │
 │  ┌─────────────────────────────────────────────┐    │
@@ -828,7 +1313,7 @@ The full game UI (map, chat, player cards sidebar) is spec 011b.
 └─────────────────────────────────────────────────────┘
 ```
 
-### 7. WebSocket Client Hook (client/src/hooks/useSessionSocket.ts)
+### 9. WebSocket Client Hook (client/src/hooks/useSessionSocket.ts)
 
 A React hook managing the WebSocket connection for a session.
 
@@ -854,7 +1339,7 @@ interface UseSessionSocketReturn {
 5. Send ping every 30 seconds
 6. Clean up on unmount
 
-### 8. Routing Updates
+### 10. Routing Updates
 
 **client/src/App.tsx:**
 
@@ -865,28 +1350,37 @@ interface UseSessionSocketReturn {
 
 **Navigation:** Add "Sessions" link in the Adventure mode nav area, linking to `/adventure/sessions`.
 
-### 9. Project Structure Updates
+### 11. Project Structure Updates
 
 **New Files:**
 ```
 server/src/routes/sessions.ts              # Session REST endpoints
+server/src/routes/campaignMembers.ts       # Campaign membership endpoints
+server/src/routes/sessionInvites.ts        # Session invite endpoints
 server/src/websocket/index.ts              # WebSocket server setup
 server/src/websocket/sessionManager.ts     # In-memory session/connection state
 server/src/websocket/handlers.ts           # WebSocket message handlers
-server/src/services/joinCode.ts            # Join code generation
-client/src/pages/SessionBrowsePage.tsx     # Player session browser
+client/src/pages/SessionBrowsePage.tsx     # Player session browser (also used in JoinSessionModal)
 client/src/pages/SessionPage.tsx           # Session view (placeholder for 011b)
+client/src/pages/CampaignMembersPage.tsx   # Campaign member management (or section in CampaignPage)
+client/src/components/StartSessionModal.tsx # Forge: DM picks adventure or resumes session
+client/src/components/JoinSessionModal.tsx # Adventure: Player browses/joins sessions
 client/src/components/SelectCharacterModal.tsx  # Character picker for joining
+client/src/components/SessionTypeChip.tsx  # Access type indicator chip
+client/src/components/InvitePlayerModal.tsx # Modal to invite players to INVITE sessions
 client/src/hooks/useSessionSocket.ts       # WebSocket connection hook
 ```
 
 **Modified Files:**
 ```
-prisma/schema.prisma                       # Add Session, SessionParticipant models
-shared/src/types.ts                        # Add session and WebSocket types
+prisma/schema.prisma                       # Add Session, SessionParticipant, CampaignMember, SessionInvite models
+shared/src/types.ts                        # Add session, membership, invite, and WebSocket types
 server/src/app.ts                          # Register session routes + WebSocket
 client/src/App.tsx                         # Add session routes
-client/src/pages/AdventurePage.tsx          # Add Start/Resume Session button
+client/src/pages/DashboardPage.tsx         # Replace "+ New Campaign" header button with "Start Session"
+client/src/pages/AdventureModePage.tsx     # Replace "+ New Character" header button with "Join Session"
+client/src/pages/AdventurePage.tsx         # Add Start/Resume Session button with access type selection
+client/src/pages/CampaignPage.tsx          # Add Members section for managing campaign membership
 client/src/pages/index.ts                  # Export new pages
 client/src/components/index.ts             # Export new components
 ```
@@ -900,7 +1394,7 @@ Session cards in the browse list follow the B/X aesthetic:
 - Bold shadow offset
 - Adventure name in display font (all caps)
 - DM name and player count in body font
-- Join code displayed in monospace/typewriter font
+- Access type chip (SessionTypeChip) in top corner
 - JOIN button uses standard neobrutalism button style
 
 ### Status Indicators
@@ -910,36 +1404,36 @@ Session cards in the browse list follow the B/X aesthetic:
 - **Online (connected via WS):** Green dot (one of the rare uses of color per the design system — connection status is important)
 - **Offline (not connected):** Empty circle ○
 
-### Join Code Display
-
-The join code should be prominent and easy to read:
-- Large monospace font
-- Letter-spaced for clarity: `K 7 X 9 M 2`
-- Copy button copies the code to clipboard
-- Shown on the session page for the DM to share
-
 ## Acceptance Criteria
 
 ### Database
-- [ ] Session model created with all fields
+- [ ] Session model created with all fields including accessType
 - [ ] SessionParticipant model created
+- [ ] CampaignMember model created
+- [ ] SessionInvite model created
 - [ ] Session-Adventure relationship established
 - [ ] Session-User (DM) relationship established
 - [ ] SessionParticipant-User and SessionParticipant-Character relationships work
+- [ ] CampaignMember-Campaign and CampaignMember-User relationships work
+- [ ] SessionInvite-Session and SessionInvite-User relationships work
 - [ ] Cascade delete removes sessions when adventure deleted
-- [ ] Unique constraint on joinCode
+- [ ] Cascade delete removes campaign members when campaign deleted
+- [ ] Cascade delete removes session invites when session deleted
 - [ ] Unique constraint on (sessionId, userId) for participants
+- [ ] Unique constraint on (campaignId, userId) for campaign members
+- [ ] Unique constraints on (sessionId, userId) and (sessionId, email) for invites
 
-### API
-- [ ] POST /api/adventures/:id/sessions creates a session with join code
+### API - Sessions
+- [ ] POST /api/adventures/:id/sessions creates a session with accessType
 - [ ] POST returns 409 if adventure already has active/paused session
 - [ ] GET /api/sessions?adventureId=x returns sessions for that adventure
-- [ ] GET /api/sessions?browse=true returns all active sessions (player view)
+- [ ] GET /api/sessions?browse=true returns sessions filtered by access type (OPEN, CAMPAIGN membership, INVITE)
+- [ ] GET /api/sessions?browse=true sorts results: INVITE → CAMPAIGN → OPEN
 - [ ] GET /api/sessions/:id returns full session details
 - [ ] GET /api/sessions/:id returns 403 for unauthorized users
-- [ ] GET /api/sessions/join/:code looks up session by join code
 - [ ] POST /api/sessions/:id/join adds player with character
 - [ ] POST /api/sessions/:id/join validates character ownership
+- [ ] POST /api/sessions/:id/join validates access based on accessType
 - [ ] POST /api/sessions/:id/join rejects if session full (8 players)
 - [ ] POST /api/sessions/:id/join rejects DM joining own session
 - [ ] POST /api/sessions/:id/leave soft-deletes participant
@@ -947,6 +1441,18 @@ The join code should be prominent and easy to read:
 - [ ] PATCH validates status transitions
 - [ ] DELETE /api/sessions/:id deletes ended sessions only
 - [ ] POST /api/sessions/:id/ws-token returns short-lived token
+
+### API - Campaign Membership
+- [ ] GET /api/campaigns/:id/members lists campaign members (owner only)
+- [ ] POST /api/campaigns/:id/members adds member by email or userId
+- [ ] POST validates user exists and is not already a member
+- [ ] DELETE /api/campaigns/:id/members/:userId removes member
+
+### API - Session Invites
+- [ ] GET /api/sessions/:id/invites lists invites (DM only)
+- [ ] POST /api/sessions/:id/invites creates invite (INVITE sessions only)
+- [ ] POST validates session is INVITE type
+- [ ] DELETE /api/sessions/:id/invites/:inviteId removes invite
 
 ### WebSocket
 - [ ] WebSocket server starts with Fastify
@@ -960,44 +1466,116 @@ The join code should be prominent and easy to read:
 - [ ] Stale connections cleaned up after 60s no ping
 - [ ] Multiple users in same session receive each other's events
 
-### Client
+### Client - Entry Points
+- [ ] Forge dashboard header button changed from "+ New Campaign" to "Start Session"
+- [ ] StartSessionModal opens showing active sessions + adventures to start from
+- [ ] DM can resume active/paused sessions from StartSessionModal
+- [ ] DM can start new session from any adventure in StartSessionModal
+- [ ] Adventure mode header button changed from "+ New Character" to "Join Session"
+- [ ] JoinSessionModal opens showing browsable sessions
+- [ ] Player can join from browse list in JoinSessionModal
+
+### Client - Session Management
 - [ ] Adventure page shows Start/Resume Session button
-- [ ] Session browse page lists active sessions
-- [ ] Join code input works
+- [ ] Start Session flow allows selecting access type (Open, Campaign, Invite)
+- [ ] Session browse page lists active sessions filtered by access
+- [ ] Session browse page sorts sessions: Invite → Campaign → Open
+- [ ] SessionTypeChip displays correct icon and label for each access type
 - [ ] Character selection modal appears for multi-character players
 - [ ] Session page shows connected users in real-time
+- [ ] Session page shows access type indicator
 - [ ] DM can pause/resume/end session
 - [ ] Player can leave session
 - [ ] WebSocket auto-reconnects on disconnect
-- [ ] Join code copy-to-clipboard works
+- [ ] Campaign page shows Members section (owner only)
+- [ ] DM can add members to campaign by email
+- [ ] DM can remove members from campaign
+- [ ] DM can invite players to INVITE sessions
+- [ ] DM can remove invites from INVITE sessions
 
 ### Visual Design
 - [ ] Session cards match B/X aesthetic
+- [ ] SessionTypeChip differentiates access types visually (icon + subtle background color)
 - [ ] Status indicators visible and clear
-- [ ] Join code prominent and readable
 - [ ] Typography follows design system
 - [ ] Animations consistent with existing UI
 
 ## Verification Steps
 
-### 1. Session Lifecycle
+### 1. Entry Point Buttons
+
+**Forge Dashboard:**
+1. Login as DM, navigate to Forge dashboard
+2. Verify header button says "Start Session" (not "+ New Campaign")
+3. Click "Start Session" → StartSessionModal opens
+4. Verify modal shows any active/paused sessions (if any)
+5. Verify modal lists adventures available to start from
+6. Click "Start" on an adventure → access type selection appears
+7. Close modal, verify campaign section still has "+ New Campaign" button
+
+**Adventure Mode:**
+1. Switch to Adventure mode
+2. Verify header button says "Join Session" (not "+ New Character")
+3. Click "Join Session" → JoinSessionModal opens
+4. Verify modal shows session browse list
+5. Close modal, verify characters section still has "+ New Character" button
+
+### 2. Session Lifecycle (OPEN session)
+
+1. Login as DM, click "Start Session" on Forge dashboard
+2. Select an adventure, then select "Open" access type
+3. Session created, redirected to session page
+4. Verify session shows status and access type
+5. Open incognito window, login as player
+6. Navigate to Adventure > Sessions (or use Join Session button)
+7. Verify the active session appears in the browse list with 🌐 Open chip
+8. Click JOIN, select character → join session
+9. Verify DM's session page shows player connected
+10. DM clicks Pause → status updates for both users
+11. DM clicks Resume → session active again
+12. Player clicks Leave → removed from participant list
+13. DM clicks End Session → session ended
+
+### 3. Campaign Membership Flow
+
+1. Login as DM, navigate to a campaign
+2. Click "Add Member" in the Members section
+3. Enter player's email → member added
+4. Verify member appears in the members list
+5. Open incognito window, login as that player
+6. Navigate to Adventure > Sessions
+7. Player should NOT see the session yet (no session created)
+8. DM creates a CAMPAIGN-type session from an adventure in that campaign
+9. Player refreshes sessions page → sees session with 👥 Campaign chip
+10. Player joins session successfully
+11. DM removes player from campaign members
+12. Player can no longer see new CAMPAIGN sessions (but stays in current session)
+
+### 4. Session Invite Flow
 
 1. Login as DM, navigate to an adventure
-2. Click "Start Session" → session created, redirected to session page
-3. Verify join code is displayed
-4. Copy join code
-5. Open incognito window, login as player
-6. Navigate to Adventure > Sessions
-7. Verify the active session appears in the browse list
-8. Enter join code → session preview shown
-9. Select character → join session
-10. Verify DM's session page shows player connected
-11. DM clicks Pause → status updates for both users
-12. DM clicks Resume → session active again
-13. Player clicks Leave → removed from participant list
-14. DM clicks End Session → session ended
+2. Click "Start Session" → select "Invite Only" access type
+3. Session created, DM sees invite management UI
+4. DM clicks "Invite Player" → enters player's email
+5. Invite created and shown in invites list
+6. Open incognito window, login as invited player
+7. Navigate to Adventure > Sessions
+8. Player sees session with 🔒 Invite chip (appears first in list)
+9. Player joins session successfully
+10. Login as different player (not invited)
+11. Navigate to Adventure > Sessions
+12. This player does NOT see the INVITE session in their list
+13. DM removes invite → invited player can no longer see new INVITE sessions
 
-### 2. WebSocket Tests
+### 5. Session List Sorting
+
+1. Create multiple sessions with different access types
+2. Login as a player who is: invited to one, campaign member of another, and can see open ones
+3. Navigate to Adventure > Sessions
+4. Verify order: Invite sessions first, Campaign sessions second, Open sessions last
+5. Within each group, verify newest sessions appear first
+
+### 6. WebSocket Tests
 
 1. DM starts session, opens session page
 2. Player joins session, opens session page
@@ -1007,23 +1585,29 @@ The join code should be prominent and easy to read:
 6. Player reopens → auto-reconnects, DM sees them online again
 7. DM pauses session → player sees status update in real-time
 
-### 3. Edge Cases
+### 7. Edge Cases
 
 1. Try to start session when one already active → 409 error
 2. Try to join with someone else's character → 400 error
 3. Try to join as DM of the session → 403 error
 4. Try to join when session is full (8 players) → 409 error
 5. Try to join paused/ended session → 410 error
-6. Delete adventure with active session → cascade deletes session
-7. Two players join simultaneously → both succeed, both see each other
+6. Try to join CAMPAIGN session without membership → 403 error
+7. Try to join INVITE session without invite → 403 error
+8. Delete adventure with active session → cascade deletes session
+9. Delete campaign → cascade deletes campaign members
+10. Two players join simultaneously → both succeed, both see each other
 
-### 4. Authorization Tests
+### 8. Authorization Tests
 
 1. Non-owner tries to start session on someone else's adventure → 403
 2. Non-participant tries to GET session details → 403
 3. Player tries to pause/end session → 403
 4. Player tries to delete session → 403
 5. Non-participant tries to get WS token → 403
+6. Non-owner tries to add/remove campaign members → 403
+7. Non-DM tries to create/remove session invites → 403
+8. Try to invite to non-INVITE session → 400
 
 ## Future Considerations
 

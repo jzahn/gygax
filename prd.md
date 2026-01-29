@@ -37,6 +37,8 @@ Currently most pen and paper D&D games are played via Discord, which lacks purpo
 | **Notes**               | DM notes with title and content for organizing adventure information.                                    |
 | **DM (Dungeon Master)** | The user who creates campaigns/adventures, draws maps, runs sessions, and controls the game world.      |
 | **Player**              | A user who creates characters and joins sessions to explore the DM's world.                             |
+| **Campaign Member**     | A player who belongs to a Campaign and has automatic access to Campaign-type sessions within it.        |
+| **Session Access Type** | Controls who can see and join a session: Open (anyone), Campaign (members only), or Invite (specific players). |
 
 ---
 
@@ -94,61 +96,64 @@ The application has two main navigation modes accessible via a persistent top na
 4. Campaigns have a name, description, and landscape banner image with selectable hotspot.
 5. Campaign detail page shows banner at top, title, description, and list of Adventure cards.
 6. Each Campaign has a world map accessible from all Adventures within it (with shared fog of war).
+7. DMs can add members to their Campaigns. Campaign members have automatic access to all Campaign-type sessions.
 
 #### Forge Mode - Adventures
-7. DMs can create, save, and manage multiple Adventures within a Campaign.
-8. Upon login, DMs see a dashboard listing their saved Campaigns and can select one to view Adventures.
-9. DMs can build Adventure content (maps, encounters, backdrops, NPCs, notes) at any time.
-10. All Adventure data persists automatically; DMs can log out and return to continue building.
-11. DMs can start a live game session from any saved Adventure when ready to play.
+8. DMs can create, save, and manage multiple Adventures within a Campaign.
+9. Upon login, DMs see a dashboard listing their saved Campaigns and can select one to view Adventures.
+10. DMs can build Adventure content (maps, encounters, backdrops, NPCs, notes) at any time.
+11. All Adventure data persists automatically; DMs can log out and return to continue building.
+12. DMs can start a live game session from any saved Adventure when ready to play.
 
 #### Forge Mode - Maps
-12. DMs can create and edit maps.
-13. Maps are represented by a hexagonal grid when outdoors and a square grid when indoors.
-14. Maps are viewed from an overhead perspective.
-15. DM can switch between Adventure maps during a session, displaying any map to players.
+13. DMs can create and edit maps.
+14. Maps are represented by a hexagonal grid when outdoors and a square grid when indoors.
+15. Maps are viewed from an overhead perspective.
+16. DM can switch between Adventure maps during a session, displaying any map to players.
 
 #### Forge Mode - Backdrops
-16. DMs can upload backdrop images for display during sessions.
-17. Backdrops can show town scenes, battle illustrations, monster images, etc.
-18. DM can display a backdrop to players instead of a map during a session.
+17. DMs can upload backdrop images for display during sessions.
+18. Backdrops can show town scenes, battle illustrations, monster images, etc.
+19. DM can display a backdrop to players instead of a map during a session.
 
 #### Forge Mode - NPCs
-19. DMs can create characters for use as NPCs in their Adventures.
-20. DM NPCs use the same character sheet format as player characters.
+20. DMs can create characters for use as NPCs in their Adventures.
+21. DM NPCs use the same character sheet format as player characters.
 
 #### Forge Mode - Notes
-21. DMs can create notes with title and content for organizing Adventure information.
+22. DMs can create notes with title and content for organizing Adventure information.
 
 #### Forge Mode - Encounters
-22. The DM can design random encounter charts and assign them to an area.
-23. The DM should be able to place static encounters on the map in addition to random encounters.
-24. Encounters can be both friendly or hostile.
+23. The DM can design random encounter charts and assign them to an area.
+24. The DM should be able to place static encounters on the map in addition to random encounters.
+25. Encounters can be both friendly or hostile.
 
 #### Adventure Mode - Characters
-25. Players can create characters in the Adventure section.
-26. Characters are displayed on a B/X-style character sheet (matching Moldvay Basic rulebook).
-27. Players can create multiple characters and choose which one to play when joining a session.
+26. Players can create characters in the Adventure section.
+27. Characters are displayed on a B/X-style character sheet (matching Moldvay Basic rulebook).
+28. Players can create multiple characters and choose which one to play when joining a session.
 
 #### Adventure Mode - Sessions
-28. Players can browse and join active game sessions being hosted by DMs.
-29. When joining a session, players select which of their characters to play.
-30. Users can join an existing live game session as a Player.
+29. Players can browse sessions they have access to (invited, campaign member, or open).
+30. Session list displays Invite sessions first, then Campaign sessions, then Open sessions.
+31. Visual chips indicate session type: 🔒 Invite, 👥 Campaign, 🌐 Open.
+32. When joining a session, players select which of their characters to play.
+33. Users can join an existing live game session as a Player.
 
 #### Live Sessions
-31. Sessions start from an Adventure (not at Campaign level).
-32. The DM and Players are represented as cards arranged vertically on the right edge of the screen.
-33. The Players and Dungeon Master can communicate via a chat window at the bottom of the screen.
-34. The Players and DM can see a map representation of the game world created by the DM.
-35. Players can explore the map and experience a fog of war effect where undiscovered terrain is obscured.
-36. The players can experience random encounters while exploring a map (indoor or outdoor).
-37. A game session can be paused by the DM and persists until the next game session.
-38. Players and the DM can also communicate by audio.
-39. The DM should be able to private message any player back and forth.
-40. The chat windows (main or private) should allow the players to roll with a command like `/roll 3d6+1`.
+34. Sessions start from an Adventure (not at Campaign level).
+35. The DM and Players are represented as cards arranged vertically on the right edge of the screen.
+36. The Players and Dungeon Master can communicate via a chat window at the bottom of the screen.
+37. The Players and DM can see a map representation of the game world created by the DM.
+38. Players can explore the map and experience a fog of war effect where undiscovered terrain is obscured.
+39. The players can experience random encounters while exploring a map (indoor or outdoor).
+40. A game session can be paused by the DM and persists until the next game session.
+41. Players and the DM can also communicate by audio.
+42. The DM should be able to private message any player back and forth.
+43. The chat windows (main or private) should allow the players to roll with a command like `/roll 3d6+1`.
 
 #### System
-41. The application is designed to be used at first with the Moldvay B/X rule set.
+44. The application is designed to be used at first with the Moldvay B/X rule set.
 
 ### Nice-to-Have Features
 
@@ -219,11 +224,15 @@ The application has two main navigation modes accessible via a persistent top na
 
 1. DM navigates to an Adventure from within a Campaign
 2. DM clicks "Start Session" to go live
-3. System generates a join code/link for players
-4. DM shares the code/link with players (via Discord, text, email, etc.)
-5. DM waits in lobby as players join
-6. Once players are ready, DM begins the session
-7. Adventure is now in "live" mode with real-time sync
+3. DM selects session access type:
+   - **Open:** Anyone can browse and join
+   - **Campaign:** Only Campaign members can see and join
+   - **Invite:** DM explicitly invites specific players (by email/username)
+4. If Invite type, DM specifies players to invite
+5. Session is created and players with access can see it in their session list
+6. DM waits in lobby as players join
+7. Once players are ready, DM begins the session
+8. Adventure is now in "live" mode with real-time sync
 
 #### Flow 5: Player Creates a Character
 
@@ -237,12 +246,16 @@ The application has two main navigation modes accessible via a persistent top na
 #### Flow 6: Player Browses and Joins a Session
 
 1. Player navigates to the Adventure section
-2. Player sees list of active sessions available to join
-3. Player selects a session to join
-4. Player chooses which of their characters to play
-5. Player joins the game lobby and appears in the player card list
-6. Player connects to voice chat
-7. Player views the map with fog of war active
+2. Player sees list of sessions available to them, sorted by access type:
+   - **Invite sessions first:** Sessions where the player was explicitly invited (🔒)
+   - **Campaign sessions second:** Sessions in Campaigns where the player is a member (👥)
+   - **Open sessions third:** Public sessions anyone can join (🌐)
+3. Each session displays its access type chip for easy identification
+4. Player selects a session to join
+5. Player chooses which of their characters to play
+6. Player joins the game lobby and appears in the player card list
+7. Player connects to voice chat
+8. Player views the map with fog of war active
 
 #### Flow 7: Gameplay Loop
 
@@ -745,7 +758,7 @@ Modular monolith with clear separation between:
 - [ ] Players select which character to play when joining a session
 
 #### Live Sessions
-- [ ] Players can join via invite link/code and appear in player list
+- [ ] Players can browse and join sessions based on access type and appear in player list
 - [ ] Group chat works in real-time with dice roll parsing (`/roll 3d6+1` shows result)
 - [ ] DM can send private messages to individual players
 - [ ] Fog of war obscures unexplored areas for players
@@ -777,7 +790,7 @@ Modular monolith with clear separation between:
 5. **Data model:** How are "areas" defined for random encounter assignment? Polygon regions? Grid zones?
 6. **Offline support:** Should the app work if a player briefly disconnects?
 7. **Player visibility:** Can players see each other's HP/stats, or only the DM sees everything?
-8. **Invite system:** Simple join codes, or full invite/friend system?
+8. ~~**Invite system:** Simple join codes, or full invite/friend system?~~ **RESOLVED:** Three-tier access: Open (anyone can join), Campaign (members only), Invite (specific players). Players discover sessions through browse lists filtered by their access.
 
 ---
 
