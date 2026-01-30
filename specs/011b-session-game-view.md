@@ -43,7 +43,7 @@ Build the live session game view — the main screen where gameplay happens. Thi
 
 ### 1. Session Game View Layout
 
-The game view replaces the placeholder session page from 011a when a session is active.
+The game view is shown when the session status is **ACTIVE** or **PAUSED**. When the session is **FORMING**, the lobby/waiting room UI from 011a is shown instead. The session page component (`SessionPage.tsx`) conditionally renders either the lobby view or the game view based on session status.
 
 **Desktop Layout (≥1024px):**
 
@@ -163,15 +163,15 @@ A vertical list of all session participants (DM + players) on the right side.
 ```
 
 **Card details:**
-- Avatar image (or initials fallback, square, brutalist style)
+- Avatar image (square, brutalist style)
 - Character name (for players) or user name (for DM)
 - Class and level (players only)
-- HP current/max (players only) — DM sees all, players see only their own
-- AC (players only) — same visibility as HP
+- HP current/max (players only) — visible to everyone (like a real tabletop)
+- AC (players only) — visible to everyone
 - Connection status indicator (Online/Offline)
 - Active speaker indicator (when speaking via WebRTC)
 
-**Avatar:** Full color (per design system — avatars are one of the rare color elements).
+**Avatar fallback chain:** Character's avatarUrl → User's avatarUrl → Initials. Full color (per design system — avatars are one of the rare color elements).
 
 **Star icon (★):** Marks the DM in the list. DM always appears first.
 
@@ -267,13 +267,15 @@ interface UseVoiceChatReturn {
 ```
 
 **Behavior:**
-1. Request microphone permission on mount
-2. Create local audio stream
+1. Auto-connect: Request microphone permission on mount (when game view loads)
+2. Create local audio stream (unmuted by default)
 3. For each connected user, manage an RTCPeerConnection
 4. Handle offer/answer/ICE exchange via WebSocket
 5. Play received audio streams (create `<audio>` elements)
 6. Detect active speakers
 7. Clean up all connections on unmount
+
+**Auto-connect UX:** Voice connects automatically when entering the game view. Users who deny microphone permission can still participate — they just can't speak (voice disabled, map/chat work normally). A visual indicator shows voice status.
 
 ### 7. Map/Backdrop Switching WebSocket Messages
 
@@ -292,9 +294,10 @@ interface UseVoiceChatReturn {
 
 **Client behavior:**
 - On receiving `session:updated`, check `activeMapId` and `activeBackdropId`
-- If `activeMapId` changed → fetch map data and render MapCanvas
-- If `activeBackdropId` changed → fetch backdrop data and display image
+- If `activeMapId` changed → fetch map data via REST (`GET /api/adventures/:adventureId/maps/:mapId`) and render MapCanvas
+- If `activeBackdropId` changed → fetch backdrop data via REST (`GET /api/adventures/:adventureId/backdrops/:backdropId`) and display image
 - If both null → show "Awaiting..." state
+- Cache fetched maps/backdrops in memory for the session duration (switching back to a previously shown map is instant)
 
 ### 8. Session Status Banner
 
@@ -396,9 +399,16 @@ server/src/websocket/rtcRelay.ts               # WebRTC signaling relay
 shared/src/types.ts                            # Add WebRTC and display types
 server/src/websocket/handlers.ts               # Add map/backdrop/RTC message handlers
 server/src/websocket/sessionManager.ts         # Add display state management
-server/src/routes/sessions.ts                  # Add map/backdrop list endpoints if needed
-client/src/pages/SessionPage.tsx               # Integrate SessionGameView
+client/src/pages/SessionPage.tsx               # Conditionally render game view vs lobby
 client/src/hooks/useSessionSocket.ts           # Handle new message types
+```
+
+**Existing endpoints used (no changes needed):**
+```
+GET /api/adventures/:adventureId/maps          # List maps for DM dropdown
+GET /api/adventures/:adventureId/maps/:id      # Fetch full map data on switch
+GET /api/adventures/:adventureId/backdrops     # List backdrops for DM dropdown
+GET /api/adventures/:adventureId/backdrops/:id # Fetch backdrop data on switch
 ```
 
 ## Design Details
@@ -459,7 +469,8 @@ Cards use the neobrutalism card style:
 ## Acceptance Criteria
 
 ### Game View Layout
-- [ ] Session page shows game view when session is active
+- [ ] Session page shows game view when session is ACTIVE or PAUSED
+- [ ] Session page shows lobby view when session is FORMING
 - [ ] Map area fills available space
 - [ ] Player sidebar shows DM and all participants
 - [ ] DM controls bar visible only to DM
@@ -491,13 +502,14 @@ Cards use the neobrutalism card style:
 ### Player Cards
 - [ ] DM card shows first with star indicator
 - [ ] Player cards show character name, class, level, HP, AC
+- [ ] All participants see all player stats (like a real tabletop)
 - [ ] Online/offline status updates in real-time
-- [ ] DM sees all player stats
-- [ ] Players see only their own HP/AC (others show name/class/level only)
 - [ ] Speaking indicator appears when user is talking
+- [ ] Avatar shows character avatar → user avatar → initials fallback
 
 ### Voice Chat
-- [ ] Browser prompts for microphone permission
+- [ ] Voice auto-connects when entering game view
+- [ ] Browser prompts for microphone permission automatically
 - [ ] Audio streams between all participants
 - [ ] Mute/unmute toggle works
 - [ ] Mute state visible to other users
@@ -539,13 +551,13 @@ Cards use the neobrutalism card style:
 ### 3. Player Cards
 
 1. DM starts session → DM card shows in sidebar
-2. Player 1 joins → their card appears
+2. Player 1 joins → their card appears with character name, class, level, HP, AC
 3. Player 2 joins → their card appears below Player 1
-4. Verify DM sees HP/AC for all players
-5. Verify Player 1 sees their own HP/AC but not Player 2's
-6. Player 1 speaks → speaking indicator on their card
-7. Player 2 disconnects → card shows offline status
-8. Player 2 reconnects → card shows online status
+4. Verify all participants see HP/AC for all players (tabletop style)
+5. Player 1 speaks → speaking indicator on their card
+6. Player 2 disconnects → card shows offline status
+7. Player 2 reconnects → card shows online status
+8. Verify avatar fallback: character avatar → user avatar → initials
 
 ### 4. Session Lifecycle in Game View
 

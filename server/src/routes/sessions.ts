@@ -625,16 +625,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         })
       }
 
-      // Check if already a participant
-      const existingParticipant = session.participants.find((p) => p.userId === user.id)
-      if (existingParticipant) {
-        return reply.status(409).send({
-          error: 'Conflict',
-          message: 'Already a participant in this session',
-        })
-      }
-
-      // Check session capacity
+      // Check session capacity (only count active participants)
       if (session.participants.length >= MAX_PLAYERS) {
         return reply.status(409).send({
           error: 'Conflict',
@@ -719,29 +710,76 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         })
       }
 
-      // Create participant
-      const participant = await fastify.prisma.sessionParticipant.create({
-        data: {
-          sessionId: id,
-          userId: user.id,
-          characterId,
-        },
-        include: {
-          user: { select: { id: true, name: true, avatarUrl: true } },
-          character: {
-            select: {
-              id: true,
-              name: true,
-              class: true,
-              level: true,
-              hitPointsCurrent: true,
-              hitPointsMax: true,
-              armorClass: true,
-              avatarUrl: true,
-            },
+      // Check if user has an existing participant record (including those who left)
+      const existingRecord = await fastify.prisma.sessionParticipant.findUnique({
+        where: {
+          sessionId_userId: {
+            sessionId: id,
+            userId: user.id,
           },
         },
       })
+
+      let participant
+
+      if (existingRecord) {
+        if (!existingRecord.leftAt) {
+          // Already an active participant
+          return reply.status(409).send({
+            error: 'Conflict',
+            message: 'Already a participant in this session',
+          })
+        }
+
+        // Reactivate by clearing leftAt and updating character/joinedAt
+        participant = await fastify.prisma.sessionParticipant.update({
+          where: { id: existingRecord.id },
+          data: {
+            characterId,
+            joinedAt: new Date(),
+            leftAt: null,
+          },
+          include: {
+            user: { select: { id: true, name: true, avatarUrl: true } },
+            character: {
+              select: {
+                id: true,
+                name: true,
+                class: true,
+                level: true,
+                hitPointsCurrent: true,
+                hitPointsMax: true,
+                armorClass: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        })
+      } else {
+        // Create new participant
+        participant = await fastify.prisma.sessionParticipant.create({
+          data: {
+            sessionId: id,
+            userId: user.id,
+            characterId,
+          },
+          include: {
+            user: { select: { id: true, name: true, avatarUrl: true } },
+            character: {
+              select: {
+                id: true,
+                name: true,
+                class: true,
+                level: true,
+                hitPointsCurrent: true,
+                hitPointsMax: true,
+                armorClass: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        })
+      }
 
       // Update invite acceptedAt if exists
       const invite = session.invites.find(
