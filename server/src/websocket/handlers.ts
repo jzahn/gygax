@@ -7,6 +7,12 @@ import type {
   WSSessionUpdated,
   WSParticipantJoined,
   WSParticipantLeft,
+  WSSetMap,
+  WSSetBackdrop,
+  WSRtcOffer,
+  WSRtcAnswer,
+  WSRtcIceCandidate,
+  WSRtcMuteState,
   SessionWithDetails,
   SessionStatus,
   SessionAccessType,
@@ -17,7 +23,7 @@ import type {
 import {
   addUserToSession,
   removeUserFromSession,
-  getConnectedUsers,
+  getUserInSession,
   updateUserPing,
   broadcastToSession,
   sendToUser,
@@ -265,7 +271,13 @@ export async function handleConnection(
   socket.on('message', (data) => {
     try {
       const message: WSMessage = JSON.parse(data.toString())
-      handleMessage(fastify, sessionId, userId, message)
+      handleMessage(fastify, sessionId, userId, message).catch((err) => {
+        fastify.log.error({ err }, 'Error handling WebSocket message')
+        sendToUser(sessionId, userId, {
+          type: 'error',
+          payload: { message: 'Error processing message' },
+        })
+      })
     } catch {
       sendToUser(sessionId, userId, {
         type: 'error',
@@ -287,19 +299,144 @@ export async function handleConnection(
   })
 }
 
-function handleMessage(
-  _fastify: FastifyInstance,
+async function handleMessage(
+  fastify: FastifyInstance,
   sessionId: string,
   userId: string,
   message: WSMessage
-): void {
+): Promise<void> {
   switch (message.type) {
     case 'ping':
       updateUserPing(sessionId, userId)
       break
+
+    // WebRTC signaling relay
+    case 'rtc:offer': {
+      const payload = message.payload as WSRtcOffer
+      sendToUser(sessionId, payload.targetUserId, {
+        type: 'rtc:offer',
+        payload: { fromUserId: userId, sdp: payload.sdp },
+      })
+      break
+    }
+
+    case 'rtc:answer': {
+      const payload = message.payload as WSRtcAnswer
+      sendToUser(sessionId, payload.targetUserId, {
+        type: 'rtc:answer',
+        payload: { fromUserId: userId, sdp: payload.sdp },
+      })
+      break
+    }
+
+    case 'rtc:ice-candidate': {
+      const payload = message.payload as WSRtcIceCandidate
+      sendToUser(sessionId, payload.targetUserId, {
+        type: 'rtc:ice-candidate',
+        payload: { fromUserId: userId, candidate: payload.candidate },
+      })
+      break
+    }
+
+    case 'rtc:mute-state': {
+      const payload = message.payload as WSRtcMuteState
+      // Broadcast to all users in session (including self for consistency)
+      broadcastToSession(sessionId, {
+        type: 'rtc:mute-state',
+        payload: { userId, muted: payload.muted },
+      })
+      break
+    }
+
+    // Map/Backdrop switching (DM only)
+    case 'session:set-map': {
+      const user = getUserInSession(sessionId, userId)
+      if (user?.role !== 'dm') {
+        sendToUser(sessionId, userId, {
+          type: 'error',
+          payload: { message: 'Only the DM can change the map' },
+        })
+        break
+      }
+
+      const payload = message.payload as WSSetMap
+      const session = await fastify.prisma.session.update({
+        where: { id: sessionId },
+        data: {
+          activeMapId: payload.mapId,
+          activeBackdropId: null, // Clear backdrop when setting map
+        },
+      })
+
+      broadcastSessionUpdate(sessionId, {
+        status: session.status as SessionStatus,
+        activeMapId: session.activeMapId,
+        activeBackdropId: session.activeBackdropId,
+        pausedAt: session.pausedAt?.toISOString() ?? null,
+        endedAt: session.endedAt?.toISOString() ?? null,
+      })
+      break
+    }
+
+    case 'session:set-backdrop': {
+      const user = getUserInSession(sessionId, userId)
+      if (user?.role !== 'dm') {
+        sendToUser(sessionId, userId, {
+          type: 'error',
+          payload: { message: 'Only the DM can change the backdrop' },
+        })
+        break
+      }
+
+      const payload = message.payload as WSSetBackdrop
+      const session = await fastify.prisma.session.update({
+        where: { id: sessionId },
+        data: {
+          activeBackdropId: payload.backdropId,
+          activeMapId: null, // Clear map when setting backdrop
+        },
+      })
+
+      broadcastSessionUpdate(sessionId, {
+        status: session.status as SessionStatus,
+        activeMapId: session.activeMapId,
+        activeBackdropId: session.activeBackdropId,
+        pausedAt: session.pausedAt?.toISOString() ?? null,
+        endedAt: session.endedAt?.toISOString() ?? null,
+      })
+      break
+    }
+
+    case 'session:clear-display': {
+      const user = getUserInSession(sessionId, userId)
+      if (user?.role !== 'dm') {
+        sendToUser(sessionId, userId, {
+          type: 'error',
+          payload: { message: 'Only the DM can clear the display' },
+        })
+        break
+      }
+
+      const session = await fastify.prisma.session.update({
+        where: { id: sessionId },
+        data: {
+          activeMapId: null,
+          activeBackdropId: null,
+        },
+      })
+
+      broadcastSessionUpdate(sessionId, {
+        status: session.status as SessionStatus,
+        activeMapId: session.activeMapId,
+        activeBackdropId: session.activeBackdropId,
+        pausedAt: session.pausedAt?.toISOString() ?? null,
+        endedAt: session.endedAt?.toISOString() ?? null,
+      })
+      break
+    }
+
     default:
-      // Unknown message type - ignore for now
-      // Future specs will add more message handlers
+      // Unknown message type - ignore
       break
   }
 }

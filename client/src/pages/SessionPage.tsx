@@ -9,6 +9,7 @@ import type {
 import { Button } from '../components/ui'
 import { SessionTypeChip } from '../components/SessionTypeChip'
 import { InvitePlayerModal } from '../components/InvitePlayerModal'
+import { SessionGameView } from './SessionGameView'
 import { useSessionSocket } from '../hooks/useSessionSocket'
 import { useAuth } from '../hooks/useAuth'
 
@@ -39,15 +40,31 @@ export function SessionPage() {
   const [isInviteModalOpen, setIsInviteModalOpen] = React.useState(false)
   const [cancellingInviteId, setCancellingInviteId] = React.useState<string | null>(null)
 
+  // RTC callback refs (will be set by SessionGameView)
+  const rtcOfferRef = React.useRef<(fromUserId: string, sdp: RTCSessionDescriptionInit) => void>()
+  const rtcAnswerRef = React.useRef<(fromUserId: string, sdp: RTCSessionDescriptionInit) => void>()
+  const rtcIceCandidateRef = React.useRef<(fromUserId: string, candidate: RTCIceCandidateInit) => void>()
+
   // WebSocket connection
   const {
     isConnected,
     connectedUsers,
     sessionState,
     error: wsError,
+    mutedUsers,
+    sendMessage,
   } = useSessionSocket({
     sessionId: id || '',
     enabled: !!id && !!session,
+    onRtcOffer: React.useCallback((fromUserId: string, sdp: RTCSessionDescriptionInit) => {
+      rtcOfferRef.current?.(fromUserId, sdp)
+    }, []),
+    onRtcAnswer: React.useCallback((fromUserId: string, sdp: RTCSessionDescriptionInit) => {
+      rtcAnswerRef.current?.(fromUserId, sdp)
+    }, []),
+    onRtcIceCandidate: React.useCallback((fromUserId: string, candidate: RTCIceCandidateInit) => {
+      rtcIceCandidateRef.current?.(fromUserId, candidate)
+    }, []),
   })
 
   // Use WebSocket session state if available, otherwise fall back to REST data
@@ -239,6 +256,23 @@ export function SessionPage() {
           </Link>
         </div>
       </div>
+    )
+  }
+
+  // Show game view for ACTIVE or PAUSED sessions
+  if (currentSession.status === 'ACTIVE' || currentSession.status === 'PAUSED') {
+    return (
+      <SessionGameView
+        session={currentSession}
+        connectedUsers={connectedUsers}
+        mutedUsers={mutedUsers}
+        sendMessage={sendMessage}
+        rtcOfferRef={rtcOfferRef}
+        rtcAnswerRef={rtcAnswerRef}
+        rtcIceCandidateRef={rtcIceCandidateRef}
+        onUpdateStatus={updateStatus}
+        isUpdating={isUpdating}
+      />
     )
   }
 

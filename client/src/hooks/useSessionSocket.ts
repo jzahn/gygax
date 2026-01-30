@@ -8,6 +8,10 @@ import type {
   WSSessionUpdated,
   WSParticipantJoined,
   WSParticipantLeft,
+  WSRtcOfferRelayed,
+  WSRtcAnswerRelayed,
+  WSRtcIceCandidateRelayed,
+  WSRtcMuteStateRelayed,
 } from '@gygax/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -16,6 +20,9 @@ const WS_URL = API_URL.replace(/^http/, 'ws')
 interface UseSessionSocketOptions {
   sessionId: string
   enabled?: boolean
+  onRtcOffer?: (fromUserId: string, sdp: RTCSessionDescriptionInit) => void
+  onRtcAnswer?: (fromUserId: string, sdp: RTCSessionDescriptionInit) => void
+  onRtcIceCandidate?: (fromUserId: string, candidate: RTCIceCandidateInit) => void
 }
 
 interface UseSessionSocketReturn {
@@ -24,23 +31,46 @@ interface UseSessionSocketReturn {
   sessionState: WSSessionState | null
   lastMessage: WSMessage | null
   error: string | null
+  mutedUsers: Set<string>
+  sendMessage: (type: string, payload: unknown) => void
 }
 
 export function useSessionSocket({
   sessionId,
   enabled = true,
+  onRtcOffer,
+  onRtcAnswer,
+  onRtcIceCandidate,
 }: UseSessionSocketOptions): UseSessionSocketReturn {
   const [isConnected, setIsConnected] = useState(false)
   const [connectedUsers, setConnectedUsers] = useState<WSConnectedUser[]>([])
   const [sessionState, setSessionState] = useState<WSSessionState | null>(null)
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [mutedUsers, setMutedUsers] = useState<Set<string>>(new Set())
 
   const socketRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<number | null>(null)
   const reconnectAttemptRef = useRef(0)
   const pingIntervalRef = useRef<number | null>(null)
   const mountedRef = useRef(true)
+
+  // Store callbacks in refs to avoid dependency issues
+  const onRtcOfferRef = useRef(onRtcOffer)
+  const onRtcAnswerRef = useRef(onRtcAnswer)
+  const onRtcIceCandidateRef = useRef(onRtcIceCandidate)
+
+  useEffect(() => {
+    onRtcOfferRef.current = onRtcOffer
+    onRtcAnswerRef.current = onRtcAnswer
+    onRtcIceCandidateRef.current = onRtcIceCandidate
+  }, [onRtcOffer, onRtcAnswer, onRtcIceCandidate])
+
+  const sendMessage = useCallback((type: string, payload: unknown) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type, payload }))
+    }
+  }, [])
 
   const connect = useCallback(async () => {
     if (!enabled || !sessionId || !mountedRef.current) return
@@ -177,6 +207,34 @@ export function useSessionSocket({
               setError(payload.message)
               break
             }
+            case 'rtc:offer': {
+              const payload = message.payload as WSRtcOfferRelayed
+              onRtcOfferRef.current?.(payload.fromUserId, payload.sdp)
+              break
+            }
+            case 'rtc:answer': {
+              const payload = message.payload as WSRtcAnswerRelayed
+              onRtcAnswerRef.current?.(payload.fromUserId, payload.sdp)
+              break
+            }
+            case 'rtc:ice-candidate': {
+              const payload = message.payload as WSRtcIceCandidateRelayed
+              onRtcIceCandidateRef.current?.(payload.fromUserId, payload.candidate)
+              break
+            }
+            case 'rtc:mute-state': {
+              const payload = message.payload as WSRtcMuteStateRelayed
+              setMutedUsers((prev) => {
+                const next = new Set(prev)
+                if (payload.muted) {
+                  next.add(payload.userId)
+                } else {
+                  next.delete(payload.userId)
+                }
+                return next
+              })
+              break
+            }
           }
         } catch {
           // Invalid JSON - ignore
@@ -253,5 +311,7 @@ export function useSessionSocket({
     sessionState,
     lastMessage,
     error,
+    mutedUsers,
+    sendMessage,
   }
 }

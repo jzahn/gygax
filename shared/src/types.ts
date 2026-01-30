@@ -897,3 +897,53 @@ export interface WSParticipantLeft {
 export interface WSError {
   message: string
 }
+
+// WebSocket messages for 011b: Map/Backdrop switching (DM → Server)
+export interface WSSetMap {
+  mapId: string | null
+}
+
+export interface WSSetBackdrop {
+  backdropId: string | null
+}
+
+// WebSocket messages for 011b: WebRTC signaling
+export interface WSRtcOffer {
+  targetUserId: string
+  sdp: RTCSessionDescriptionInit
+}
+
+export interface WSRtcAnswer {
+  targetUserId: string
+  sdp: RTCSessionDescriptionInit
+}
+
+export interface WSRtcIceCandidate {
+  targetUserId: string
+  candidate: RTCIceCandidateInit
+}
+
+export interface WSRtcMuteState {
+  muted: boolean
+}
+
+// Relayed versions (server adds fromUserId)
+export interface WSRtcOfferRelayed {
+  fromUserId: string
+  sdp: RTCSessionDescriptionInit
+}
+
+export interface WSRtcAnswerRelayed {
+  fromUserId: string
+  sdp: RTCSessionDescriptionInit
+}
+
+export interface WSRtcIceCandidateRelayed {
+  fromUserId: string
+  candidate: RTCIceCandidateInit
+}
+
+export interface WSRtcMuteStateRelayed {
+  userId: string
+  muted: boolean
+}
