@@ -17,8 +17,10 @@ import { sessionRoutes } from './routes/sessions'
 import { campaignMemberRoutes } from './routes/campaignMembers'
 import { sessionInviteRoutes } from './routes/sessionInvites'
 import { sessionBrowseSSERoutes } from './routes/sessionBrowseSSE'
+import { channelRoutes } from './routes/channels'
 import { websocketRoutes } from './websocket/index'
 import { initializeBucket } from './services/storage'
+import { scheduleChatCleanup } from './services/chatCleanup'
 
 export async function buildApp() {
   const fastify = Fastify({
@@ -68,7 +70,11 @@ export async function buildApp() {
   await fastify.register(campaignMemberRoutes)
   await fastify.register(sessionInviteRoutes)
   await fastify.register(sessionBrowseSSERoutes)
+  await fastify.register(channelRoutes)
   await fastify.register(websocketRoutes)
+
+  // Schedule chat cleanup to run daily
+  scheduleChatCleanup(fastify.prisma)
 
   return fastify
 }

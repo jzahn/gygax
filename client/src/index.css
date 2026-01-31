@@ -359,3 +359,365 @@ a, button, [role="button"] {
   outline: 2px solid var(--color-candle-glow);
   outline-offset: 2px;
 }
+
+/* ================================================
+   Chat Panel Styles (Spec 011c)
+   ================================================ */
+
+/* Mode Toggle (Mobile, DM only) */
+.mode-toggle {
+  display: flex;
+  border: 3px solid var(--color-ink);
+  background: var(--color-parchment-200);
+}
+
+.mode-toggle-option {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  text-align: center;
+  transition: all 0.15s ease-out;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+.mode-toggle-option.active {
+  background: var(--color-ink);
+  color: var(--color-parchment-100);
+}
+
+.mode-toggle-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.25rem;
+  margin-left: 0.5rem;
+  background: var(--color-blood-red);
+  color: var(--color-parchment-100);
+  font-family: var(--font-number);
+  font-size: 0.65rem;
+  font-weight: bold;
+  /* Brutalist — no rounded corners */
+}
+
+/* Channel Tabs */
+.channel-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border: 2px solid var(--color-ink);
+  background: var(--color-parchment-200);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  transition: all 0.1s ease-out;
+  cursor: pointer;
+}
+
+.channel-tab:hover {
+  background: var(--color-parchment-300);
+}
+
+.channel-tab.active {
+  background: var(--color-ink);
+  color: var(--color-parchment-100);
+  box-shadow: var(--shadow-brutal-sm);
+}
+
+.channel-tab-icon {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.channel-tab-unread {
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.25rem;
+  background: var(--color-blood-red);
+  color: var(--color-parchment-100);
+  font-family: var(--font-number);
+  font-size: 0.6rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Dice Roll Card */
+.dice-roll-card {
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  border: 3px solid var(--color-ink);
+  background: var(--color-parchment-50);
+  box-shadow: var(--shadow-brutal-sm);
+}
+
+.dice-roll-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.dice-roll-icon {
+  font-size: 1.25rem;
+  font-family: var(--font-display);
+}
+
+.dice-roll-expression {
+  font-family: var(--font-input);
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+}
+
+.dice-roll-results {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.dice-roll-die {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid var(--color-ink);
+  background: var(--color-parchment-100);
+  font-family: var(--font-number);
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.dice-roll-modifier {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-ink-soft);
+}
+
+.dice-roll-equals {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  margin: 0 0.25rem;
+}
+
+.dice-roll-total {
+  font-family: var(--font-number);
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.dice-roll-total.nat-20 {
+  color: #15803d;
+  text-shadow: 0 0 8px rgba(21, 128, 61, 0.3);
+}
+
+.dice-roll-total.nat-1 {
+  color: var(--color-blood-red);
+  text-decoration: line-through;
+}
+
+/* System Message */
+.system-message {
+  text-align: center;
+  padding: 0.5rem 0;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--color-ink-ghost);
+}
+
+.system-message::before,
+.system-message::after {
+  content: '—';
+  margin: 0 0.5rem;
+}
+
+/* Chat Panel Drag Handle (Mobile) */
+.chat-drag-handle {
+  width: 100%;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-parchment-200);
+  border-bottom: 1px solid var(--color-ink);
+  cursor: grab;
+  touch-action: none;
+}
+
+.chat-drag-handle::after {
+  content: '';
+  width: 2.5rem;
+  height: 4px;
+  background: var(--color-ink-faded);
+  border-radius: 2px;
+}
+
+.chat-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Chat Animations */
+@keyframes chatMessageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-chat-message {
+  animation: chatMessageSlideIn 0.1s ease-out forwards;
+}
+
+@keyframes diceTumble {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) rotate(-180deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+.animate-dice-tumble {
+  animation: diceTumble 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-dice-tumble:nth-child(1) { animation-delay: 0ms; }
+.animate-dice-tumble:nth-child(2) { animation-delay: 50ms; }
+.animate-dice-tumble:nth-child(3) { animation-delay: 100ms; }
+.animate-dice-tumble:nth-child(4) { animation-delay: 150ms; }
+.animate-dice-tumble:nth-child(5) { animation-delay: 200ms; }
+.animate-dice-tumble:nth-child(6) { animation-delay: 250ms; }
+
+@keyframes unreadPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+.animate-unread-pulse {
+  animation: unreadPulse 0.3s ease-out;
+}
+
+/* Mobile Panel Spring Animation */
+.chat-panel-expand {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Chat input styling */
+.chat-input {
+  font-family: var(--font-input);
+  background: var(--color-parchment-100);
+  border: 3px solid var(--color-ink);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+.chat-input:focus {
+  border-color: var(--color-candle-glow);
+  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.25);
+  outline: none;
+}
+
+.chat-input::placeholder {
+  color: var(--color-ink-faded);
+  font-style: italic;
+}
+
+/* Private channel header */
+.private-channel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-parchment-300);
+  border: 1px dashed var(--color-ink-faded);
+  font-size: 0.8rem;
+  color: var(--color-ink-soft);
+}
+
+/* Chat message sender name */
+.chat-sender-name {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+}
+
+/* Chat message timestamp */
+.chat-timestamp {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 0.7rem;
+  color: var(--color-ink-faded);
+}
+
+/* Chat message body */
+.chat-message-body {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* New messages indicator */
+.new-messages-indicator {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+.new-messages-indicator button {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--color-ink);
+  color: var(--color-parchment-100);
+  border: 2px solid var(--color-ink);
+  cursor: pointer;
+  transition: all 0.1s ease-out;
+}
+
+.new-messages-indicator button:hover {
+  background: var(--color-ink-soft);
+}
+
+/* Scroll container for chat */
+.chat-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-faded) var(--color-parchment-200);
+}
+
+.chat-scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-scroll-container::-webkit-scrollbar-track {
+  background: var(--color-parchment-200);
+}
+
+.chat-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--color-ink-faded);
+  border-radius: 4px;
+}
+
+.chat-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-soft);
+}

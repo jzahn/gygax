@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import type {
   SessionWithDetails,
   WSConnectedUser,
+  WSMessage,
   Map,
   Backdrop,
   MapResponse,
@@ -15,7 +16,10 @@ import { PlayerCardsSidebar } from '../components/PlayerCardsSidebar'
 import { DMControls } from '../components/DMControls'
 import { SessionStatusBanner } from '../components/SessionStatusBanner'
 import { VoiceControls } from '../components/VoiceControls'
+import { ChatPanel } from '../components/ChatPanel'
+import { MobileBottomPanel } from '../components/MobileBottomPanel'
 import { useVoiceChat } from '../hooks/useVoiceChat'
+import { useChat } from '../hooks/useChat'
 import { useAuth } from '../hooks/useAuth'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -25,6 +29,8 @@ interface SessionGameViewProps {
   connectedUsers: WSConnectedUser[]
   mutedUsers: Set<string>
   sendMessage: (type: string, payload: unknown) => void
+  lastMessage: WSMessage | null
+  isConnected: boolean
   rtcOfferRef: React.MutableRefObject<((fromUserId: string, sdp: RTCSessionDescriptionInit) => void) | undefined>
   rtcAnswerRef: React.MutableRefObject<((fromUserId: string, sdp: RTCSessionDescriptionInit) => void) | undefined>
   rtcIceCandidateRef: React.MutableRefObject<((fromUserId: string, candidate: RTCIceCandidateInit) => void) | undefined>
@@ -37,6 +43,8 @@ export function SessionGameView({
   connectedUsers,
   mutedUsers,
   sendMessage,
+  lastMessage,
+  isConnected,
   rtcOfferRef,
   rtcAnswerRef,
   rtcIceCandidateRef,
@@ -49,6 +57,46 @@ export function SessionGameView({
 
   // Sidebar visibility for mobile/tablet
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
+
+  // Chat panel collapsed state (desktop only)
+  const [chatCollapsed, setChatCollapsed] = React.useState(false)
+
+  // Chat hook
+  const chat = useChat({
+    sessionId: session.id,
+    lastMessage,
+    sendMessage,
+    isConnected,
+  })
+
+  // Build session participants for create channel dialog
+  const sessionParticipants = React.useMemo(() => {
+    const participants = [
+      {
+        userId: session.dmId,
+        userName: session.dm.name,
+        avatarUrl: session.dm.avatarUrl,
+      },
+      ...session.participants.map((p) => ({
+        userId: p.userId,
+        userName: p.user.name,
+        avatarUrl: p.user.avatarUrl,
+        characterName: p.character.name,
+      })),
+    ]
+    return participants
+  }, [session.dmId, session.dm, session.participants])
+
+  // Handle channel creation
+  const handleCreateChannel = React.useCallback(
+    async (participantIds: string[], name?: string) => {
+      const channel = await chat.createChannel(participantIds, name)
+      if (channel) {
+        chat.setActiveChannelId(channel.id)
+      }
+    },
+    [chat]
+  )
 
   // Close sidebar when main menu opens
   React.useEffect(() => {
@@ -418,23 +466,87 @@ export function SessionGameView({
         />
       </aside>
 
-      {/* DM Controls */}
+      {/* Desktop Chat Panel (lg and up) */}
+      <div className="hidden lg:block">
+        <div className={chatCollapsed ? 'h-12' : 'h-52'}>
+          <ChatPanel
+            channels={chat.channels}
+            activeChannelId={chat.activeChannelId}
+            messages={chat.messages}
+            hasMore={chat.hasMore}
+            isLoading={chat.isLoading}
+            onSelectChannel={chat.setActiveChannelId}
+            onSendMessage={chat.sendChatMessage}
+            onLoadMore={chat.loadMore}
+            onCreateChannel={handleCreateChannel}
+            sessionParticipants={sessionParticipants}
+            currentUserId={user?.id || ''}
+            collapsed={chatCollapsed}
+            onToggleCollapse={() => setChatCollapsed(!chatCollapsed)}
+          />
+        </div>
+      </div>
+
+      {/* Desktop DM Controls (lg and up) */}
       {isDm && (
-        <DMControls
-          maps={maps}
-          backdrops={backdrops}
-          activeMapId={session.activeMapId}
-          activeBackdropId={session.activeBackdropId}
-          sessionStatus={session.status}
-          onSelectMap={handleSelectMap}
-          onSelectBackdrop={handleSelectBackdrop}
-          onClearDisplay={handleClearDisplay}
-          onPause={handlePause}
-          onResume={handleResume}
-          onEnd={handleEnd}
-          isUpdating={isUpdating}
-        />
+        <div className="hidden lg:block">
+          <DMControls
+            maps={maps}
+            backdrops={backdrops}
+            activeMapId={session.activeMapId}
+            activeBackdropId={session.activeBackdropId}
+            sessionStatus={session.status}
+            onSelectMap={handleSelectMap}
+            onSelectBackdrop={handleSelectBackdrop}
+            onClearDisplay={handleClearDisplay}
+            onPause={handlePause}
+            onResume={handleResume}
+            onEnd={handleEnd}
+            isUpdating={isUpdating}
+          />
+        </div>
       )}
+
+      {/* Mobile Bottom Panel (below lg) */}
+      <div className="lg:hidden">
+        <MobileBottomPanel
+          isDM={isDm}
+          chatUnreadCount={chat.totalUnreadCount}
+          dmToolsContent={
+            isDm ? (
+              <DMControls
+                maps={maps}
+                backdrops={backdrops}
+                activeMapId={session.activeMapId}
+                activeBackdropId={session.activeBackdropId}
+                sessionStatus={session.status}
+                onSelectMap={handleSelectMap}
+                onSelectBackdrop={handleSelectBackdrop}
+                onClearDisplay={handleClearDisplay}
+                onPause={handlePause}
+                onResume={handleResume}
+                onEnd={handleEnd}
+                isUpdating={isUpdating}
+              />
+            ) : null
+          }
+          chatContent={
+            <ChatPanel
+              channels={chat.channels}
+              activeChannelId={chat.activeChannelId}
+              messages={chat.messages}
+              hasMore={chat.hasMore}
+              isLoading={chat.isLoading}
+              onSelectChannel={chat.setActiveChannelId}
+              onSendMessage={chat.sendChatMessage}
+              onLoadMore={chat.loadMore}
+              onCreateChannel={handleCreateChannel}
+              sessionParticipants={sessionParticipants}
+              currentUserId={user?.id || ''}
+            />
+          }
+        />
+      </div>
     </div>
   )
 }

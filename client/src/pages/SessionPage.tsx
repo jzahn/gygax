@@ -5,6 +5,7 @@ import type {
   SessionResponse,
   SessionStatus,
   SessionInviteResponse,
+  WSMessage,
 } from '@gygax/shared'
 import { Button } from '../components/ui'
 import { SessionTypeChip } from '../components/SessionTypeChip'
@@ -51,6 +52,7 @@ export function SessionPage() {
     isConnected,
     connectedUsers,
     sessionState,
+    lastMessage,
     error: wsError,
     mutedUsers,
     sendMessage,
@@ -268,6 +270,8 @@ export function SessionPage() {
         connectedUsers={connectedUsers}
         mutedUsers={mutedUsers}
         sendMessage={sendMessage}
+        lastMessage={lastMessage}
+        isConnected={isConnected}
         rtcOfferRef={rtcOfferRef}
         rtcAnswerRef={rtcAnswerRef}
         rtcIceCandidateRef={rtcIceCandidateRef}

@@ -18,6 +18,8 @@ import type {
 } from '@gygax/shared'
 import { broadcastSessionUpdate, broadcastParticipantJoined, broadcastParticipantLeft } from '../websocket/handlers.js'
 import { broadcastSessionEvent, broadcastSessionEnded, fetchSessionForBroadcast } from './sessionBrowseSSE.js'
+import { createMainChannel } from '../services/chatService.js'
+import { sendSessionStatusMessage } from '../websocket/chatHandler.js'
 
 const MAX_PLAYERS = 8
 
@@ -358,6 +360,9 @@ export async function sessionRoutes(fastify: FastifyInstance) {
           },
         },
       })
+
+      // Create the main chat channel for this session (DM is the first participant)
+      await createMainChannel(fastify.prisma, session.id, [user.id])
 
       // Broadcast to SSE clients that a new session is available
       const sessionForBroadcast = await fetchSessionForBroadcast(fastify.prisma, session.id)
@@ -986,6 +991,13 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         pausedAt: updatedSession.pausedAt?.toISOString() ?? null,
         endedAt: updatedSession.endedAt?.toISOString() ?? null,
       })
+
+      // Send session paused/resumed system message to chat
+      if (currentStatus === 'ACTIVE' && newStatus === 'PAUSED') {
+        await sendSessionStatusMessage(fastify, id, user.id, 'paused')
+      } else if (currentStatus === 'PAUSED' && newStatus === 'ACTIVE') {
+        await sendSessionStatusMessage(fastify, id, user.id, 'resumed')
+      }
 
       // Broadcast to SSE clients for browse list updates
       if (newStatus === 'ENDED') {

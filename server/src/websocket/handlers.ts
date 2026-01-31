@@ -29,6 +29,14 @@ import {
   sendToUser,
   buildSessionState,
 } from './sessionManager.js'
+import {
+  handleChatMessage,
+  sendChatChannelsOnConnect,
+  sendPlayerJoinedMessage,
+  sendPlayerLeftMessage,
+  sendSessionStatusMessage,
+} from './chatHandler.js'
+import { addUserToMainChannel } from '../services/chatService.js'
 
 function formatSessionParticipant(participant: {
   id: string
@@ -275,6 +283,12 @@ export async function handleConnection(
     payload: sessionState,
   })
 
+  // Send chat channels to the connecting user
+  await sendChatChannelsOnConnect(fastify, sessionId, userId)
+
+  // Add user to main channel if not already (in case they joined mid-session)
+  await addUserToMainChannel(fastify.prisma, sessionId, userId)
+
   // Broadcast user connected to others
   const userConnected: WSUserConnected = {
     userId: user.id,
@@ -289,6 +303,11 @@ export async function handleConnection(
     { type: 'user:connected', payload: userConnected },
     userId
   )
+
+  // Send "player joined" system message to chat (only for players, not DM)
+  if (!isDm) {
+    await sendPlayerJoinedMessage(fastify, sessionId, userId, user.name)
+  }
 
   // Handle incoming messages
   socket.on('message', (data) => {
@@ -337,6 +356,11 @@ export async function handleConnection(
     // Mark player as having left in the database (only for players, not DM)
     // This allows them to rejoin later
     if (!isDm) {
+      // Send "player left" system message to chat
+      sendPlayerLeftMessage(fastify, sessionId, userId, user.name).catch((err) => {
+        fastify.log.error({ err }, 'Failed to send player left message')
+      })
+
       fastify.prisma.sessionParticipant
         .updateMany({
           where: { sessionId, userId, leftAt: null },
@@ -355,6 +379,10 @@ async function handleMessage(
   userId: string,
   message: WSMessage
 ): Promise<void> {
+  // Try to handle as chat message first
+  const isChatMessage = await handleChatMessage(fastify, sessionId, userId, message)
+  if (isChatMessage) return
+
   switch (message.type) {
     case 'ping':
       updateUserPing(sessionId, userId)

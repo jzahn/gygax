@@ -32,6 +32,9 @@ model User {
   campaignMembers   CampaignMember[]
   sessionInvites    SessionInvite[]
 
+  chatMessages            ChatMessage[]
+  chatChannelParticipants ChatChannelParticipant[]
+
   @@map("users")
 }
 
@@ -289,6 +292,7 @@ model Session {
 
   participants SessionParticipant[]
   invites      SessionInvite[]
+  chatChannels ChatChannel[]
 
   @@index([adventureId])
   @@index([dmId])
@@ -353,4 +357,65 @@ model SessionInvite {
   @@index([userId])
   @@index([email])
   @@map("session_invites")
+}
+
+// Chat models
+
+model ChatChannel {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  name      String?  // null for 1:1 channels, user-defined for groups
+  isMain    Boolean  @default(false) // The main channel includes everyone
+  createdAt DateTime @default(now())
+
+  participants ChatChannelParticipant[]
+  messages     ChatMessage[]
+
+  @@index([sessionId])
+  @@map("chat_channels")
+}
+
+model ChatChannelParticipant {
+  id        String      @id @default(cuid())
+  channelId String
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime    @default(now())
+
+  // Track unread state per user per channel
+  lastReadAt DateTime   @default(now())
+
+  @@unique([channelId, userId])
+  @@map("chat_channel_participants")
+}
+
+enum ChatMessageType {
+  TEXT       // Regular text message
+  ROLL       // Dice roll result
+  SYSTEM     // System message (player joined, session paused, etc.)
+}
+
+model ChatMessage {
+  id        String          @id @default(cuid())
+  content   String          // Raw message text (or dice command)
+  type      ChatMessageType @default(TEXT)
+  createdAt DateTime        @default(now())
+
+  channelId String
+  channel   ChatChannel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  senderId  String
+  sender    User            @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  // Dice roll results (populated when type is ROLL)
+  diceExpression String?    // e.g., "3d6+1"
+  diceRolls      Json?      // e.g., [4, 2, 6]
+  diceTotal      Int?       // e.g., 13 (sum + modifier)
+  diceModifier   Int?       // e.g., 1
+
+  @@index([channelId, createdAt])
+  @@map("chat_messages")
 }

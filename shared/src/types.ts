@@ -942,3 +942,117 @@ export interface WSRtcMuteStateRelayed {
   userId: string
   muted: boolean
 }
+
+// Chat types
+
+export interface ChatChannelParticipant {
+  id: string
+  name: string
+  avatarUrl: string | null
+}
+
+export interface ChatChannel {
+  id: string
+  name: string | null // null for 1:1 channels
+  isMain: boolean
+  participants: ChatChannelParticipant[]
+  unreadCount: number
+  lastMessage?: {
+    content: string
+    senderName: string
+    createdAt: string
+  }
+}
+
+export interface ChatChannelListResponse {
+  channels: ChatChannel[]
+}
+
+export interface CreateChatChannelRequest {
+  participantIds: string[]
+  name?: string
+}
+
+export interface ChatChannelResponse {
+  channel: ChatChannel
+}
+
+export type ChatMessageType = 'TEXT' | 'ROLL' | 'SYSTEM'
+
+export interface ChatMessage {
+  id: string
+  content: string
+  type: ChatMessageType
+  createdAt: string
+  channelId: string
+  sender: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+  diceExpression?: string
+  diceRolls?: number[]
+  diceTotal?: number
+  diceModifier?: number
+}
+
+export interface ChatMessageListResponse {
+  messages: ChatMessage[]
+  hasMore: boolean
+}
+
+export interface SendChatMessage {
+  channelId: string
+  content: string
+}
+
+// Dice types (re-exported from dice.ts for convenience)
+export interface DiceExpression {
+  count: number
+  sides: number
+  modifier: number
+  raw: string
+}
+
+export interface DiceResult {
+  expression: DiceExpression
+  rolls: number[]
+  total: number
+}
+
+// WebSocket Chat messages
+
+// Client → Server
+export interface WSChatMessage {
+  channelId: string
+  content: string
+}
+
+export interface WSChatCreateChannel {
+  participantIds: string[]
+  name?: string
+}
+
+export interface WSChatMarkRead {
+  channelId: string
+}
+
+// Server → Client
+export interface WSChatMessageReceived {
+  channelId: string
+  message: ChatMessage
+}
+
+export interface WSChatChannels {
+  channels: ChatChannel[]
+}
+
+export interface WSChatChannelCreated {
+  channel: ChatChannel
+}
+
+export interface WSChatHistory {
+  channelId: string
+  messages: ChatMessage[]
+  hasMore: boolean
+}
