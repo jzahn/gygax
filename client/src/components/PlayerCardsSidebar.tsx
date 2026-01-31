@@ -61,7 +61,7 @@ export function PlayerCardsSidebar({
       <div className="border-t-3 border-ink bg-parchment-100 px-4 py-3">
         <button
           onClick={onToggleMute}
-          className={`flex w-full items-center justify-center gap-2 rounded border-3 px-4 py-2 font-body text-sm transition-colors ${
+          className={`flex w-full items-center justify-center gap-2 border-3 px-4 py-2 font-body text-sm transition-colors ${
             isMuted
               ? 'border-blood-red bg-blood-red/10 text-blood-red hover:bg-blood-red/20'
               : 'border-ink bg-parchment-200 text-ink hover:bg-parchment-300'

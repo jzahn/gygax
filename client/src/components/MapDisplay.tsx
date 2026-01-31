@@ -123,13 +123,13 @@ export function MapDisplay({ map, className = '' }: MapDisplayProps) {
   return (
     <div className={`relative h-full w-full ${className}`}>
       {/* Map name header */}
-      <div className="absolute left-2 top-2 z-10 max-w-[70%] truncate rounded border-2 border-ink bg-parchment-100 px-2 py-1 shadow-brutal sm:left-4 sm:top-4 sm:max-w-none sm:px-3">
+      <div className="absolute left-2 top-2 z-10 max-w-[70%] truncate border-2 border-ink bg-parchment-100 px-2 py-1 shadow-brutal sm:left-4 sm:top-4 sm:max-w-none sm:px-3">
         <span className="font-display text-xs uppercase tracking-wide text-ink sm:text-sm">{map.name}</span>
       </div>
 
       {/* Color tint toggle (hex maps only) */}
       {isHexMap && (
-        <div className="absolute right-2 top-2 z-10 flex items-center gap-2 rounded border-2 border-ink bg-parchment-100 px-2 py-1 shadow-brutal sm:right-4 sm:top-4 sm:px-3 sm:py-1.5">
+        <div className="absolute right-2 top-2 z-10 flex items-center gap-2 border-2 border-ink bg-parchment-100 px-2 py-1 shadow-brutal sm:right-4 sm:top-4 sm:px-3 sm:py-1.5">
           <span className="hidden font-body text-xs text-ink sm:inline">Color Tint</span>
           <button
             type="button"
@@ -137,12 +137,12 @@ export function MapDisplay({ map, className = '' }: MapDisplayProps) {
             aria-checked={showTerrainColors}
             aria-label="Toggle color tint"
             onClick={handleToggleColors}
-            className={`relative h-5 w-10 rounded-full border-2 border-ink transition-colors ${
+            className={`relative h-5 w-10 border-2 border-ink transition-colors ${
               showTerrainColors ? 'bg-ink' : 'bg-parchment-200'
             }`}
           >
             <span
-              className={`absolute left-0.5 top-0.5 h-3 w-3 rounded-full border border-ink transition-all ${
+              className={`absolute left-0.5 top-0.5 h-3 w-3 border border-ink transition-all ${
                 showTerrainColors ? 'left-[22px] bg-parchment-100' : 'left-0.5 bg-ink-soft'
               }`}
             />

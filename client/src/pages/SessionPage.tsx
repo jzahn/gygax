@@ -248,7 +248,7 @@ export function SessionPage() {
   if (error || !currentSession) {
     return (
       <div className="mx-auto max-w-4xl p-6 md:p-8">
-        <div className="rounded border-3 border-blood-red bg-parchment-100 p-6 text-center">
+        <div className="border-3 border-blood-red bg-parchment-100 p-6 text-center">
           <p className="font-body text-blood-red">{error || 'Session not found'}</p>
           <Link to={isDm ? '/forge' : '/adventure/sessions'}>
             <Button variant="ghost" className="mt-4">
@@ -313,7 +313,7 @@ export function SessionPage() {
         </div>
         <div className="flex items-center gap-2">
           <span
-            className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`}
+            className={`h-2 w-2 ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`}
           />
           <span className="font-body text-xs text-ink-faded">
             {isConnected ? 'Connected' : 'Disconnected'}
@@ -322,14 +322,14 @@ export function SessionPage() {
       </div>
 
       {wsError && (
-        <div className="mb-4 rounded border-2 border-amber-500 bg-amber-50 p-3">
+        <div className="mb-4 border-2 border-amber-500 bg-amber-50 p-3">
           <p className="font-body text-sm text-amber-800">{wsError}</p>
         </div>
       )}
 
       {/* Player Info (for players) */}
       {!isDm && myParticipant && (
-        <div className="mb-6 rounded border-3 border-ink bg-parchment-200 p-4">
+        <div className="mb-6 border-3 border-ink bg-parchment-200 p-4">
           <p className="font-body text-sm text-ink">
             Playing as:{' '}
             <strong>
@@ -352,7 +352,7 @@ export function SessionPage() {
         <h2 className="mb-4 font-display text-lg uppercase tracking-wide text-ink">
           Players ({participantCount}/8)
         </h2>
-        <div className="space-y-2 rounded border-3 border-ink bg-parchment-100 p-4">
+        <div className="space-y-2 border-3 border-ink bg-parchment-100 p-4">
           {/* DM */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -362,7 +362,7 @@ export function SessionPage() {
               </span>
             </div>
             <span
-              className={`h-2 w-2 rounded-full ${
+              className={`h-2 w-2 ${
                 connectedUserIds.has(currentSession.dmId) ? 'bg-green-500' : 'bg-gray-300'
               }`}
               title={connectedUserIds.has(currentSession.dmId) ? 'Online' : 'Offline'}
@@ -383,7 +383,7 @@ export function SessionPage() {
                 </span>
               </div>
               <span
-                className={`h-2 w-2 rounded-full ${
+                className={`h-2 w-2 ${
                   connectedUserIds.has(participant.userId) ? 'bg-green-500' : 'bg-gray-300'
                 }`}
                 title={connectedUserIds.has(participant.userId) ? 'Online' : 'Offline'}
@@ -414,7 +414,7 @@ export function SessionPage() {
               + Invite Player
             </Button>
           </div>
-          <div className="space-y-2 rounded border-3 border-ink bg-parchment-100 p-4">
+          <div className="space-y-2 border-3 border-ink bg-parchment-100 p-4">
             {currentSession.invites.filter((i) => !i.acceptedAt && !i.declinedAt).length === 0 ? (
               <p className="py-2 text-center font-body text-sm text-ink-faded">
                 No pending invites
@@ -450,7 +450,7 @@ export function SessionPage() {
       {/* Actions */}
       <section>
         {error && (
-          <div className="mb-4 rounded border-2 border-blood-red bg-red-50 p-3">
+          <div className="mb-4 border-2 border-blood-red bg-red-50 p-3">
             <p className="font-body text-sm text-blood-red">{error}</p>
           </div>
         )}

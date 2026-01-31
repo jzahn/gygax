@@ -228,50 +228,111 @@ export function SessionGameView({
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col bg-parchment-100">
       {/* Header */}
-      <header className="flex items-center justify-between border-b-3 border-ink bg-parchment-200 px-4 py-2">
-        {isDm ? (
-          <Link
-            to={`/adventures/${session.adventureId}`}
-            className="font-body text-sm text-ink-faded hover:text-ink"
-          >
-            &#8592; Adventure
-          </Link>
-        ) : (
-          <button
-            onClick={handlePlayerLeave}
-            className="font-body text-sm text-ink-faded hover:text-ink"
-          >
-            &#8592; Leave Session
-          </button>
-        )}
-        <h1 className="font-display text-lg uppercase tracking-wide text-ink">
-          {session.adventure.name}
-        </h1>
-        <div className="flex items-center gap-2">
-          <span className="font-body text-xs text-ink-faded uppercase">
+      <header className="border-b-3 border-ink bg-parchment-200">
+        {/* Mobile layout: stacked */}
+        <div className="flex flex-col md:hidden">
+          {/* Top row: back + status + menu */}
+          <div className="flex items-center justify-between px-3 py-2">
+            {isDm ? (
+              <Link
+                to={`/adventures/${session.adventureId}`}
+                className="flex items-center gap-1 font-body text-xs text-ink-faded hover:text-ink"
+              >
+                <span className="text-base leading-none">&#8592;</span>
+                <span>Adventure</span>
+              </Link>
+            ) : (
+              <button
+                onClick={handlePlayerLeave}
+                className="flex items-center gap-1 font-body text-xs text-ink-faded hover:text-ink"
+              >
+                <span className="text-base leading-none">&#8592;</span>
+                <span>Leave</span>
+              </button>
+            )}
+            <div className="flex items-center gap-2">
+              {session.status === 'ACTIVE' && (
+                <span className="flex items-center gap-1.5 font-body text-xs font-medium uppercase tracking-wider text-green-700">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping bg-green-500 opacity-75"></span>
+                    <span className="relative inline-flex h-2 w-2 bg-green-600"></span>
+                  </span>
+                  Live
+                </span>
+              )}
+              {session.status === 'PAUSED' && (
+                <span className="flex items-center gap-1.5 font-body text-xs font-medium uppercase tracking-wider text-amber-700">
+                  <span>&#9208;</span>
+                  Paused
+                </span>
+              )}
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="flex h-8 w-8 items-center justify-center border-2 border-ink bg-parchment-100 text-ink transition-colors hover:bg-ink hover:text-parchment-100 lg:hidden"
+              >
+                &#9776;
+              </button>
+            </div>
+          </div>
+          {/* Bottom row: title */}
+          <div className="border-t border-ink/20 px-3 py-1.5">
+            <h1 className="truncate font-display text-sm uppercase tracking-wider text-ink">
+              {session.adventure.name}
+            </h1>
+          </div>
+        </div>
+
+        {/* Desktop layout: single row */}
+        <div className="hidden items-center justify-between px-4 py-2 md:flex">
+          {isDm ? (
+            <Link
+              to={`/adventures/${session.adventureId}`}
+              className="font-body text-sm text-ink-faded hover:text-ink"
+            >
+              &#8592; Adventure
+            </Link>
+          ) : (
+            <button
+              onClick={handlePlayerLeave}
+              className="font-body text-sm text-ink-faded hover:text-ink"
+            >
+              &#8592; Leave Session
+            </button>
+          )}
+          <h1 className="font-display text-lg uppercase tracking-wide text-ink">
+            {session.adventure.name}
+          </h1>
+          <div className="flex items-center gap-3">
             {session.status === 'ACTIVE' && (
-              <span className="text-green-600">&#9679; LIVE</span>
+              <span className="flex items-center gap-1.5 font-body text-xs font-medium uppercase tracking-wider text-green-700">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping bg-green-500 opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 bg-green-600"></span>
+                </span>
+                Live
+              </span>
             )}
             {session.status === 'PAUSED' && (
-              <span className="text-amber-600">&#9208; PAUSED</span>
+              <span className="flex items-center gap-1.5 font-body text-xs font-medium uppercase tracking-wider text-amber-700">
+                <span>&#9208;</span>
+                Paused
+              </span>
             )}
-          </span>
-          {/* Mobile sidebar toggle */}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="rounded border-2 border-ink bg-parchment-100 p-2 lg:hidden"
-          >
-            &#9776;
-          </button>
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="flex h-9 w-9 items-center justify-center border-2 border-ink bg-parchment-100 text-ink transition-colors hover:bg-ink hover:text-parchment-100 lg:hidden"
+            >
+              &#9776;
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Status banner */}
+      {/* Status banner (only shows for ENDED) */}
       <SessionStatusBanner
         status={session.status}
         isDm={isDm}
         adventureId={session.adventureId}
-        onResume={handleResume}
       />
 
       {/* Main content */}

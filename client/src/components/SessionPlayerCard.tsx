@@ -40,7 +40,7 @@ export function SessionPlayerCard({
   const initials = getInitials(isDm ? dm.name : participant?.user.name || '')
 
   return (
-    <div className="rounded border-3 border-ink bg-parchment-100 p-3 shadow-brutal">
+    <div className="border-3 border-ink bg-parchment-100 p-3 shadow-brutal">
       <div className="flex items-start gap-3">
         {/* Avatar */}
         <div className="relative h-12 w-12 flex-shrink-0">
@@ -48,16 +48,16 @@ export function SessionPlayerCard({
             <img
               src={avatarUrl}
               alt={name}
-              className="h-12 w-12 rounded border-2 border-ink object-cover"
+              className="h-12 w-12 border-2 border-ink object-cover"
             />
           ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded border-2 border-ink bg-parchment-300 font-display text-lg text-ink">
+            <div className="flex h-12 w-12 items-center justify-center border-2 border-ink bg-parchment-300 font-display text-lg text-ink">
               {initials}
             </div>
           )}
           {/* Speaking indicator glow */}
           {isSpeaking && !isMuted && (
-            <div className="absolute -inset-1 animate-pulse rounded-full border-2 border-green-500 opacity-75" />
+            <div className="absolute -inset-1 animate-pulse border-2 border-green-500 opacity-75" />
           )}
         </div>
 
@@ -91,7 +91,7 @@ export function SessionPlayerCard({
         <div className="flex flex-col items-center gap-1">
           {/* Online status */}
           <div
-            className={`h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`}
+            className={`h-2.5 w-2.5 ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`}
             title={isOnline ? 'Online' : 'Offline'}
           />
           {/* Mute indicator */}

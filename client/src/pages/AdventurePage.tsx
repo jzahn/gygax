@@ -818,18 +818,18 @@ export function AdventurePage() {
       )}
 
       <div className="mx-auto max-w-6xl p-6 md:p-8">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="flex-1">
             {adventure.description && (
               <p className="max-w-2xl font-body text-ink-soft">{adventure.description}</p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
             <Button variant="primary" onClick={handleSessionButtonClick}>
               {getSessionButtonText()}
             </Button>
             <Button variant="default" onClick={() => setIsEditModalOpen(true)}>
-              Edit
+              Edit Adventure
             </Button>
           </div>
         </div>

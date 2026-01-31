@@ -6,7 +6,6 @@ interface SessionStatusBannerProps {
   status: SessionStatus
   isDm: boolean
   adventureId: string
-  onResume?: () => void
   className?: string
 }
 
@@ -14,34 +13,10 @@ export function SessionStatusBanner({
   status,
   isDm,
   adventureId,
-  onResume,
   className = '',
 }: SessionStatusBannerProps) {
-  if (status === 'ACTIVE' || status === 'FORMING') {
+  if (status !== 'ENDED') {
     return null
-  }
-
-  if (status === 'PAUSED') {
-    return (
-      <div
-        className={`border-b-3 border-dashed border-ink bg-parchment-200 px-4 py-3 text-center ${className}`}
-      >
-        <div className="flex items-center justify-center gap-3">
-          <span className="font-display text-sm uppercase tracking-wide text-ink">
-            &#9208; SESSION PAUSED
-          </span>
-          {isDm ? (
-            <Button variant="primary" size="sm" onClick={onResume}>
-              Resume
-            </Button>
-          ) : (
-            <span className="font-body text-sm text-ink-faded">
-              — The Dungeon Master has paused the session
-            </span>
-          )}
-        </div>
-      </div>
-    )
   }
 
   // ENDED

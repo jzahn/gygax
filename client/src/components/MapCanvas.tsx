@@ -1518,7 +1518,7 @@ export function MapCanvas({
           />
         )}
       </div>
-      <div className="absolute bottom-2 left-2 flex items-stretch rounded border-2 border-ink bg-parchment-100 font-body text-xs text-ink">
+      <div className="absolute bottom-2 left-2 flex items-stretch border-2 border-ink bg-parchment-100 font-body text-xs text-ink">
         <button
           onClick={handleZoomOut}
           className="flex w-7 items-center justify-center border-r border-ink hover:bg-parchment-200"

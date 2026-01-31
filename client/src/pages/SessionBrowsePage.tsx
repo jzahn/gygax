@@ -123,7 +123,7 @@ export function SessionBrowsePage() {
             <span className="ml-4 font-body text-ink-soft">Finding sessions...</span>
           </div>
         ) : error ? (
-          <div className="rounded border-3 border-blood-red bg-parchment-100 p-6 text-center">
+          <div className="border-3 border-blood-red bg-parchment-100 p-6 text-center">
             <p className="font-body text-blood-red">{error}</p>
             <Button variant="ghost" onClick={fetchData} className="mt-4">
               Try again
