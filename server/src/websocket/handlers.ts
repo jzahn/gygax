@@ -115,7 +115,7 @@ function formatSessionWithDetails(session: {
   startedAt: Date | null
   pausedAt: Date | null
   endedAt: Date | null
-  adventure: { id: string; name: string }
+  adventure: { id: string; name: string; campaignId: string | null }
   dm: { id: string; name: string; avatarUrl: string | null }
   participants: Array<{
     id: string
@@ -163,6 +163,7 @@ function formatSessionWithDetails(session: {
     adventure: {
       id: session.adventure.id,
       name: session.adventure.name,
+      campaignId: session.adventure.campaignId,
     },
     dm: {
       id: session.dm.id,
@@ -183,11 +184,11 @@ export async function handleConnection(
   userId: string
 ): Promise<void> {
   // Fetch session and user data
-  const [session, user, participant] = await Promise.all([
+  const [session, user, activeParticipant] = await Promise.all([
     fastify.prisma.session.findUnique({
       where: { id: sessionId },
       include: {
-        adventure: { select: { id: true, name: true } },
+        adventure: { select: { id: true, name: true, campaignId: true } },
         dm: { select: { id: true, name: true, avatarUrl: true } },
         participants: {
           where: { leftAt: null },
@@ -234,6 +235,27 @@ export async function handleConnection(
   const isDm = session.dmId === userId
   const role = isDm ? 'dm' : 'player'
 
+  // If player has no active participation, check for a former one to reactivate
+  let participant = activeParticipant
+  if (!participant && !isDm) {
+    const formerParticipant = await fastify.prisma.sessionParticipant.findFirst({
+      where: { sessionId, userId, leftAt: { not: null } },
+      include: {
+        character: { select: { id: true, name: true } },
+      },
+      orderBy: { leftAt: 'desc' },
+    })
+
+    if (formerParticipant) {
+      // Reactivate the former participant (e.g., after a page refresh)
+      await fastify.prisma.sessionParticipant.update({
+        where: { id: formerParticipant.id },
+        data: { leftAt: null },
+      })
+      participant = { ...formerParticipant, leftAt: null }
+    }
+  }
+
   // Add user to session manager
   addUserToSession(sessionId, userId, {
     userId: user.id,
@@ -247,6 +269,7 @@ export async function handleConnection(
 
   // Send session state to the connecting user
   const sessionState = buildSessionState(formatSessionWithDetails(session), sessionId)
+  console.log(`[WS] Sending session:state to ${userId}. activeMapId: ${sessionState.session.activeMapId}, activeBackdropId: ${sessionState.session.activeBackdropId}`)
   sendToUser(sessionId, userId, {
     type: 'session:state',
     payload: sessionState,
@@ -288,7 +311,21 @@ export async function handleConnection(
 
   // Handle disconnect
   socket.on('close', () => {
-    removeUserFromSession(sessionId, userId)
+    // Check if this socket is still the active one for this user
+    // If not, a new connection has replaced it and we shouldn't do disconnect actions
+    const currentUser = getUserInSession(sessionId, userId)
+    console.log(`[WS] Socket close for user ${userId} in session ${sessionId}`)
+    console.log(`[WS] Current user in session:`, currentUser ? 'exists' : 'not found')
+    console.log(`[WS] Socket match:`, currentUser?.socket === socket ? 'same' : 'different')
+
+    if (currentUser && currentUser.socket !== socket) {
+      // A new connection replaced this one - don't remove or mark as left
+      console.log(`[WS] Skipping disconnect - new connection replaced this one`)
+      return
+    }
+
+    console.log(`[WS] Proceeding with disconnect cleanup`)
+    removeUserFromSession(sessionId, userId, socket)
 
     // Broadcast user disconnected
     const userDisconnected: WSUserDisconnected = { userId }
@@ -296,6 +333,19 @@ export async function handleConnection(
       type: 'user:disconnected',
       payload: userDisconnected,
     })
+
+    // Mark player as having left in the database (only for players, not DM)
+    // This allows them to rejoin later
+    if (!isDm) {
+      fastify.prisma.sessionParticipant
+        .updateMany({
+          where: { sessionId, userId, leftAt: null },
+          data: { leftAt: new Date() },
+        })
+        .catch((err) => {
+          fastify.log.error({ err }, 'Failed to mark participant as left on disconnect')
+        })
+    }
   })
 }
 

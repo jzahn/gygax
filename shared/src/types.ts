@@ -700,6 +700,7 @@ export interface SessionWithDetails extends Session {
   adventure: {
     id: string
     name: string
+    campaignId: string | null
   }
   dm: {
     id: string

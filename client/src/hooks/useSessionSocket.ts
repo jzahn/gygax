@@ -299,7 +299,7 @@ export function useSessionSocket({
         socketRef.current.onmessage = null
         socketRef.current.onclose = null
         socketRef.current.onerror = null
-        socketRef.current.close()
+        socketRef.current.close(1000, 'Component unmounting')
         socketRef.current = null
       }
     }

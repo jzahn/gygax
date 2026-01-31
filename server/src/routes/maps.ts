@@ -620,6 +620,7 @@ export async function mapRoutes(fastify: FastifyInstance) {
   )
 
   // GET /api/maps/:id - Get a single map
+  // Allows session participants to fetch maps during active sessions
   fastify.get<{ Params: { id: string } }>(
     '/api/maps/:id',
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
@@ -631,8 +632,8 @@ export async function mapRoutes(fastify: FastifyInstance) {
       const map = await fastify.prisma.map.findUnique({
         where: { id },
         include: {
-          adventure: { select: { ownerId: true } },
-          campaign: { select: { ownerId: true } },
+          adventure: { select: { id: true, ownerId: true } },
+          campaign: { select: { id: true, ownerId: true } },
         },
       })
 
@@ -644,18 +645,64 @@ export async function mapRoutes(fastify: FastifyInstance) {
       }
 
       const ownerId = map.adventure?.ownerId ?? map.campaign?.ownerId
-      if (ownerId !== user.id) {
-        return reply.status(403).send({
-          error: 'Forbidden',
-          message: 'Not authorized to access this map',
+
+      // Owner always has access
+      if (ownerId === user.id) {
+        const response: MapResponse = {
+          map: formatMap(map),
+        }
+        return reply.status(200).send(response)
+      }
+
+      // Check if user is a session participant for this map's adventure
+      // Include former participants to handle page refresh race condition
+      if (map.adventureId) {
+        const session = await fastify.prisma.session.findFirst({
+          where: {
+            adventureId: map.adventureId,
+            status: { in: ['ACTIVE', 'PAUSED'] },
+            OR: [
+              { dmId: user.id },
+              { participants: { some: { userId: user.id } } },
+            ],
+          },
         })
+
+        if (session) {
+          const response: MapResponse = {
+            map: formatMap(map),
+          }
+          return reply.status(200).send(response)
+        }
       }
 
-      const response: MapResponse = {
-        map: formatMap(map),
+      // Check if user is a session participant for an adventure in this map's campaign
+      // (allows access to campaign world maps during sessions)
+      // Include former participants to handle page refresh race condition
+      if (map.campaignId) {
+        const session = await fastify.prisma.session.findFirst({
+          where: {
+            status: { in: ['ACTIVE', 'PAUSED'] },
+            adventure: { campaignId: map.campaignId },
+            OR: [
+              { dmId: user.id },
+              { participants: { some: { userId: user.id } } },
+            ],
+          },
+        })
+
+        if (session) {
+          const response: MapResponse = {
+            map: formatMap(map),
+          }
+          return reply.status(200).send(response)
+        }
       }
 
-      return reply.status(200).send(response)
+      return reply.status(403).send({
+        error: 'Forbidden',
+        message: 'Not authorized to access this map',
+      })
     }
   )
 

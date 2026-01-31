@@ -67,6 +67,7 @@ interface MapCanvasProps {
   onClearSelection?: () => void
   // Display options
   showTerrainColors?: boolean
+  showBorder?: boolean
 }
 
 interface ViewportState {
@@ -326,6 +327,7 @@ export function MapCanvas({
   onStopDraggingFeature,
   onClearSelection,
   showTerrainColors = false,
+  showBorder = true,
 }: MapCanvasProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
@@ -1342,8 +1344,47 @@ export function MapCanvas({
     }
   }, [])
 
-  const handleTouchMove = React.useCallback(
-    (e: React.TouchEvent) => {
+  // Handle touch move - stored in ref so we can attach with { passive: false }
+  const handleTouchMoveRef = React.useRef((e: TouchEvent) => {
+    e.preventDefault()
+    const viewport = viewportRef.current
+
+    if (e.touches.length === 1 && isPanningRef.current) {
+      viewport.offsetX = e.touches[0].clientX - touchStateRef.current.x
+      viewport.offsetY = e.touches[0].clientY - touchStateRef.current.y
+      scheduleRender()
+    } else if (
+      e.touches.length === 2 &&
+      touchStateRef.current.distance &&
+      touchStateRef.current.initialZoom
+    ) {
+      const newDistance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
+
+      const scale = newDistance / touchStateRef.current.distance
+      const newZoom = Math.max(
+        MIN_ZOOM,
+        Math.min(MAX_ZOOM, touchStateRef.current.initialZoom * scale)
+      )
+
+      const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+      const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+
+      const zoomRatio = newZoom / viewport.zoom
+      viewport.offsetX = centerX - (centerX - viewport.offsetX) * zoomRatio
+      viewport.offsetY = centerY - (centerY - viewport.offsetY) * zoomRatio
+      viewport.zoom = newZoom
+
+      setZoomDisplay(Math.round(newZoom * 100))
+      scheduleRender()
+    }
+  })
+
+  // Update the ref when scheduleRender changes
+  React.useEffect(() => {
+    handleTouchMoveRef.current = (e: TouchEvent) => {
       e.preventDefault()
       const viewport = viewportRef.current
 
@@ -1378,9 +1419,21 @@ export function MapCanvas({
         setZoomDisplay(Math.round(newZoom * 100))
         scheduleRender()
       }
-    },
-    [scheduleRender]
-  )
+    }
+  }, [scheduleRender])
+
+  // Attach touchmove listener with { passive: false } to allow preventDefault
+  React.useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const handler = (e: TouchEvent) => handleTouchMoveRef.current(e)
+    canvas.addEventListener('touchmove', handler, { passive: false })
+
+    return () => {
+      canvas.removeEventListener('touchmove', handler)
+    }
+  }, [])
 
   const handleTouchEnd = React.useCallback(() => {
     isPanningRef.current = false
@@ -1423,10 +1476,10 @@ export function MapCanvas({
     : null
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative overflow-hidden ${className}`}>
       <div
         ref={containerRef}
-        className="h-full w-full overflow-hidden border-3 border-ink bg-white"
+        className={`h-full w-full overflow-hidden bg-white ${showBorder ? 'border-3 border-ink' : ''}`}
         style={{ cursor }}
       >
         <canvas
@@ -1437,7 +1490,6 @@ export function MapCanvas({
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave}
           onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           className="touch-none"
         />

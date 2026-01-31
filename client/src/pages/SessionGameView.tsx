@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import type {
   SessionWithDetails,
   WSConnectedUser,
@@ -44,6 +44,7 @@ export function SessionGameView({
   isUpdating,
 }: SessionGameViewProps) {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const isDm = session.dmId === user?.id
 
   // Sidebar visibility for mobile/tablet
@@ -96,21 +97,48 @@ export function SessionGameView({
           }),
         ])
 
+        let adventureMaps: Map[] = []
         if (mapsRes.ok) {
           const data = await mapsRes.json()
-          setMaps(data.maps)
+          adventureMaps = data.maps
         }
         if (backdropsRes.ok) {
           const data = await backdropsRes.json()
           setBackdrops(data.backdrops)
         }
+
+        // If adventure belongs to a campaign, also fetch the campaign's world map
+        if (session.adventure.campaignId) {
+          try {
+            const campaignRes = await fetch(
+              `${API_URL}/api/campaigns/${session.adventure.campaignId}`,
+              { credentials: 'include' }
+            )
+            if (campaignRes.ok) {
+              const campaignData = await campaignRes.json()
+              // The campaign response includes worldMap as the full Map object (not just an ID)
+              if (campaignData.campaign.worldMap) {
+                // Add world map at the beginning with a special marker
+                const worldMap = {
+                  ...campaignData.campaign.worldMap,
+                  name: `[World] ${campaignData.campaign.worldMap.name}`,
+                }
+                adventureMaps = [worldMap, ...adventureMaps]
+              }
+            }
+          } catch {
+            // Failed to fetch campaign world map
+          }
+        }
+
+        setMaps(adventureMaps)
       } catch {
         // Failed to fetch lists
       }
     }
 
     fetchLists()
-  }, [isDm, session.adventureId])
+  }, [isDm, session.adventureId, session.adventure.campaignId])
 
   // Fetch active map/backdrop when they change
   React.useEffect(() => {
@@ -124,8 +152,9 @@ export function SessionGameView({
             setActiveMap(mapCacheRef.current[session.activeMapId])
             setActiveBackdrop(null)
           } else {
+            // Use /api/maps/:id route (not nested under adventures)
             const res = await fetch(
-              `${API_URL}/api/adventures/${session.adventureId}/maps/${session.activeMapId}`,
+              `${API_URL}/api/maps/${session.activeMapId}`,
               { credentials: 'include' }
             )
             if (res.ok) {
@@ -183,16 +212,38 @@ export function SessionGameView({
   const handleResume = () => onUpdateStatus('ACTIVE')
   const handleEnd = () => onUpdateStatus('ENDED')
 
+  // Handler for player leaving session (calls API then navigates)
+  const handlePlayerLeave = async () => {
+    try {
+      await fetch(`${API_URL}/api/sessions/${session.id}/leave`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch {
+      // Still navigate even if leave fails
+    }
+    navigate('/adventure/sessions')
+  }
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col bg-parchment-100">
       {/* Header */}
       <header className="flex items-center justify-between border-b-3 border-ink bg-parchment-200 px-4 py-2">
-        <Link
-          to={isDm ? `/adventures/${session.adventureId}` : '/adventure/sessions'}
-          className="font-body text-sm text-ink-faded hover:text-ink"
-        >
-          &#8592; {isDm ? 'Adventure' : 'Sessions'}
-        </Link>
+        {isDm ? (
+          <Link
+            to={`/adventures/${session.adventureId}`}
+            className="font-body text-sm text-ink-faded hover:text-ink"
+          >
+            &#8592; Adventure
+          </Link>
+        ) : (
+          <button
+            onClick={handlePlayerLeave}
+            className="font-body text-sm text-ink-faded hover:text-ink"
+          >
+            &#8592; Leave Session
+          </button>
+        )}
         <h1 className="font-display text-lg uppercase tracking-wide text-ink">
           {session.adventure.name}
         </h1>
@@ -227,7 +278,7 @@ export function SessionGameView({
       <div className="relative flex flex-1 overflow-hidden">
         {/* Map/Backdrop display area */}
         <div
-          className={`flex-1 ${
+          className={`min-w-0 flex-1 overflow-hidden ${
             session.status === 'PAUSED' ? 'opacity-60' : ''
           }`}
         >
@@ -275,8 +326,8 @@ export function SessionGameView({
           />
         )}
 
-        {/* Mobile voice controls floating pill */}
-        <div className="absolute bottom-4 left-4 z-10 lg:hidden">
+        {/* Mobile voice controls */}
+        <div className="absolute bottom-4 right-4 z-10 lg:hidden">
           <VoiceControls
             isMuted={voiceChat.isMuted}
             audioEnabled={voiceChat.audioEnabled}

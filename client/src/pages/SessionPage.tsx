@@ -45,7 +45,8 @@ export function SessionPage() {
   const rtcAnswerRef = React.useRef<(fromUserId: string, sdp: RTCSessionDescriptionInit) => void>()
   const rtcIceCandidateRef = React.useRef<(fromUserId: string, candidate: RTCIceCandidateInit) => void>()
 
-  // WebSocket connection
+  // WebSocket connection - disconnect when session is ENDED
+  const shouldConnect = !!id && !!session && session.status !== 'ENDED'
   const {
     isConnected,
     connectedUsers,
@@ -55,7 +56,7 @@ export function SessionPage() {
     sendMessage,
   } = useSessionSocket({
     sessionId: id || '',
-    enabled: !!id && !!session,
+    enabled: shouldConnect,
     onRtcOffer: React.useCallback((fromUserId: string, sdp: RTCSessionDescriptionInit) => {
       rtcOfferRef.current?.(fromUserId, sdp)
     }, []),

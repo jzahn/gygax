@@ -29,14 +29,27 @@ export function addUserToSession(
     connectedAt: now,
     lastPing: now,
   })
+  console.log(`[WS] Added user ${userId} to session ${sessionId}. Total users: ${sessionUsers.size}`)
 }
 
-export function removeUserFromSession(sessionId: string, userId: string): void {
+export function removeUserFromSession(sessionId: string, userId: string, socket?: WebSocket): void {
   const sessionUsers = sessions.get(sessionId)
   if (sessionUsers) {
+    // If a socket is provided, only remove if it matches the current socket
+    // This prevents a race condition where an old socket closing removes a new connection
+    if (socket) {
+      const user = sessionUsers.get(userId)
+      if (user && user.socket !== socket) {
+        // The stored socket is different - a new connection replaced this one
+        console.log(`[WS] removeUserFromSession: Skipping removal of ${userId} - socket mismatch`)
+        return
+      }
+    }
     sessionUsers.delete(userId)
+    console.log(`[WS] Removed user ${userId} from session ${sessionId}. Remaining users: ${sessionUsers.size}`)
     if (sessionUsers.size === 0) {
       sessions.delete(sessionId)
+      console.log(`[WS] Deleted empty session ${sessionId}`)
     }
   }
 }
@@ -76,14 +89,22 @@ export function broadcastToSession(
   excludeUserId?: string
 ): void {
   const sessionUsers = sessions.get(sessionId)
-  if (!sessionUsers) return
+  if (!sessionUsers) {
+    console.log(`[WS] Broadcast to session ${sessionId}: no users found`)
+    return
+  }
 
   const messageStr = JSON.stringify(message)
+  const msgType = (message as { type?: string }).type || 'unknown'
+  console.log(`[WS] Broadcasting ${msgType} to session ${sessionId}. Users: ${Array.from(sessionUsers.keys()).join(', ')}`)
 
   for (const [userId, user] of sessionUsers) {
     if (excludeUserId && userId === excludeUserId) continue
     if (user.socket.readyState === 1) { // OPEN
       user.socket.send(messageStr)
+      console.log(`[WS] Sent ${msgType} to user ${userId}`)
+    } else {
+      console.log(`[WS] Skipped user ${userId} - socket not open (state: ${user.socket.readyState})`)
     }
   }
 }

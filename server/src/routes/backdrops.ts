@@ -102,6 +102,55 @@ async function requireAdventureOwnership(
   return true
 }
 
+// Allow access if user owns the adventure OR is a participant in an active session
+async function requireAdventureAccess(
+  fastify: FastifyInstance,
+  adventureId: string,
+  userId: string,
+  reply: FastifyReply
+): Promise<boolean> {
+  const adventure = await fastify.prisma.adventure.findUnique({
+    where: { id: adventureId },
+    select: { id: true, ownerId: true },
+  })
+
+  if (!adventure) {
+    reply.status(404).send({
+      error: 'Not Found',
+      message: 'Adventure not found',
+    })
+    return false
+  }
+
+  // Owner always has access
+  if (adventure.ownerId === userId) {
+    return true
+  }
+
+  // Check if user is a participant in an active/paused session for this adventure
+  // Include former participants (leftAt not null) to handle page refresh race condition
+  const session = await fastify.prisma.session.findFirst({
+    where: {
+      adventureId,
+      status: { in: ['ACTIVE', 'PAUSED'] },
+      OR: [
+        { dmId: userId },
+        { participants: { some: { userId } } },
+      ],
+    },
+  })
+
+  if (session) {
+    return true
+  }
+
+  reply.status(404).send({
+    error: 'Not Found',
+    message: 'Adventure not found',
+  })
+  return false
+}
+
 function parseIntField(value: unknown, defaultVal: number): number {
   if (value === undefined || value === null || value === '') return defaultVal
   const parsed = parseInt(String(value), 10)
@@ -250,6 +299,7 @@ export async function backdropRoutes(fastify: FastifyInstance) {
   )
 
   // GET /api/adventures/:adventureId/backdrops/:id
+  // Allows session participants to fetch backdrops during active sessions
   fastify.get<{ Params: { adventureId: string; id: string } }>(
     '/api/adventures/:adventureId/backdrops/:id',
     async (
@@ -261,7 +311,8 @@ export async function backdropRoutes(fastify: FastifyInstance) {
 
       const { adventureId, id } = request.params
 
-      const hasAccess = await requireAdventureOwnership(fastify, adventureId, user.id, reply)
+      // Use requireAdventureAccess to allow session participants
+      const hasAccess = await requireAdventureAccess(fastify, adventureId, user.id, reply)
       if (!hasAccess) return
 
       const backdrop = await fastify.prisma.backdrop.findUnique({

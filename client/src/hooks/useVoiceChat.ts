@@ -52,17 +52,21 @@ export function useVoiceChat({
   const peerConnectionsRef = useRef<Map<string, PeerConnection>>(new Map())
   const speakingIntervalRef = useRef<number | null>(null)
   const mountedRef = useRef(true)
+  const isMutedRef = useRef(false)
 
   // Get local audio stream
   const initializeAudio = useCallback(async () => {
     if (!enabled || localStreamRef.current) return
 
     try {
+      // TODO: Consider making these user-configurable settings
+      // echoCancellation and noiseSuppression can cause audio pulsing/gating
+      // in some environments, but are helpful for preventing feedback
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: true,
+          echoCancellation: false,
           noiseSuppression: true,
-          autoGainControl: true,
+          autoGainControl: false,
         },
         video: false,
       })
@@ -71,6 +75,11 @@ export function useVoiceChat({
         stream.getTracks().forEach((track) => track.stop())
         return
       }
+
+      // Apply current mute state to new tracks
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = !isMutedRef.current
+      })
 
       localStreamRef.current = stream
       setAudioEnabled(true)
@@ -238,17 +247,28 @@ export function useVoiceChat({
   const toggleMute = useCallback(() => {
     if (!localStreamRef.current) return
 
-    const newMuted = !isMuted
+    // Use ref for reliable current value (avoids stale closure issues)
+    const newMuted = !isMutedRef.current
+    isMutedRef.current = newMuted
     setIsMuted(newMuted)
 
-    // Enable/disable audio track
+    // Enable/disable audio track on local stream
     localStreamRef.current.getAudioTracks().forEach((track) => {
       track.enabled = !newMuted
     })
 
+    // Also update all RTCRtpSenders to ensure mute propagates through peer connections
+    for (const [, conn] of peerConnectionsRef.current) {
+      for (const sender of conn.pc.getSenders()) {
+        if (sender.track?.kind === 'audio') {
+          sender.track.enabled = !newMuted
+        }
+      }
+    }
+
     // Broadcast mute state
     sendMessage('rtc:mute-state', { muted: newMuted })
-  }, [isMuted, sendMessage])
+  }, [sendMessage])
 
   // Initialize audio on mount
   useEffect(() => {
@@ -326,28 +346,25 @@ export function useVoiceChat({
 
   // Cleanup on unmount
   useEffect(() => {
-    // Copy refs to local variables for cleanup
-    const localStream = localStreamRef.current
-    const peerConnections = peerConnectionsRef.current
-    const speakingInterval = speakingIntervalRef.current
-
     return () => {
       // Stop local stream
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop())
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop())
+        localStreamRef.current = null
       }
 
       // Close all peer connections
-      for (const [, conn] of peerConnections) {
+      for (const [, conn] of peerConnectionsRef.current) {
         conn.pc.close()
         conn.audioElement.srcObject = null
         conn.audioContext?.close()
       }
-      peerConnections.clear()
+      peerConnectionsRef.current.clear()
 
       // Clear speaking interval
-      if (speakingInterval) {
-        clearInterval(speakingInterval)
+      if (speakingIntervalRef.current) {
+        clearInterval(speakingIntervalRef.current)
+        speakingIntervalRef.current = null
       }
     }
   }, [])

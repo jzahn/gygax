@@ -139,7 +139,7 @@ function formatSessionWithDetails(session: {
   startedAt: Date | null
   pausedAt: Date | null
   endedAt: Date | null
-  adventure: { id: string; name: string }
+  adventure: { id: string; name: string; campaignId: string | null }
   dm: { id: string; name: string; avatarUrl: string | null }
   participants: Array<{
     id: string
@@ -187,6 +187,7 @@ function formatSessionWithDetails(session: {
     adventure: {
       id: session.adventure.id,
       name: session.adventure.name,
+      campaignId: session.adventure.campaignId,
     },
     dm: {
       id: session.dm.id,
@@ -330,7 +331,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
           accessType: accessType as 'OPEN' | 'CAMPAIGN' | 'INVITE',
         },
         include: {
-          adventure: { select: { id: true, name: true } },
+          adventure: { select: { id: true, name: true, campaignId: true } },
           dm: { select: { id: true, name: true, avatarUrl: true } },
           participants: {
             where: { leftAt: null },
@@ -405,6 +406,16 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         })
         const invitedSessionIds = invites.map((i) => i.sessionId)
 
+        // Get sessions user has previously participated in (for rejoin)
+        const previousParticipations = await fastify.prisma.sessionParticipant.findMany({
+          where: {
+            userId: user.id,
+            leftAt: { not: null }, // Only those who left
+          },
+          select: { sessionId: true },
+        })
+        const previousSessionIds = previousParticipations.map((p) => p.sessionId)
+
         // Query for joinable sessions
         const sessions = await fastify.prisma.session.findMany({
           where: {
@@ -420,24 +431,30 @@ export async function sessionRoutes(fastify: FastifyInstance) {
               },
             },
             OR: [
-              // OPEN sessions: only FORMING
+              // OPEN sessions: only FORMING for new players
               { accessType: 'OPEN', status: 'FORMING' },
-              // CAMPAIGN sessions: FORMING or ACTIVE, must be member
+              // OPEN sessions: ACTIVE/PAUSED for previous participants (rejoin)
+              {
+                accessType: 'OPEN',
+                status: { in: ['ACTIVE', 'PAUSED'] },
+                id: { in: previousSessionIds },
+              },
+              // CAMPAIGN sessions: FORMING, ACTIVE, or PAUSED, must be member
               {
                 accessType: 'CAMPAIGN',
-                status: { in: ['FORMING', 'ACTIVE'] },
+                status: { in: ['FORMING', 'ACTIVE', 'PAUSED'] },
                 adventure: { campaignId: { in: memberCampaignIds } },
               },
-              // INVITE sessions: FORMING or ACTIVE, must be invited
+              // INVITE sessions: FORMING, ACTIVE, or PAUSED, must be invited
               {
                 accessType: 'INVITE',
-                status: { in: ['FORMING', 'ACTIVE'] },
+                status: { in: ['FORMING', 'ACTIVE', 'PAUSED'] },
                 id: { in: invitedSessionIds },
               },
             ],
           },
           include: {
-            adventure: { select: { id: true, name: true } },
+            adventure: { select: { id: true, name: true, campaignId: true } },
             dm: { select: { id: true, name: true, avatarUrl: true } },
             _count: { select: { participants: { where: { leftAt: null } } } },
           },
@@ -484,7 +501,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         const sessions = await fastify.prisma.session.findMany({
           where: whereClause,
           include: {
-            adventure: { select: { id: true, name: true } },
+            adventure: { select: { id: true, name: true, campaignId: true } },
             dm: { select: { id: true, name: true, avatarUrl: true } },
             _count: { select: { participants: { where: { leftAt: null } } } },
           },
@@ -502,7 +519,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       const sessions = await fastify.prisma.session.findMany({
         where: { dmId: user.id },
         include: {
-          adventure: { select: { id: true, name: true } },
+          adventure: { select: { id: true, name: true, campaignId: true } },
           dm: { select: { id: true, name: true, avatarUrl: true } },
           _count: { select: { participants: { where: { leftAt: null } } } },
         },
@@ -529,10 +546,9 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       const session = await fastify.prisma.session.findUnique({
         where: { id },
         include: {
-          adventure: { select: { id: true, name: true } },
+          adventure: { select: { id: true, name: true, campaignId: true } },
           dm: { select: { id: true, name: true, avatarUrl: true } },
           participants: {
-            where: { leftAt: null },
             include: {
               user: { select: { id: true, name: true, avatarUrl: true } },
               character: {
@@ -564,7 +580,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         })
       }
 
-      // Check authorization: must be DM or participant
+      // Check authorization: must be DM or participant (current or former)
       const isParticipant = session.participants.some((p) => p.userId === user.id)
       if (session.dmId !== user.id && !isParticipant) {
         return reply.status(403).send({
@@ -934,7 +950,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         where: { id },
         data: updateData,
         include: {
-          adventure: { select: { id: true, name: true } },
+          adventure: { select: { id: true, name: true, campaignId: true } },
           dm: { select: { id: true, name: true, avatarUrl: true } },
           participants: {
             where: { leftAt: null },
@@ -1043,7 +1059,9 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       const session = await fastify.prisma.session.findUnique({
         where: { id },
         include: {
-          participants: { where: { userId: user.id, leftAt: null } },
+          // Include all participants for this user (active or former)
+          // Former participants can reconnect (e.g., after page refresh)
+          participants: { where: { userId: user.id } },
         },
       })
 
@@ -1054,7 +1072,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         })
       }
 
-      // Must be DM or participant
+      // Must be DM or participant (current or former)
       const isParticipant = session.participants.length > 0
       if (session.dmId !== user.id && !isParticipant) {
         return reply.status(403).send({
