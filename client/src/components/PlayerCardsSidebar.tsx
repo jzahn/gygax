@@ -8,6 +8,7 @@ interface PlayerCardsSidebarProps {
   mutedUsers: Set<string>
   isMuted: boolean
   onToggleMute: () => void
+  onClose?: () => void
   className?: string
 }
 
@@ -18,6 +19,7 @@ export function PlayerCardsSidebar({
   mutedUsers,
   isMuted,
   onToggleMute,
+  onClose,
   className = '',
 }: PlayerCardsSidebarProps) {
   const connectedUserIds = new Set(connectedUsers.map((u) => u.userId))
@@ -25,8 +27,17 @@ export function PlayerCardsSidebar({
   return (
     <div className={`flex flex-col bg-parchment-200 ${className}`}>
       {/* Header */}
-      <div className="border-b-3 border-ink bg-parchment-100 px-4 py-3">
+      <div className="flex items-center justify-between border-b-3 border-ink bg-parchment-100 px-4 py-3">
         <h2 className="font-display text-sm uppercase tracking-wide text-ink">Players</h2>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="flex h-7 w-7 items-center justify-center border-2 border-ink bg-white text-ink transition-colors hover:bg-ink hover:text-parchment-100 lg:hidden"
+            aria-label="Close players"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Player cards */}

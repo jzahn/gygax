@@ -34,7 +34,11 @@ export function MobileMenu({ forgeActive, adventureActive }: MobileMenuProps) {
     <>
       {/* Hamburger button - visible only on mobile */}
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setIsOpen(true)
+          // Dispatch event to close other sidebars
+          window.dispatchEvent(new CustomEvent('mainMenuOpened'))
+        }}
         className="flex h-10 w-10 items-center justify-center border-3 border-ink bg-white shadow-brutal-sm md:hidden"
         aria-label="Open menu"
       >

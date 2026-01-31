@@ -50,6 +50,13 @@ export function SessionGameView({
   // Sidebar visibility for mobile/tablet
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
 
+  // Close sidebar when main menu opens
+  React.useEffect(() => {
+    const handleMainMenuOpened = () => setSidebarOpen(false)
+    window.addEventListener('mainMenuOpened', handleMainMenuOpened)
+    return () => window.removeEventListener('mainMenuOpened', handleMainMenuOpened)
+  }, [])
+
   // Map and backdrop data cache
   const [maps, setMaps] = React.useState<Map[]>([])
   const [backdrops, setBackdrops] = React.useState<Backdrop[]>([])
@@ -361,13 +368,8 @@ export function SessionGameView({
           )}
         </div>
 
-        {/* Player sidebar - desktop always visible, mobile/tablet overlay */}
-        <aside
-          className={`
-            absolute right-0 top-0 z-20 h-full w-72 transform border-l-3 border-ink transition-transform lg:relative lg:transform-none
-            ${sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
-          `}
-        >
+        {/* Player sidebar - desktop only (inline) */}
+        <aside className="hidden w-72 border-l-3 border-ink lg:block">
           <PlayerCardsSidebar
             session={session}
             connectedUsers={connectedUsers}
@@ -379,14 +381,6 @@ export function SessionGameView({
           />
         </aside>
 
-        {/* Mobile sidebar backdrop */}
-        {sidebarOpen && (
-          <div
-            className="absolute inset-0 z-10 bg-ink/50 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
         {/* Mobile voice controls */}
         <div className="absolute bottom-4 right-4 z-10 lg:hidden">
           <VoiceControls
@@ -397,6 +391,32 @@ export function SessionGameView({
           />
         </div>
       </div>
+
+      {/* Mobile/tablet sidebar overlay - covers entire view including DM controls */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-ink/50 lg:hidden"
+          style={{ top: '3.5rem' }}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      <aside
+        className={`
+          fixed bottom-0 right-0 top-14 z-50 w-72 transform border-l-3 border-ink bg-parchment-100 transition-transform lg:hidden
+          ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}
+        `}
+      >
+        <PlayerCardsSidebar
+          session={session}
+          connectedUsers={connectedUsers}
+          speakingUsers={voiceChat.speakingUsers}
+          mutedUsers={mutedUsers}
+          isMuted={voiceChat.isMuted}
+          onToggleMute={voiceChat.toggleMute}
+          onClose={() => setSidebarOpen(false)}
+          className="h-full"
+        />
+      </aside>
 
       {/* DM Controls */}
       {isDm && (
