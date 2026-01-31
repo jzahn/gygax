@@ -588,9 +588,6 @@ export function AdventurePage() {
     const formData = new FormData()
     formData.append('image', data.image)
     formData.append('name', data.name)
-    if (data.title) formData.append('title', data.title)
-    formData.append('titleX', data.titleX.toString())
-    formData.append('titleY', data.titleY.toString())
     if (data.description) formData.append('description', data.description)
     formData.append('focusX', data.focusX.toString())
     formData.append('focusY', data.focusY.toString())
@@ -622,9 +619,6 @@ export function AdventurePage() {
         credentials: 'include',
         body: JSON.stringify({
           name: data.name,
-          title: data.title,
-          titleX: data.titleX,
-          titleY: data.titleY,
           description: data.description,
           focusX: data.focusX,
           focusY: data.focusY,

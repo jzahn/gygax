@@ -224,9 +224,6 @@ model NPC {
 model Backdrop {
   id          String   @id @default(cuid())
   name        String
-  title       String?
-  titleX      Int      @default(50)
-  titleY      Int      @default(50)
   description String?
   imageUrl    String
   focusX      Int      @default(50)

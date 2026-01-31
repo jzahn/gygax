@@ -13,9 +13,6 @@ import { ImageUpload } from './ImageUpload'
 
 export interface BackdropFormData {
   name: string
-  title?: string
-  titleX: number
-  titleY: number
   description?: string
   image: File | null
   focusX: number
@@ -29,7 +26,6 @@ interface CreateBackdropModalProps {
 }
 
 const MAX_NAME_LENGTH = 100
-const MAX_TITLE_LENGTH = 200
 const MAX_DESCRIPTION_LENGTH = 2000
 
 export function CreateBackdropModal({
@@ -38,9 +34,6 @@ export function CreateBackdropModal({
   onSubmit,
 }: CreateBackdropModalProps) {
   const [name, setName] = React.useState('')
-  const [title, setTitle] = React.useState('')
-  const [titleX, setTitleX] = React.useState(50)
-  const [titleY, setTitleY] = React.useState(50)
   const [description, setDescription] = React.useState('')
   const [image, setImage] = React.useState<File | null>(null)
   const [focusX, setFocusX] = React.useState(50)
@@ -48,36 +41,16 @@ export function CreateBackdropModal({
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [errors, setErrors] = React.useState<{ name?: string; image?: string }>({})
 
-  // For title positioning mode
-  const [positioningTitle, setPositioningTitle] = React.useState(false)
-  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
-  const positioningImgRef = React.useRef<HTMLImageElement>(null)
-  const [positioningImgWidth, setPositioningImgWidth] = React.useState(0)
-
   React.useEffect(() => {
     if (open) {
       setName('')
-      setTitle('')
-      setTitleX(50)
-      setTitleY(50)
       setDescription('')
       setImage(null)
       setFocusX(50)
       setFocusY(50)
       setErrors({})
-      setPositioningTitle(false)
     }
   }, [open])
-
-  React.useEffect(() => {
-    if (image) {
-      const url = URL.createObjectURL(image)
-      setPreviewUrl(url)
-      return () => URL.revokeObjectURL(url)
-    } else {
-      setPreviewUrl(null)
-    }
-  }, [image])
 
   const validateForm = (): boolean => {
     const newErrors: { name?: string; image?: string } = {}
@@ -106,9 +79,6 @@ export function CreateBackdropModal({
     try {
       await onSubmit({
         name: name.trim(),
-        title: title.trim() || undefined,
-        titleX,
-        titleY,
         description: description.trim() || undefined,
         image,
         focusX,
@@ -122,15 +92,6 @@ export function CreateBackdropModal({
     }
   }
 
-  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!positioningTitle || !title.trim()) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100)
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100)
-    setTitleX(x)
-    setTitleY(y)
-  }
-
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-md">
@@ -141,74 +102,20 @@ export function CreateBackdropModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label className="font-display text-xs uppercase tracking-wide">Image *</Label>
-            {positioningTitle && previewUrl ? (
-              <div className="space-y-2">
-                <div
-                  className="relative cursor-crosshair border-3 border-ink overflow-hidden"
-                  onClick={handleImageClick}
-                >
-                  <img
-                    ref={positioningImgRef}
-                    src={previewUrl}
-                    alt="Preview"
-                    className="block w-full"
-                    style={{ objectPosition: `${focusX}% ${focusY}%` }}
-                    onLoad={() => {
-                      if (positioningImgRef.current) {
-                        setPositioningImgWidth(positioningImgRef.current.clientWidth)
-                      }
-                    }}
-                  />
-                  {title.trim() && positioningImgWidth > 0 && (() => {
-                    const fontSize = Math.max(16, Math.min(48, positioningImgWidth * 0.036))
-                    return (
-                      <div
-                        className="absolute pointer-events-none font-display uppercase tracking-wide text-parchment-100 text-center"
-                        style={{
-                          left: `${titleX}%`,
-                          top: `${titleY}%`,
-                          transform: 'translate(-50%, -50%)',
-                          fontSize,
-                          maxWidth: '90%',
-                          padding: `${fontSize * 0.3}px ${fontSize * 0.6}px`,
-                          backgroundColor: 'rgba(0,0,0,0.7)',
-                          textShadow: '0 0 6px rgba(0,0,0,1), 2px 3px 8px rgba(0,0,0,1)',
-                        }}
-                      >
-                        {title.trim()}
-                      </div>
-                    )
-                  })()}
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="font-body text-xs text-ink-faded">Click image to position title</p>
-                  <button
-                    type="button"
-                    onClick={() => setPositioningTitle(false)}
-                    className="font-body text-xs text-ink underline underline-offset-2 hover:text-ink-soft"
-                  >
-                    Done positioning
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <ImageUpload
-                value={image}
-                onChange={(file) => setImage(file)}
-                focusX={focusX}
-                focusY={focusY}
-                onFocusChange={(x, y) => {
-                  setFocusX(x)
-                  setFocusY(y)
-                }}
-                error={errors.image}
-              />
-            )}
-            {!positioningTitle && (
-              <p className="font-body text-xs text-ink-faded">
-                Click image to set focal point
-              </p>
-            )}
+            <ImageUpload
+              value={image}
+              onChange={(file) => setImage(file)}
+              focusX={focusX}
+              focusY={focusY}
+              onFocusChange={(x, y) => {
+                setFocusX(x)
+                setFocusY(y)
+              }}
+              error={errors.image}
+            />
+            <p className="font-body text-xs text-ink-faded">
+              Click image to set focal point
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -224,28 +131,6 @@ export function CreateBackdropModal({
               maxLength={MAX_NAME_LENGTH + 10}
             />
             {errors.name && <p className="font-body text-sm text-blood-red">{errors.name}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="backdrop-title" className="font-display text-xs uppercase tracking-wide">
-              Title (shown over backdrop when displayed)
-            </Label>
-            <Input
-              id="backdrop-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., The Grand Duchy of Karameikos"
-              maxLength={MAX_TITLE_LENGTH}
-            />
-            {title.trim() && previewUrl && !positioningTitle && (
-              <button
-                type="button"
-                onClick={() => setPositioningTitle(true)}
-                className="font-body text-xs text-ink underline underline-offset-2 hover:text-ink-soft"
-              >
-                Position title on image
-              </button>
-            )}
           </div>
 
           <div className="space-y-2">

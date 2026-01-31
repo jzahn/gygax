@@ -221,47 +221,6 @@ function BackdropPreviewContent({
     }
   }
 
-  // Title position
-  let titleEl: React.ReactNode = null
-  if (backdrop.title) {
-    let titlePxX = 0
-    let titlePxY = 0
-    let refWidth = 0
-
-    if (fitMode && containLayout) {
-      titlePxX = containLayout.originX + (backdrop.titleX / 100) * containLayout.fw
-      titlePxY = containLayout.originY + (backdrop.titleY / 100) * containLayout.fh
-      refWidth = containLayout.fw
-    } else if (!fitMode && coverLayout) {
-      const imgLeft = coverLayout.baseX + offset.x
-      const imgTop = coverLayout.baseY + offset.y
-      titlePxX = imgLeft + (backdrop.titleX / 100) * coverLayout.imgW
-      titlePxY = imgTop + (backdrop.titleY / 100) * coverLayout.imgH
-      refWidth = coverLayout.imgW
-    }
-
-    if (refWidth > 0) {
-      const fontSize = Math.max(16, Math.min(48, refWidth * 0.036))
-      titleEl = (
-        <div
-          className="absolute pointer-events-none font-display uppercase tracking-wide text-parchment-100 text-center"
-          style={{
-            left: titlePxX,
-            top: titlePxY,
-            transform: 'translate(-50%, -50%)',
-            fontSize,
-            maxWidth: refWidth * 0.9,
-            padding: `${fontSize * 0.3}px ${fontSize * 0.6}px`,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            textShadow: '0 0 6px rgba(0,0,0,1), 2px 3px 8px rgba(0,0,0,1)',
-          }}
-        >
-          {backdrop.title}
-        </div>
-      )
-    }
-  }
-
   return (
     <div
       ref={containerRef}
@@ -281,7 +240,6 @@ function BackdropPreviewContent({
         draggable={false}
         style={imgStyle}
       />
-      {titleEl}
       {/* Toolbar buttons */}
       <div className="absolute right-2 top-2 z-10 flex gap-1">
         <button

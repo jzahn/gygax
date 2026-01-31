@@ -586,9 +586,6 @@ export interface UpdateNPCRequest {
 export interface Backdrop {
   id: string
   name: string
-  title: string | null
-  titleX: number
-  titleY: number
   description: string | null
   imageUrl: string
   focusX: number
@@ -608,9 +605,6 @@ export interface BackdropResponse {
 
 export interface UpdateBackdropRequest {
   name?: string
-  title?: string | null
-  titleX?: number
-  titleY?: number
   description?: string | null
   focusX?: number
   focusY?: number

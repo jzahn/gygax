@@ -9,16 +9,12 @@ import type {
 import { uploadFile, deleteFile, deleteFolder, extractKeyFromUrl } from '../services/storage.js'
 
 const MAX_NAME_LENGTH = 100
-const MAX_TITLE_LENGTH = 200
 const MAX_DESCRIPTION_LENGTH = 2000
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 function formatBackdrop(backdrop: {
   id: string
   name: string
-  title: string | null
-  titleX: number
-  titleY: number
   description: string | null
   imageUrl: string
   focusX: number
@@ -30,9 +26,6 @@ function formatBackdrop(backdrop: {
   return {
     id: backdrop.id,
     name: backdrop.name,
-    title: backdrop.title,
-    titleX: backdrop.titleX,
-    titleY: backdrop.titleY,
     description: backdrop.description,
     imageUrl: backdrop.imageUrl,
     focusX: backdrop.focusX,
@@ -240,15 +233,6 @@ export async function backdropRoutes(fastify: FastifyInstance) {
         })
       }
 
-      // Validate title if provided
-      const title = fields.title?.trim() || null
-      if (title && title.length > MAX_TITLE_LENGTH) {
-        return reply.status(400).send({
-          error: 'Bad Request',
-          message: `Title must be ${MAX_TITLE_LENGTH} characters or less`,
-        })
-      }
-
       // Validate description if provided
       const description = fields.description?.trim() || null
       if (description && description.length > MAX_DESCRIPTION_LENGTH) {
@@ -261,16 +245,11 @@ export async function backdropRoutes(fastify: FastifyInstance) {
       // Parse coordinate fields
       const focusX = Math.max(0, Math.min(100, parseIntField(fields.focusX, 50)))
       const focusY = Math.max(0, Math.min(100, parseIntField(fields.focusY, 50)))
-      const titleX = Math.max(0, Math.min(100, parseIntField(fields.titleX, 50)))
-      const titleY = Math.max(0, Math.min(100, parseIntField(fields.titleY, 50)))
 
       // Create backdrop record first to get ID
       const backdrop = await fastify.prisma.backdrop.create({
         data: {
           name,
-          title,
-          titleX,
-          titleY,
           description,
           imageUrl: '', // Placeholder, will update after upload
           focusX,
@@ -378,30 +357,6 @@ export async function backdropRoutes(fastify: FastifyInstance) {
           })
         }
         updateData.name = trimmedName
-      }
-
-      // Title
-      if (request.body.title !== undefined) {
-        if (request.body.title === null) {
-          updateData.title = null
-        } else {
-          const trimmed = request.body.title.trim()
-          if (trimmed.length > MAX_TITLE_LENGTH) {
-            return reply.status(400).send({
-              error: 'Bad Request',
-              message: `Title must be ${MAX_TITLE_LENGTH} characters or less`,
-            })
-          }
-          updateData.title = trimmed.length === 0 ? null : trimmed
-        }
-      }
-
-      // TitleX/TitleY
-      if (request.body.titleX !== undefined) {
-        updateData.titleX = Math.max(0, Math.min(100, request.body.titleX))
-      }
-      if (request.body.titleY !== undefined) {
-        updateData.titleY = Math.max(0, Math.min(100, request.body.titleY))
       }
 
       // Description
