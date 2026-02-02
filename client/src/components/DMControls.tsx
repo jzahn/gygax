@@ -64,18 +64,18 @@ export function DMControls({
 
   return (
     <div
-      className={`border-t-3 border-ink bg-ink px-4 py-3 ${className}`}
+      className={`px-4 py-3 ${className}`}
     >
       {/* Mobile/tablet layout: two rows */}
       <div className="flex flex-col gap-3 md:hidden">
         {/* Dropdowns row */}
         <div className="flex flex-col gap-2">
           <label className="flex items-center gap-2">
-            <span className="font-body text-sm text-parchment-100">&#128220;</span>
+            <span className="font-body text-sm text-ink">&#128220;</span>
             <select
               value={activeMapId || ''}
               onChange={handleMapChange}
-              className="min-w-0 flex-1 border-2 border-parchment-300 bg-parchment-100 px-2 py-1 font-body text-sm text-ink"
+              className="min-w-0 flex-1 border-2 border-ink bg-parchment-100 px-2 py-1 font-body text-sm text-ink"
             >
               <option value="">Select Map...</option>
               {maps.map((map) => (
@@ -86,11 +86,11 @@ export function DMControls({
             </select>
           </label>
           <label className="flex items-center gap-2">
-            <span className="font-body text-sm text-parchment-100">&#128444;</span>
+            <span className="font-body text-sm text-ink">&#128444;</span>
             <select
               value={activeBackdropId || ''}
               onChange={handleBackdropChange}
-              className="min-w-0 flex-1 border-2 border-parchment-300 bg-parchment-100 px-2 py-1 font-body text-sm text-ink"
+              className="min-w-0 flex-1 border-2 border-ink bg-parchment-100 px-2 py-1 font-body text-sm text-ink"
             >
               <option value="">Select Backdrop...</option>
               {backdrops.map((backdrop) => (
@@ -108,7 +108,7 @@ export function DMControls({
             size="sm"
             onClick={onClearDisplay}
             disabled={!activeMapId && !activeBackdropId}
-            className="text-parchment-100 hover:bg-parchment-100 hover:text-ink"
+            className="text-ink hover:bg-ink hover:text-parchment-100"
           >
             &#10005; Clear
           </Button>
@@ -119,7 +119,7 @@ export function DMControls({
                 size="sm"
                 onClick={onPause}
                 disabled={isUpdating}
-                className="text-parchment-100 hover:bg-parchment-100 hover:text-ink"
+                className="text-ink hover:bg-ink hover:text-parchment-100"
               >
                 &#9208; Pause
               </Button>
@@ -130,7 +130,7 @@ export function DMControls({
                 size="sm"
                 onClick={onResume}
                 disabled={isUpdating}
-                className="text-parchment-100 hover:bg-parchment-100 hover:text-ink"
+                className="text-ink hover:bg-ink hover:text-parchment-100"
               >
                 &#9654; Resume
               </Button>
@@ -143,7 +143,7 @@ export function DMControls({
               className={
                 showEndConfirm
                   ? 'bg-blood-red text-parchment-100 hover:bg-blood-red/80'
-                  : 'text-parchment-100 hover:bg-parchment-100 hover:text-blood-red'
+                  : 'text-blood-red hover:bg-blood-red hover:text-parchment-100'
               }
             >
               {showEndConfirm ? 'Click to Confirm' : '■ End'}
@@ -152,92 +152,91 @@ export function DMControls({
         </div>
       </div>
 
-      {/* Desktop layout: single row */}
-      <div className="hidden items-center gap-3 md:flex">
-        {/* Map selector */}
-        <label className="flex items-center gap-2">
-          <span className="font-body text-sm text-parchment-100">&#128220;</span>
-          <select
-            value={activeMapId || ''}
-            onChange={handleMapChange}
-            className="border-2 border-parchment-300 bg-parchment-100 px-2 py-1 font-body text-sm text-ink"
-          >
-            <option value="">Select Map...</option>
-            {maps.map((map) => (
-              <option key={map.id} value={map.id}>
-                {map.name} ({map.gridType === 'HEX' ? 'Hex' : 'Sq'})
-              </option>
-            ))}
-          </select>
-        </label>
+      {/* Desktop layout: two rows */}
+      <div className="hidden flex-col gap-3 md:flex">
+        {/* Top row: Display selectors */}
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2">
+            <span className="font-body text-sm text-ink">&#128220;</span>
+            <select
+              value={activeMapId || ''}
+              onChange={handleMapChange}
+              className="border-2 border-ink bg-parchment-100 px-2 py-1 font-body text-sm text-ink"
+            >
+              <option value="">Select Map...</option>
+              {maps.map((map) => (
+                <option key={map.id} value={map.id}>
+                  {map.name} ({map.gridType === 'HEX' ? 'Hex' : 'Sq'})
+                </option>
+              ))}
+            </select>
+          </label>
 
-        {/* Backdrop selector */}
-        <label className="flex items-center gap-2">
-          <span className="font-body text-sm text-parchment-100">&#128444;</span>
-          <select
-            value={activeBackdropId || ''}
-            onChange={handleBackdropChange}
-            className="border-2 border-parchment-300 bg-parchment-100 px-2 py-1 font-body text-sm text-ink"
-          >
-            <option value="">Select Backdrop...</option>
-            {backdrops.map((backdrop) => (
-              <option key={backdrop.id} value={backdrop.id}>
-                {backdrop.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="flex items-center gap-2">
+            <span className="font-body text-sm text-ink">&#128444;</span>
+            <select
+              value={activeBackdropId || ''}
+              onChange={handleBackdropChange}
+              className="border-2 border-ink bg-parchment-100 px-2 py-1 font-body text-sm text-ink"
+            >
+              <option value="">Select Backdrop...</option>
+              {backdrops.map((backdrop) => (
+                <option key={backdrop.id} value={backdrop.id}>
+                  {backdrop.name}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        {/* Clear display */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClearDisplay}
-          disabled={!activeMapId && !activeBackdropId}
-          className="text-parchment-100 hover:bg-parchment-100 hover:text-ink"
-        >
-          &#10005; Clear
-        </Button>
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Session controls */}
-        {sessionStatus === 'ACTIVE' && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={onPause}
-            disabled={isUpdating}
-            className="text-parchment-100 hover:bg-parchment-100 hover:text-ink"
+            onClick={onClearDisplay}
+            disabled={!activeMapId && !activeBackdropId}
+            className="text-ink hover:bg-ink hover:text-parchment-100"
           >
-            &#9208; Pause
+            &#10005; Clear
           </Button>
-        )}
-        {sessionStatus === 'PAUSED' && (
+        </div>
+
+        {/* Bottom row: Session controls */}
+        <div className="flex items-center gap-2 border-t border-ink/20 pt-3">
+          {sessionStatus === 'ACTIVE' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onPause}
+              disabled={isUpdating}
+              className="text-ink hover:bg-ink hover:text-parchment-100"
+            >
+              &#9208; Pause
+            </Button>
+          )}
+          {sessionStatus === 'PAUSED' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onResume}
+              disabled={isUpdating}
+              className="text-ink hover:bg-ink hover:text-parchment-100"
+            >
+              &#9654; Resume
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
-            onClick={onResume}
+            onClick={handleEndClick}
             disabled={isUpdating}
-            className="text-parchment-100 hover:bg-parchment-100 hover:text-ink"
+            className={
+              showEndConfirm
+                ? 'bg-blood-red text-parchment-100 hover:bg-blood-red/80'
+                : 'text-blood-red hover:bg-blood-red hover:text-parchment-100'
+            }
           >
-            &#9654; Resume
+            {showEndConfirm ? 'Click to Confirm' : '■ End'}
           </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleEndClick}
-          disabled={isUpdating}
-          className={
-            showEndConfirm
-              ? 'bg-blood-red text-parchment-100 hover:bg-blood-red/80'
-              : 'text-parchment-100 hover:bg-parchment-100 hover:text-blood-red'
-          }
-        >
-          {showEndConfirm ? 'Click to Confirm' : '■ End'}
-        </Button>
+        </div>
       </div>
     </div>
   )

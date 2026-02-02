@@ -19,8 +19,8 @@ export function BackdropDisplay({ backdrop, className = '' }: BackdropDisplayPro
         draggable={false}
       />
 
-      {/* Backdrop name in corner */}
-      <div className="absolute left-4 top-4 z-10 border-2 border-ink bg-parchment-100 px-3 py-1 shadow-brutal">
+      {/* Backdrop name in corner - padding matches header (px-3 mobile, px-4 desktop) */}
+      <div className="absolute left-3 top-3 z-10 border-2 border-ink bg-parchment-100 px-3 py-1 shadow-brutal md:left-4 md:top-4">
         <span className="font-display text-sm uppercase tracking-wide text-ink">
           {backdrop.name}
         </span>

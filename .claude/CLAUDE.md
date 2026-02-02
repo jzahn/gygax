@@ -134,20 +134,19 @@ Implementation specs in `/specs/` — build in order:
 | 004-adventures | Adventure CRUD (renamed from campaigns) | Complete |
 | 005-campaigns | Campaign (collection of Adventures) | Complete |
 | 006-characters | Player character creation (B/X sheets) | Complete |
-| 007-npcs | DM NPC/character creation | Planned |
-| 008-backdrops | Backdrop image display | Planned |
-| 009-notes | DM notes system | Planned |
+| 007-npcs | DM NPC/character creation | Complete |
+| 008-backdrops | Backdrop image display | Complete |
+| 009-notes | DM notes system | Complete |
 | 010a-map-foundation | Map data model & basic canvas | Complete |
 | 010b-map-drawing | Terrain stamping tools (hex/wilderness) | Complete |
 | 010c-map-labels-paths | Text labels & path drawing | Complete |
 | 010d-map-indoor | Indoor/dungeon maps (square grid) | Complete |
 | 010e-map-import-export | Save/load maps to JSON files | Complete |
-| 010f-campaign-world-map | Campaign-level world map | Planned |
-| 011-sessions | Live game sessions & player joining | Planned |
-| 012-fog-of-war | Fog of war system | Planned |
-| 013-chat | Real-time chat with dice rolling | Planned |
-
-*Note: Map linking/transitions deferred to Phase 2 (single-player with NPCs)*
+| 010f-campaign-world-map | Campaign-level world map | Complete |
+| 011a-session-foundation | Live sessions, WebSocket, player join | Complete |
+| 011b-session-game-view | Session game view UI | Complete |
+| 011c-chat-dice | Real-time chat with dice rolling | In Progress |
+| 014-deploy | Raspberry Pi deployment guide | Planned |
 
 ## Current Focus
 

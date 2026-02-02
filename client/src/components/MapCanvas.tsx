@@ -1518,24 +1518,24 @@ export function MapCanvas({
           />
         )}
       </div>
-      <div className="absolute bottom-2 left-2 flex items-stretch border-2 border-ink bg-parchment-100 font-body text-xs text-ink">
+      <div className="absolute bottom-3 left-3 flex items-stretch border-2 border-ink bg-parchment-100 font-body text-xs text-ink shadow-brutal md:bottom-4 md:left-4">
         <button
           onClick={handleZoomOut}
-          className="flex w-7 items-center justify-center border-r border-ink hover:bg-parchment-200"
+          className="flex w-7 items-center justify-center border-r border-ink transition-colors hover:bg-ink hover:text-parchment-100"
           aria-label="Zoom out"
         >
           &minus;
         </button>
         <button
           onClick={handleZoomReset}
-          className="flex cursor-pointer items-center px-2 hover:bg-parchment-200"
+          className="flex cursor-pointer items-center px-2 transition-colors hover:bg-ink hover:text-parchment-100"
           aria-label="Reset zoom to 100%"
         >
           {zoomDisplay}%
         </button>
         <button
           onClick={handleZoomIn}
-          className="flex w-7 items-center justify-center border-l border-ink hover:bg-parchment-200"
+          className="flex w-7 items-center justify-center border-l border-ink transition-colors hover:bg-ink hover:text-parchment-100"
           aria-label="Zoom in"
         >
           +

@@ -94,10 +94,10 @@ export function ChatPanel({
     []
   )
 
-  // Collapsed view - just show tabs with unread badges
+  // Collapsed view - just show tabs with unread badges (legacy desktop mode)
   if (collapsed) {
     return (
-      <div className="border-t-3 border-ink bg-parchment-100">
+      <div className="bg-parchment-100">
         <button
           onClick={onToggleCollapse}
           className="w-full flex items-center justify-between px-3 py-2 hover:bg-parchment-200"
@@ -122,8 +122,8 @@ export function ChatPanel({
   }
 
   return (
-    <div className="flex flex-col border-t-3 border-ink bg-parchment-100 h-full">
-      {/* Header with collapse button */}
+    <div className="flex flex-col bg-parchment-100 h-full min-h-0">
+      {/* Header with collapse button (only shown when onToggleCollapse provided - old desktop mode) */}
       {onToggleCollapse && (
         <button
           onClick={onToggleCollapse}
@@ -158,7 +158,7 @@ export function ChatPanel({
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-3 py-2 chat-scroll-container"
+        className="flex-1 min-h-0 overflow-y-auto px-3 py-2 chat-scroll-container"
       >
         {/* Load more button */}
         {hasMore && (

@@ -122,15 +122,15 @@ export function MapDisplay({ map, className = '' }: MapDisplayProps) {
 
   return (
     <div className={`relative h-full w-full ${className}`}>
-      {/* Map name header */}
-      <div className="absolute left-2 top-2 z-10 max-w-[70%] truncate border-2 border-ink bg-parchment-100 px-2 py-1 shadow-brutal sm:left-4 sm:top-4 sm:max-w-none sm:px-3">
-        <span className="font-display text-xs uppercase tracking-wide text-ink sm:text-sm">{map.name}</span>
+      {/* Map name header - padding matches header (px-3 mobile, px-4 desktop) */}
+      <div className="absolute left-3 top-3 z-10 max-w-[70%] truncate border-2 border-ink bg-parchment-100 px-2 py-1 shadow-brutal md:left-4 md:top-4 md:max-w-none md:px-3">
+        <span className="font-display text-xs uppercase tracking-wide text-ink md:text-sm">{map.name}</span>
       </div>
 
       {/* Color tint toggle (hex maps only) */}
       {isHexMap && (
-        <div className="absolute right-2 top-2 z-10 flex items-center gap-2 border-2 border-ink bg-parchment-100 px-2 py-1 shadow-brutal sm:right-4 sm:top-4 sm:px-3 sm:py-1.5">
-          <span className="hidden font-body text-xs text-ink sm:inline">Color Tint</span>
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-2 border-2 border-ink bg-parchment-100 px-2 py-1 shadow-brutal md:right-4 md:top-4 md:px-3 md:py-1.5">
+          <span className="hidden font-body text-xs text-ink md:inline">Color Tint</span>
           <button
             type="button"
             role="switch"

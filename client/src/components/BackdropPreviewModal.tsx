@@ -1,6 +1,6 @@
 import * as React from 'react'
 import type { Backdrop } from '@gygax/shared'
-import { Dialog, DialogContent } from './ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog'
 
 interface BackdropPreviewModalProps {
   open: boolean
@@ -277,7 +277,8 @@ function BackdropPreviewContent({
 export function BackdropPreviewModal({ open, onClose, backdrop }: BackdropPreviewModalProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-5xl border-3 border-ink bg-ink p-0 overflow-hidden">
+      <DialogContent className="max-w-5xl border-3 border-ink bg-ink p-0 overflow-hidden" aria-describedby={undefined}>
+        <DialogTitle className="sr-only">{backdrop?.name ?? 'Backdrop Preview'}</DialogTitle>
         {backdrop && <BackdropPreviewContent backdrop={backdrop} onClose={onClose} />}
       </DialogContent>
     </Dialog>
