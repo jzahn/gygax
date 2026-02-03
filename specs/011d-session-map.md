@@ -274,26 +274,40 @@ Get all tokens on a specific map.
 
 ### 6. UI Components
 
-#### DM Tools Panel Addition
+#### DM Tools Panel - Fog & Token Controls
 
-Add to the DM controls area:
+Fog and token controls are added as **collapsible sections** within the existing DM Tools tab of the floating console. The panel height must not exceed the Chat panel height on mobile.
+
+**Layout within DM Tools tab:**
 
 ```
 ┌─────────────────────────────────────┐
-│  FOG OF WAR                         │
-│  ┌───────┐ ┌───────┐ ┌───────────┐  │
-│  │ Brush │ │ Rect  │ │ Reveal All│  │
-│  └───────┘ └───────┘ └───────────┘  │
+│  DISPLAY                        [▾] │  ← Existing map/backdrop selectors
+│  Map: [Cavern Level 1      ▾]       │
+│  Backdrop: [None           ▾]       │
+├─────────────────────────────────────┤
+│  FOG OF WAR                     [▾] │  ← Collapsible (default collapsed)
+│  [Brush] [Rect] [Reveal All]        │
 │  Size: [S] [M] [L]                  │
 ├─────────────────────────────────────┤
-│  TOKENS                             │
-│  ┌─────────────────────────────────┐│
-│  │ + Add PC  + Add NPC  + Monster  ││
-│  └─────────────────────────────────┘│
-│  Active: Aldric (PC) ×             │
-│          Goblin 1 (Monster) ×      │
+│  TOKENS                         [▾] │  ← Collapsible (default collapsed)
+│  [+PC] [+NPC] [+Monster]            │
+├─────────────────────────────────────┤
+│  SESSION                        [▾] │  ← Existing pause/end controls
+│  [Pause] [End Session]              │
 └─────────────────────────────────────┘
 ```
+
+**Mobile constraints:**
+- Sections are collapsible with chevron toggle
+- Only one section expanded at a time (accordion behavior)
+- Default state: DISPLAY expanded, others collapsed
+- Compact button layout (icon + short label, or icon-only on narrow screens)
+- Active token list shown as horizontal scrollable chips (not vertical list)
+
+**Desktop (≥1024px):**
+- All sections can be expanded simultaneously
+- More room for labels and token list
 
 #### Token Placement Dialog
 
