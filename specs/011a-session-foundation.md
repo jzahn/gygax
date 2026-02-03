@@ -27,7 +27,7 @@ Establish the Session data model, REST API for session lifecycle management, and
 - Session game UI layout (map display, player sidebar) — spec 011b
 - WebRTC voice chat — spec 011b
 - Chat messages and dice rolling — spec 011c
-- Fog of war — spec 012
+- Fog of war — spec 011d
 - DM map/backdrop switching during session — spec 011b
 - Random encounters — future spec
 
@@ -1715,7 +1715,7 @@ Session cards in the browse list follow the B/X aesthetic:
 This spec establishes infrastructure for:
 - **Spec 011b:** Session game view UI, DM controls (map/backdrop switching), WebRTC voice
 - **Spec 011c:** Chat messages and dice rolling over WebSocket
-- **Spec 012:** Fog of war state management per session/map
+- **Spec 011d:** Fog of war state management per session/map
 
 The WebSocket message protocol is extensible — new message types can be added without breaking existing connections. The `sessionManager` module will be extended in 011b and 011c to handle additional message types.
 

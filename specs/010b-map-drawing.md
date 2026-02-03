@@ -22,7 +22,7 @@ Implement terrain stamping tools that allow DMs to create wilderness hex maps di
 - Paths (roads, rivers, trails, borders) - future spec
 - Text labels and annotations - spec 010c
 - Map transitions/linking - spec 010d
-- Fog of war - spec 012
+- Fog of war - spec 011d
 - Undo/redo system (future enhancement)
 - Square grid support (hex-only for wilderness maps)
 

@@ -23,7 +23,7 @@ Build the live session game view — the main screen where gameplay happens. Thi
 ### Out of Scope
 
 - Chat and dice rolling — spec 011c
-- Fog of war — spec 012
+- Fog of war — spec 011d
 - Map editing during session (DM edits map mid-session) — future
 - Token placement/movement — future
 - Random encounter triggers — future
@@ -578,7 +578,7 @@ Cards use the neobrutalism card style:
 ## Future Considerations
 
 - **Spec 011c:** Chat window will be added below the map area or in a slide-out panel
-- **Spec 012:** Fog of war overlay on the map display
+- **Spec 011d:** Fog of war overlay on the map display
 - **Map editing mid-session:** DM could enter edit mode, players see "DM is updating..." (PRD Flow 11)
 - **Token placement:** Player/NPC tokens on the map
 - **TURN server:** For users behind restrictive NATs, add TURN server configuration

@@ -25,7 +25,7 @@ Establish the data model and basic canvas infrastructure for maps. This creates 
 - Stamps and symbols - spec 010c
 - Text labels - spec 010c
 - Map transitions/linking - spec 010d
-- Fog of war - spec 012
+- Fog of war - spec 011d
 - Token placement - future spec
 - Map image export
 - Map thumbnails/previews
@@ -786,7 +786,7 @@ This spec establishes the canvas infrastructure for future drawing features:
 - **Spec 010b (Drawing Tools):** Add wall drawing, terrain brushes
 - **Spec 010c (Stamps & Text):** Add feature placement, labels
 - **Spec 010d (Map Linking):** Add transition points between maps
-- **Spec 012 (Fog of War):** Add player visibility system
+- **Spec 011d (Fog of War):** Add player visibility system
 - **Map Data Storage:** Will need to store drawn content (walls, terrain, etc.)
 
 The MapCanvas component is designed to be extended with:

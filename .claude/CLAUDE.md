@@ -145,7 +145,8 @@ Implementation specs in `/specs/` — build in order:
 | 010f-campaign-world-map | Campaign-level world map | Complete |
 | 011a-session-foundation | Live sessions, WebSocket, player join | Complete |
 | 011b-session-game-view | Session game view UI | Complete |
-| 011c-chat-dice | Real-time chat with dice rolling | In Progress |
+| 011c-chat-dice | Real-time chat with dice rolling | Complete |
+| 011d-session-map | Fog of war & token placement | Draft |
 | 014-deploy | Raspberry Pi deployment guide | Planned |
 | 015-deploy-aws | AWS deployment (EC2, S3, SES) | Planned |
 
