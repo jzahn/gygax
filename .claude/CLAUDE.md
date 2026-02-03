@@ -147,6 +147,7 @@ Implementation specs in `/specs/` — build in order:
 | 011b-session-game-view | Session game view UI | Complete |
 | 011c-chat-dice | Real-time chat with dice rolling | In Progress |
 | 014-deploy | Raspberry Pi deployment guide | Planned |
+| 015-deploy-aws | AWS deployment (EC2, S3, SES) | Planned |
 
 ## Current Focus
 

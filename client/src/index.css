@@ -739,7 +739,7 @@ a, button, [role="button"] {
   border: 3px solid var(--color-ink);
   background: var(--color-parchment-100);
   box-shadow: var(--shadow-brutal-lg), 0 8px 32px rgba(26, 26, 26, 0.25);
-  z-index: 30;
+  z-index: 50;
   animation: consoleSlideUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
@@ -879,7 +879,7 @@ a, button, [role="button"] {
   background: var(--color-parchment-100);
   box-shadow: var(--shadow-brutal);
   cursor: pointer;
-  z-index: 30;
+  z-index: 50;
   transition: all 0.15s ease-out;
   animation: iconPop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
@@ -954,6 +954,7 @@ a, button, [role="button"] {
   opacity: 1;
 }
 
+/* Desktop adjustments (md+) - match header px-4 = 1rem */
 /* Desktop adjustments (md+) - match header px-4 = 1rem */
 @media (min-width: 768px) {
   .floating-console {

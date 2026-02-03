@@ -5,7 +5,7 @@ Deploy Gygax on a Raspberry Pi 4B (4GB+ RAM) with internet-exposed SSL/HTTPS.
 ## Prerequisites
 
 ### Hardware
-- Raspberry Pi 4B with 4GB+ RAM
+- Raspberry Pi 4B with 8GB RAM
 - External USB 3.0 SSD (for PostgreSQL data and uploads)
 - Reliable power supply (official 15W USB-C recommended)
 - Ethernet connection (preferred) or stable WiFi
@@ -17,7 +17,7 @@ Deploy Gygax on a Raspberry Pi 4B (4GB+ RAM) with internet-exposed SSL/HTTPS.
 ### Network
 - Domain name pointing to your public IP (or Dynamic DNS)
 - Router port forwarding configured (ports 80, 443)
-- External SMTP service account (SendGrid, Mailgun, Postmark, etc.)
+- SMTP for email (Gmail works well for personal use)
 
 ---
 
@@ -36,35 +36,42 @@ sudo apt install -y git curl ufw fail2ban
 sudo timedatectl set-timezone America/Chicago  # Adjust to your timezone
 ```
 
-### 1.2 SSH Hardening
+### 1.2 SSH Hardening (Optional)
+
+If you want to disable password authentication (key-only login):
 
 ```bash
-# Disable password authentication (ensure key auth works first!)
+# Ensure key auth works first before running this!
 sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 sudo sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 sudo systemctl restart ssh
 ```
 
-### 1.3 Swap Configuration
+Skip this step if you prefer to keep password authentication enabled.
 
-Building on the Pi requires swap space:
+### 1.3 SSD & Swap Verification
+
+Building on the Pi requires an SSD and swap space. If you already have an SSD mounted at `/mnt/ssd` with swap configured, verify your setup:
 
 ```bash
-# Disable default swap
-sudo dphys-swapfile swapoff
-sudo systemctl disable dphys-swapfile
+# Verify SSD is mounted
+df -h /mnt/ssd
+# Should show your SSD with available space
 
-# Create 4GB swap file on SSD (after mounting, see section 1.4)
-sudo fallocate -l 4G /mnt/ssd/swapfile
-sudo chmod 600 /mnt/ssd/swapfile
-sudo mkswap /mnt/ssd/swapfile
-sudo swapon /mnt/ssd/swapfile
+# Verify swap is active (need 4GB+ for builds)
+free -h
+# Should show ~4GB swap
 
-# Make permanent
-echo '/mnt/ssd/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+# Create gygax directories
+sudo mkdir -p /mnt/ssd/gygax/{postgres,uploads,backups}
+sudo chown -R 1000:1000 /mnt/ssd/gygax
 ```
 
-### 1.4 Mount External SSD
+If your SSD and swap are already configured, skip to Section 2.
+
+### 1.4 SSD Setup (Fresh Install Only)
+
+Skip this section if your SSD is already mounted at `/mnt/ssd`.
 
 ```bash
 # Find your SSD (usually /dev/sda)
@@ -89,10 +96,25 @@ echo 'UUID=your-uuid-here /mnt/ssd ext4 defaults,noatime 0 2' | sudo tee -a /etc
 
 # Mount now
 sudo mount -a
+```
 
-# Create gygax directories
-sudo mkdir -p /mnt/ssd/gygax/{postgres,uploads,backups}
-sudo chown -R 1000:1000 /mnt/ssd/gygax
+### 1.5 Swap Setup (Fresh Install Only)
+
+Skip this section if you already have 4GB+ swap on your SSD.
+
+```bash
+# Disable default swap
+sudo dphys-swapfile swapoff
+sudo systemctl disable dphys-swapfile
+
+# Create 4GB swap file on SSD
+sudo fallocate -l 4G /mnt/ssd/swapfile
+sudo chmod 600 /mnt/ssd/swapfile
+sudo mkswap /mnt/ssd/swapfile
+sudo swapon /mnt/ssd/swapfile
+
+# Make permanent
+echo '/mnt/ssd/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
 ---
@@ -216,11 +238,20 @@ Required environment variables:
 | `DATABASE_URL` | PostgreSQL connection | `postgresql://gygax:SECURE_PASSWORD@db:5432/gygax` |
 | `POSTGRES_PASSWORD` | Database password | Generate with `openssl rand -base64 32` |
 | `JWT_SECRET` | JWT signing key (32+ chars) | Generate with `openssl rand -base64 48` |
-| `SMTP_HOST` | SMTP server | `smtp.sendgrid.net` |
+| `SMTP_HOST` | SMTP server | `smtp.gmail.com` |
 | `SMTP_PORT` | SMTP port | `587` |
-| `SMTP_USER` | SMTP username | `apikey` |
-| `SMTP_PASSWORD` | SMTP password/API key | Your SendGrid API key |
-| `SMTP_FROM` | From address | `noreply@gygax.example.com` |
+| `SMTP_USER` | Gmail address | `yourname@gmail.com` |
+| `SMTP_PASSWORD` | Gmail App Password | See below |
+| `SMTP_FROM` | From address | `yourname@gmail.com` |
+
+#### Gmail App Password Setup
+
+1. Enable 2-Step Verification on your Google account (required)
+2. Go to https://myaccount.google.com/apppasswords
+3. Select "Mail" and "Other (Custom name)", enter "Gygax"
+4. Copy the 16-character password (no spaces) to `SMTP_PASSWORD`
+
+Note: Gmail has a 500 emails/day limit, which is plenty for personal use.
 
 ---
 
@@ -471,7 +502,7 @@ sudo swapon /mnt/ssd/swapfile2
 
 ## 10. Security Checklist
 
-- [ ] SSH key authentication only (password disabled)
+- [ ] SSH access secured (key-only auth recommended but optional)
 - [ ] Firewall enabled (ufw: 22, 80, 443 only)
 - [ ] Fail2ban running
 - [ ] Automatic security updates enabled
