@@ -65,6 +65,7 @@ model Campaign {
   adventures Adventure[]
   worldMap   Map?
   members    CampaignMember[]
+  mapStates  CampaignMapState[]
 
   @@map("campaigns")
 }
@@ -88,6 +89,7 @@ model Adventure {
   sessions   Session[]
   campaignId String?
   campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  mapStates  AdventureMapState[]
 
   @@index([campaignId])
   @@map("adventures")
@@ -115,6 +117,10 @@ model Map {
 
   campaignId  String?    @unique
   campaign    Campaign?  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  sessionMapStates   SessionMapState[]
+  campaignMapStates  CampaignMapState[]
+  adventureMapStates AdventureMapState[]
 
   @@index([adventureId])
   @@map("maps")
@@ -293,6 +299,8 @@ model Session {
   participants SessionParticipant[]
   invites      SessionInvite[]
   chatChannels ChatChannel[]
+  mapStates    SessionMapState[]
+  tokens       SessionToken[]
 
   @@index([adventureId])
   @@index([dmId])
@@ -398,6 +406,13 @@ enum ChatMessageType {
   SYSTEM     // System message (player joined, session paused, etc.)
 }
 
+// Token types for session map
+enum SessionTokenType {
+  PC        // Player character
+  NPC       // Friendly or neutral NPC
+  MONSTER   // Hostile creature
+}
+
 model ChatMessage {
   id        String          @id @default(cuid())
   content   String          // Raw message text (or dice command)
@@ -418,4 +433,95 @@ model ChatMessage {
 
   @@index([channelId, createdAt])
   @@map("chat_messages")
+}
+
+// Fog of war state per map in a session
+model SessionMapState {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  mapId     String
+  map       Map      @relation(fields: [mapId], references: [id], onDelete: Cascade)
+
+  // Fog state: list of revealed cells/hexes
+  // Square grid: [{col: number, row: number}, ...]
+  // Hex grid: [{q: number, r: number}, ...] (axial coordinates)
+  revealedCells Json   @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sessionId, mapId])
+  @@index([sessionId])
+  @@index([mapId])
+  @@map("session_map_states")
+}
+
+// Fog of war state for campaign world maps (persists across all sessions)
+model CampaignMapState {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  mapId      String
+  map        Map      @relation(fields: [mapId], references: [id], onDelete: Cascade)
+
+  // Fog state: list of revealed cells/hexes (same format as SessionMapState)
+  revealedCells Json   @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, mapId])
+  @@index([campaignId])
+  @@index([mapId])
+  @@map("campaign_map_states")
+}
+
+// Fog of war state for adventure maps (persists across all sessions in the adventure)
+model AdventureMapState {
+  id          String    @id @default(cuid())
+  adventureId String
+  adventure   Adventure @relation(fields: [adventureId], references: [id], onDelete: Cascade)
+  mapId       String
+  map         Map       @relation(fields: [mapId], references: [id], onDelete: Cascade)
+
+  // Fog state: list of revealed cells/hexes (same format as SessionMapState)
+  revealedCells Json   @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([adventureId, mapId])
+  @@index([adventureId])
+  @@index([mapId])
+  @@map("adventure_map_states")
+}
+
+// Tokens on maps during sessions
+model SessionToken {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Position
+  mapId     String   // Which map the token is on
+  position  Json     // {col, row} for square, {q, r} for hex
+
+  // Token identity
+  type      SessionTokenType
+  name      String
+  imageUrl  String?
+
+  // Optional link to character/NPC
+  characterId String?
+  npcId       String?
+
+  // Visual
+  color     String   @default("#666666")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId, mapId])
+  @@map("session_tokens")
 }

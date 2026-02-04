@@ -5,7 +5,6 @@ import type {
   SessionListResponse,
   Character,
   CharacterListResponse,
-  SessionParticipantResponse,
 } from '@gygax/shared'
 import {
   Dialog,
@@ -125,7 +124,7 @@ export function JoinSessionModal({ open, onClose }: JoinSessionModalProps) {
         throw new Error(data.message || 'Failed to join session')
       }
 
-      const _data: SessionParticipantResponse = await response.json()
+      await response.json()
       onClose()
       navigate(`/sessions/${sessionId}`)
     } catch (err) {

@@ -1056,3 +1056,118 @@ export interface WSChatHistory {
   messages: ChatMessage[]
   hasMore: boolean
 }
+
+// ============================================
+// Fog of War & Token types (011d)
+// ============================================
+
+// Cell coordinate (supports both square and hex grids)
+export interface CellCoord {
+  col?: number  // Square grid
+  row?: number
+  q?: number    // Hex grid (axial)
+  r?: number
+}
+
+// Fog state for a map in a session
+export interface FogState {
+  mapId: string
+  revealedCells: CellCoord[]
+}
+
+// Token types
+export type SessionTokenType = 'PC' | 'NPC' | 'MONSTER'
+
+export interface SessionToken {
+  id: string
+  sessionId: string
+  mapId: string
+  type: SessionTokenType
+  name: string
+  position: CellCoord
+  imageUrl?: string
+  characterId?: string
+  npcId?: string
+  color: string
+}
+
+// Token colors by type
+export const TOKEN_COLORS: Record<SessionTokenType, string> = {
+  PC: '#22c55e',      // green-500
+  NPC: '#3b82f6',     // blue-500
+  MONSTER: '#ef4444', // red-500
+}
+
+// REST API responses
+export interface FogStateResponse {
+  revealedCells: CellCoord[]
+}
+
+export interface TokenListResponse {
+  tokens: SessionToken[]
+}
+
+// WebSocket payloads: Client → Server
+
+export interface WSFogReveal {
+  mapId: string
+  cells: CellCoord[]
+}
+
+export interface WSFogRevealAll {
+  mapId: string
+}
+
+export interface WSFogHideAll {
+  mapId: string
+}
+
+export interface WSTokenPlace {
+  mapId: string
+  type: SessionTokenType
+  name: string
+  position: CellCoord
+  characterId?: string
+  npcId?: string
+  color?: string
+  imageUrl?: string
+}
+
+export interface WSTokenMove {
+  tokenId: string
+  position: CellCoord
+}
+
+export interface WSTokenRemove {
+  tokenId: string
+}
+
+// WebSocket payloads: Server → Client
+
+export interface WSFogState {
+  mapId: string
+  revealedCells: CellCoord[]
+}
+
+export interface WSFogUpdated {
+  mapId: string
+  newlyRevealed: CellCoord[]
+}
+
+export interface WSTokenState {
+  mapId: string
+  tokens: SessionToken[]
+}
+
+export interface WSTokenPlaced {
+  token: SessionToken
+}
+
+export interface WSTokenMoved {
+  tokenId: string
+  position: CellCoord
+}
+
+export interface WSTokenRemoved {
+  tokenId: string
+}

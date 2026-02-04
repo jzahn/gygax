@@ -14,6 +14,7 @@ import { npcRoutes } from './routes/npcs'
 import { backdropRoutes } from './routes/backdrops'
 import { noteRoutes } from './routes/notes'
 import { sessionRoutes } from './routes/sessions'
+import { sessionMapsRoutes } from './routes/sessionMaps'
 import { campaignMemberRoutes } from './routes/campaignMembers'
 import { sessionInviteRoutes } from './routes/sessionInvites'
 import { sessionBrowseSSERoutes } from './routes/sessionBrowseSSE'
@@ -67,6 +68,7 @@ export async function buildApp() {
   await fastify.register(backdropRoutes)
   await fastify.register(noteRoutes)
   await fastify.register(sessionRoutes)
+  await fastify.register(sessionMapsRoutes)
   await fastify.register(campaignMemberRoutes)
   await fastify.register(sessionInviteRoutes)
   await fastify.register(sessionBrowseSSERoutes)

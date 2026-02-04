@@ -34,8 +34,9 @@ import {
   sendChatChannelsOnConnect,
   sendPlayerJoinedMessage,
   sendPlayerLeftMessage,
-  sendSessionStatusMessage,
 } from './chatHandler.js'
+import { handleFogMessage, sendFogStateToUser } from './fogHandler.js'
+import { handleTokenMessage, sendTokenStateToUser } from './tokenHandler.js'
 import { addUserToMainChannel } from '../services/chatService.js'
 
 function formatSessionParticipant(participant: {
@@ -289,6 +290,12 @@ export async function handleConnection(
   // Add user to main channel if not already (in case they joined mid-session)
   await addUserToMainChannel(fastify.prisma, sessionId, userId)
 
+  // Send fog and token state if there's an active map
+  if (session.activeMapId) {
+    await sendFogStateToUser(fastify, sessionId, userId, session.activeMapId)
+    await sendTokenStateToUser(fastify, sessionId, userId, session.activeMapId)
+  }
+
   // Broadcast user connected to others
   const userConnected: WSUserConnected = {
     userId: user.id,
@@ -383,6 +390,14 @@ async function handleMessage(
   const isChatMessage = await handleChatMessage(fastify, sessionId, userId, message)
   if (isChatMessage) return
 
+  // Try to handle as fog message
+  const isFogMessage = await handleFogMessage(fastify, sessionId, userId, message)
+  if (isFogMessage) return
+
+  // Try to handle as token message
+  const isTokenMessage = await handleTokenMessage(fastify, sessionId, userId, message)
+  if (isTokenMessage) return
+
   switch (message.type) {
     case 'ping':
       updateUserPing(sessionId, userId)
@@ -453,6 +468,16 @@ async function handleMessage(
         pausedAt: session.pausedAt?.toISOString() ?? null,
         endedAt: session.endedAt?.toISOString() ?? null,
       })
+
+      // Send fog and token state for the new map to all users
+      if (payload.mapId) {
+        const { getSessionUsers } = await import('./sessionManager.js')
+        const users = getSessionUsers(sessionId)
+        for (const [uid] of users) {
+          await sendFogStateToUser(fastify, sessionId, uid, payload.mapId)
+          await sendTokenStateToUser(fastify, sessionId, uid, payload.mapId)
+        }
+      }
       break
     }
 

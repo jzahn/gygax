@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { Map, HexCoord, TerrainType, MapPoint } from '@gygax/shared'
+import type { Map, HexCoord, TerrainType, MapPoint, CellCoord, SessionToken } from '@gygax/shared'
 import type { DrawingState, DrawingTool, StoredTerrain } from '../hooks/useMapDrawing'
 import { hexToPixel, pixelToHex, isHexInBounds, findNearestSnapPoint } from '../utils/hexUtils'
 import { renderTerrainIcon, drawTerrainTint } from '../utils/terrainIcons'
@@ -68,6 +68,16 @@ interface MapCanvasProps {
   // Display options
   showTerrainColors?: boolean
   showBorder?: boolean
+  // Session mode (fog of war & tokens)
+  fogRevealedCells?: CellCoord[]
+  tokens?: SessionToken[]
+  selectedTokenId?: string | null
+  isDm?: boolean
+  sessionTool?: 'fog-brush' | 'fog-rect' | 'token-place' | null
+  isSpaceHeld?: boolean
+  onTokenClick?: (tokenId: string) => void
+  onTokenDrag?: (tokenId: string, position: CellCoord) => void
+  onCellClick?: (coord: CellCoord) => void
 }
 
 interface ViewportState {
@@ -249,9 +259,17 @@ function getCursorForTool(
   isOverPath: boolean,
   isOverLabel: boolean,
   isOverVertex: boolean,
-  isOverFeature: boolean = false
+  isOverFeature: boolean = false,
+  sessionTool?: 'fog-brush' | 'fog-rect' | 'token-place' | null,
+  isSpaceHeld?: boolean
 ): string {
   if (isPanning) return 'grabbing'
+  // Space held = ready to pan
+  if (isSpaceHeld) return 'grab'
+  // Session tools take priority
+  if (sessionTool === 'fog-brush' || sessionTool === 'fog-rect' || sessionTool === 'token-place') {
+    return 'crosshair'
+  }
   if (isOverVertex) return 'move'
   if (isOverPath || isOverLabel || isOverFeature) return 'pointer'
   switch (tool) {
@@ -328,7 +346,20 @@ export function MapCanvas({
   onClearSelection,
   showTerrainColors = false,
   showBorder = true,
+  // Session mode props
+  fogRevealedCells,
+  tokens,
+  selectedTokenId,
+  isDm = false,
+  sessionTool,
+  isSpaceHeld = false,
+  onTokenClick,
+  onTokenDrag,
+  onCellClick,
 }: MapCanvasProps) {
+  // Note: onTokenClick and onTokenDrag are for future token interaction
+  void onTokenClick
+  void onTokenDrag
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const [containerSize, setContainerSize] = React.useState({ width: 0, height: 0 })
@@ -469,11 +500,351 @@ export function MapCanvas({
       }
     }
 
-    // 7. Draw labels (with viewport culling)
+    // 6.5. Draw fog of war (session mode)
+    if (fogRevealedCells !== undefined) {
+      const revealedSet = new Set<string>()
+      for (const cell of fogRevealedCells) {
+        if (cell.col !== undefined && cell.row !== undefined) {
+          revealedSet.add(`sq:${cell.col},${cell.row}`)
+        }
+        if (cell.q !== undefined && cell.r !== undefined) {
+          revealedSet.add(`hex:${cell.q},${cell.r}`)
+        }
+      }
+
+      // For players: solid opaque fog
+      // For DM: semi-transparent with diagonal stripes pattern
+      const PLAYER_FOG_COLOR = '#D6CFBE'
+      const DM_FOG_COLOR = 'rgba(100, 80, 60, 0.35)'
+
+      // Helper to draw diagonal stripes pattern for DM
+      const drawDmFogPattern = (x: number, y: number, width: number, height: number) => {
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(x, y, width, height)
+        ctx.clip()
+
+        // Fill with semi-transparent overlay
+        ctx.fillStyle = DM_FOG_COLOR
+        ctx.fillRect(x, y, width, height)
+
+        // Draw diagonal stripes
+        ctx.strokeStyle = 'rgba(60, 40, 20, 0.3)'
+        ctx.lineWidth = 2 / viewport.zoom
+        const stripeSpacing = 12
+        const diagonal = Math.sqrt(width * width + height * height)
+
+        for (let i = -diagonal; i < diagonal * 2; i += stripeSpacing) {
+          ctx.beginPath()
+          ctx.moveTo(x + i, y)
+          ctx.lineTo(x + i - height, y + height)
+          ctx.stroke()
+        }
+        ctx.restore()
+      }
+
+      if (isHexGrid) {
+        // Hex grid fog
+        for (let col = 0; col < map.width; col++) {
+          for (let row = 0; row < map.height; row++) {
+            const isRevealed = revealedSet.has(`hex:${col},${row}`)
+            if (!isRevealed) {
+              // Draw hex fog
+              const size = map.cellSize / 2
+              const hexHeight = Math.sqrt(3) * size
+              const horizSpacing = size * 1.5
+              const vertSpacing = hexHeight
+              const cx = size + col * horizSpacing
+              const cy = hexHeight / 2 + row * vertSpacing + (col % 2 === 1 ? vertSpacing / 2 : 0)
+
+              ctx.beginPath()
+              const startCorner = hexCorner(cx, cy, size, 0)
+              ctx.moveTo(startCorner.x, startCorner.y)
+              for (let i = 1; i <= 6; i++) {
+                const corner = hexCorner(cx, cy, size, i % 6)
+                ctx.lineTo(corner.x, corner.y)
+              }
+              ctx.closePath()
+
+              if (isDm) {
+                // DM sees semi-transparent with pattern
+                ctx.save()
+                ctx.clip()
+                ctx.fillStyle = DM_FOG_COLOR
+                ctx.fill()
+                // Draw stripes within hex
+                ctx.strokeStyle = 'rgba(60, 40, 20, 0.3)'
+                ctx.lineWidth = 2 / viewport.zoom
+                const stripeSpacing = 12
+                for (let i = -size * 2; i < size * 4; i += stripeSpacing) {
+                  ctx.beginPath()
+                  ctx.moveTo(cx - size + i, cy - size)
+                  ctx.lineTo(cx - size + i - size * 2, cy + size)
+                  ctx.stroke()
+                }
+                ctx.restore()
+              } else {
+                ctx.fillStyle = PLAYER_FOG_COLOR
+                ctx.fill()
+              }
+            }
+          }
+        }
+      } else {
+        // Square grid fog
+        for (let col = 0; col < map.width; col++) {
+          for (let row = 0; row < map.height; row++) {
+            const isRevealed = revealedSet.has(`sq:${col},${row}`)
+            if (!isRevealed) {
+              const x = col * map.cellSize
+              const y = row * map.cellSize
+              if (isDm) {
+                drawDmFogPattern(x, y, map.cellSize, map.cellSize)
+              } else {
+                ctx.fillStyle = PLAYER_FOG_COLOR
+                ctx.fillRect(x, y, map.cellSize, map.cellSize)
+              }
+            }
+          }
+        }
+      }
+
+      // Draw fog edge border for revealed areas (helps DM see boundaries)
+      if (isDm) {
+        ctx.strokeStyle = '#8B4513' // Saddle brown for visibility
+        ctx.lineWidth = 3 / viewport.zoom
+
+        if (isHexGrid) {
+          // For hex grids, draw border around revealed hexes
+          for (let col = 0; col < map.width; col++) {
+            for (let row = 0; row < map.height; row++) {
+              const isRevealed = revealedSet.has(`hex:${col},${row}`)
+              if (!isRevealed) continue
+
+              const size = map.cellSize / 2
+              const hexHeight = Math.sqrt(3) * size
+              const horizSpacing = size * 1.5
+              const vertSpacing = hexHeight
+              const cx = size + col * horizSpacing
+              const cy = hexHeight / 2 + row * vertSpacing + (col % 2 === 1 ? vertSpacing / 2 : 0)
+
+              // Hex neighbor directions (flat-top, column-offset grid)
+              const neighbors = [
+                { dc: 1, dr: col % 2 === 0 ? -1 : 0 },
+                { dc: 1, dr: col % 2 === 0 ? 0 : 1 },
+                { dc: 0, dr: 1 },
+                { dc: -1, dr: col % 2 === 0 ? 0 : 1 },
+                { dc: -1, dr: col % 2 === 0 ? -1 : 0 },
+                { dc: 0, dr: -1 },
+              ]
+
+              // Draw only the specific edges where the neighbor is unrevealed
+              // Neighbor index i corresponds to edge from corner (i+5)%6 to corner i
+              for (let i = 0; i < neighbors.length; i++) {
+                const n = neighbors[i]
+                const nc = col + n.dc
+                const nr = row + n.dr
+                if (nc < 0 || nc >= map.width || nr < 0 || nr >= map.height || !revealedSet.has(`hex:${nc},${nr}`)) {
+                  // This neighbor is unrevealed, draw the edge facing it
+                  const startCornerIdx = (i + 5) % 6
+                  const endCornerIdx = i % 6
+                  const startCorner = hexCorner(cx, cy, size, startCornerIdx)
+                  const endCorner = hexCorner(cx, cy, size, endCornerIdx)
+                  ctx.beginPath()
+                  ctx.moveTo(startCorner.x, startCorner.y)
+                  ctx.lineTo(endCorner.x, endCorner.y)
+                  ctx.stroke()
+                }
+              }
+            }
+          }
+        } else {
+          // Square grid edge borders
+          for (let col = 0; col < map.width; col++) {
+            for (let row = 0; row < map.height; row++) {
+              const isRevealed = revealedSet.has(`sq:${col},${row}`)
+              if (!isRevealed) continue
+
+              const x = col * map.cellSize
+              const y = row * map.cellSize
+              const size = map.cellSize
+
+              // Draw edges where revealed meets unrevealed
+              if (row === 0 || !revealedSet.has(`sq:${col},${row - 1}`)) {
+                ctx.beginPath()
+                ctx.moveTo(x, y)
+                ctx.lineTo(x + size, y)
+                ctx.stroke()
+              }
+              if (row === map.height - 1 || !revealedSet.has(`sq:${col},${row + 1}`)) {
+                ctx.beginPath()
+                ctx.moveTo(x, y + size)
+                ctx.lineTo(x + size, y + size)
+                ctx.stroke()
+              }
+              if (col === 0 || !revealedSet.has(`sq:${col - 1},${row}`)) {
+                ctx.beginPath()
+                ctx.moveTo(x, y)
+                ctx.lineTo(x, y + size)
+                ctx.stroke()
+              }
+              if (col === map.width - 1 || !revealedSet.has(`sq:${col + 1},${row}`)) {
+                ctx.beginPath()
+                ctx.moveTo(x + size, y)
+                ctx.lineTo(x + size, y + size)
+                ctx.stroke()
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 6.6. Draw tokens (session mode)
+    if (tokens && tokens.length > 0) {
+      const revealedSet = new Set<string>()
+      if (fogRevealedCells) {
+        for (const cell of fogRevealedCells) {
+          if (cell.col !== undefined && cell.row !== undefined) {
+            revealedSet.add(`sq:${cell.col},${cell.row}`)
+          }
+          if (cell.q !== undefined && cell.r !== undefined) {
+            revealedSet.add(`hex:${cell.q},${cell.r}`)
+          }
+        }
+      }
+
+      const tokenSize = map.cellSize * 0.8
+      const TOKEN_COLORS: Record<string, string> = {
+        PC: '#22c55e',
+        NPC: '#3b82f6',
+        MONSTER: '#ef4444',
+      }
+
+      for (const token of tokens) {
+        // Check visibility
+        const pos = token.position
+        let isVisible = true
+        if (!isDm && fogRevealedCells !== undefined) {
+          if (pos.col !== undefined && pos.row !== undefined) {
+            isVisible = revealedSet.has(`sq:${pos.col},${pos.row}`)
+          } else if (pos.q !== undefined && pos.r !== undefined) {
+            isVisible = revealedSet.has(`hex:${pos.q},${pos.r}`)
+          }
+        }
+        if (!isVisible) continue
+
+        // Calculate token center position
+        let cx: number, cy: number
+        if (isHexGrid) {
+          const q = pos.q ?? 0
+          const r = pos.r ?? 0
+          const size = map.cellSize / 2
+          const hexHeight = Math.sqrt(3) * size
+          const horizSpacing = size * 1.5
+          const vertSpacing = hexHeight
+          cx = size + q * horizSpacing
+          cy = hexHeight / 2 + r * vertSpacing + (q % 2 === 1 ? vertSpacing / 2 : 0)
+        } else {
+          const col = pos.col ?? 0
+          const row = pos.row ?? 0
+          cx = col * map.cellSize + map.cellSize / 2
+          cy = row * map.cellSize + map.cellSize / 2
+        }
+
+        // Draw token background
+        const borderColor = token.color || TOKEN_COLORS[token.type] || '#666666'
+        const isSelected = selectedTokenId === token.id
+
+        ctx.save()
+
+        // Token shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
+        ctx.fillRect(
+          cx - tokenSize / 2 + 2,
+          cy - tokenSize / 2 + 2,
+          tokenSize,
+          tokenSize
+        )
+
+        // Token background
+        ctx.fillStyle = '#F5F0E6' // parchment-100
+        ctx.fillRect(
+          cx - tokenSize / 2,
+          cy - tokenSize / 2,
+          tokenSize,
+          tokenSize
+        )
+
+        // Token border
+        ctx.strokeStyle = borderColor
+        ctx.lineWidth = 3 / viewport.zoom
+        ctx.strokeRect(
+          cx - tokenSize / 2,
+          cy - tokenSize / 2,
+          tokenSize,
+          tokenSize
+        )
+
+        // Selection ring
+        if (isSelected) {
+          ctx.strokeStyle = '#1a1a1a'
+          ctx.lineWidth = 2 / viewport.zoom
+          ctx.setLineDash([4 / viewport.zoom, 2 / viewport.zoom])
+          ctx.strokeRect(
+            cx - tokenSize / 2 - 4,
+            cy - tokenSize / 2 - 4,
+            tokenSize + 8,
+            tokenSize + 8
+          )
+          ctx.setLineDash([])
+        }
+
+        // Token abbreviation
+        const abbrev = token.name.substring(0, 2).toUpperCase()
+        ctx.fillStyle = '#1a1a1a'
+        ctx.font = `bold ${tokenSize * 0.35}px "Rosarivo", serif`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(abbrev, cx, cy)
+
+        ctx.restore()
+      }
+    }
+
+    // 7. Draw labels (with viewport culling and fog visibility)
     if (drawingState?.labels) {
+      // Build revealed set for fog check
+      const labelRevealedSet = new Set<string>()
+      if (fogRevealedCells) {
+        for (const cell of fogRevealedCells) {
+          if (cell.col !== undefined && cell.row !== undefined) {
+            labelRevealedSet.add(`sq:${cell.col},${cell.row}`)
+          }
+          if (cell.q !== undefined && cell.r !== undefined) {
+            labelRevealedSet.add(`hex:${cell.q},${cell.r}`)
+          }
+        }
+      }
+
       for (const label of drawingState.labels) {
         // Don't render label being edited (it will be shown as input)
         if (label.id !== drawingState.labelEditingId) {
+          // Check fog visibility (DMs always see labels)
+          let labelVisible = true
+          if (!isDm && fogRevealedCells !== undefined) {
+            if (isHexGrid) {
+              const hex = pixelToHex(label.position.x, label.position.y, map.cellSize)
+              // pixelToHex returns {col, row} but fog uses {q, r} - same values, different names
+              labelVisible = labelRevealedSet.has(`hex:${hex.col},${hex.row}`)
+            } else if (isSquareGrid) {
+              const col = Math.floor(label.position.x / map.cellSize)
+              const row = Math.floor(label.position.y / map.cellSize)
+              labelVisible = labelRevealedSet.has(`sq:${col},${row}`)
+            }
+          }
+          if (!labelVisible) continue
+
           // Estimate label bounds for culling
           const fontSize = getLabelFontSize(label.size)
           const padding = fontSize * 2 // Generous padding for text width
@@ -574,7 +945,7 @@ export function MapCanvas({
     }
 
     ctx.restore()
-  }, [map, containerSize, drawingState, tool, isHexGrid, isSquareGrid, cursorMapPos, snapPoint, isOverPath, isOverLabel, hoveredCell, showTerrainColors])
+  }, [map, containerSize, drawingState, tool, isHexGrid, isSquareGrid, cursorMapPos, snapPoint, isOverPath, isOverLabel, hoveredCell, showTerrainColors, fogRevealedCells, tokens, selectedTokenId, isDm])
 
   const scheduleRender = React.useCallback(() => {
     if (rafIdRef.current !== null) {
@@ -638,6 +1009,10 @@ export function MapCanvas({
     snapPoint,
     hoveredCell,
     showTerrainColors,
+    fogRevealedCells,
+    tokens,
+    selectedTokenId,
+    isDm,
   ])
 
   React.useEffect(() => {
@@ -756,8 +1131,38 @@ export function MapCanvas({
       const isDoubleClick = now - lastClickTimeRef.current < 300
       lastClickTimeRef.current = now
 
-      // Check if we should pan
-      if (tool === 'pan' || drawingState?.isSpaceHeld) {
+      // Handle session tools (fog, token placement) - these take priority
+      // But space bar overrides to enable panning
+      if (sessionTool && onCellClick && !isSpaceHeld) {
+        // Convert map position to cell coordinate
+        if (isHexGrid) {
+          const hex = pixelToHex(mapPos.x, mapPos.y, map.cellSize)
+          if (isHexInBounds(hex, map)) {
+            onCellClick({ q: hex.col, r: hex.row })
+            // Enable painting mode for fog brush
+            if (sessionTool === 'fog-brush') {
+              isPaintingRef.current = true
+              lastPaintedHexRef.current = `hex:${hex.col},${hex.row}`
+            }
+          }
+        } else {
+          // Square grid
+          const col = Math.floor(mapPos.x / map.cellSize)
+          const row = Math.floor(mapPos.y / map.cellSize)
+          if (col >= 0 && col < map.width && row >= 0 && row < map.height) {
+            onCellClick({ col, row })
+            // Enable painting mode for fog brush
+            if (sessionTool === 'fog-brush') {
+              isPaintingRef.current = true
+              lastPaintedHexRef.current = `sq:${col},${row}`
+            }
+          }
+        }
+        return
+      }
+
+      // Check if we should pan (drawingState.isSpaceHeld for edit mode, isSpaceHeld prop for session mode)
+      if (tool === 'pan' || drawingState?.isSpaceHeld || isSpaceHeld) {
         // Start panning
         isPanningRef.current = true
         setIsPanningState(true)
@@ -1063,6 +1468,9 @@ export function MapCanvas({
       onDeleteFeature,
       onStartDraggingFeature,
       onClearSelection,
+      sessionTool,
+      onCellClick,
+      isSpaceHeld,
     ]
   )
 
@@ -1081,6 +1489,31 @@ export function MapCanvas({
       if (!mapPos) return
 
       setCursorMapPos(mapPos)
+
+      // Handle fog brush painting
+      if (isPaintingRef.current && sessionTool === 'fog-brush' && onCellClick) {
+        if (isHexGrid) {
+          const hex = pixelToHex(mapPos.x, mapPos.y, map.cellSize)
+          if (isHexInBounds(hex, map)) {
+            const key = `hex:${hex.col},${hex.row}`
+            if (key !== lastPaintedHexRef.current) {
+              lastPaintedHexRef.current = key
+              onCellClick({ q: hex.col, r: hex.row })
+            }
+          }
+        } else {
+          const col = Math.floor(mapPos.x / map.cellSize)
+          const row = Math.floor(mapPos.y / map.cellSize)
+          if (col >= 0 && col < map.width && row >= 0 && row < map.height) {
+            const key = `sq:${col},${row}`
+            if (key !== lastPaintedHexRef.current) {
+              lastPaintedHexRef.current = key
+              onCellClick({ col, row })
+            }
+          }
+        }
+        return
+      }
 
       // Handle vertex dragging
       if (
@@ -1279,6 +1712,8 @@ export function MapCanvas({
       onHoveredCellChange,
       onPaintWall,
       onEraseWall,
+      sessionTool,
+      onCellClick,
     ]
   )
 
@@ -1467,7 +1902,7 @@ export function MapCanvas({
     onCancelEditingLabel?.()
   }, [onCancelEditingLabel])
 
-  const cursor = getCursorForTool(tool, isPanningState, isOverPath, isOverLabel, isOverVertex, isOverFeature)
+  const cursor = getCursorForTool(tool, isPanningState, isOverPath, isOverLabel, isOverVertex, isOverFeature, sessionTool, isSpaceHeld)
   const viewport = viewportRef.current
 
   // Get editing label data

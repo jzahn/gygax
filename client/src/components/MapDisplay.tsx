@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { Map } from '@gygax/shared'
+import type { Map, CellCoord, SessionToken } from '@gygax/shared'
 import { MapCanvas } from './MapCanvas'
 import type { DrawingState, StoredTerrain } from '../hooks/useMapDrawing'
 import { preloadTerrainImages } from '../utils/terrainIcons'
@@ -7,6 +7,16 @@ import { preloadTerrainImages } from '../utils/terrainIcons'
 interface MapDisplayProps {
   map: Map
   className?: string
+  // Session mode (fog of war & tokens)
+  fogRevealedCells?: CellCoord[]
+  tokens?: SessionToken[]
+  selectedTokenId?: string | null
+  isDm?: boolean
+  sessionTool?: 'fog-brush' | 'fog-rect' | 'token-place' | null
+  isSpaceHeld?: boolean
+  onTokenClick?: (tokenId: string) => void
+  onTokenDrag?: (tokenId: string, position: CellCoord) => void
+  onCellClick?: (coord: CellCoord) => void
 }
 
 const TERRAIN_COLORS_KEY = 'gygax-show-terrain-colors'
@@ -79,7 +89,19 @@ function contentToDrawingState(map: Map): DrawingState | undefined {
   }
 }
 
-export function MapDisplay({ map, className = '' }: MapDisplayProps) {
+export function MapDisplay({
+  map,
+  className = '',
+  fogRevealedCells,
+  tokens,
+  selectedTokenId,
+  isDm,
+  sessionTool,
+  isSpaceHeld,
+  onTokenClick,
+  onTokenDrag,
+  onCellClick,
+}: MapDisplayProps) {
   const [imagesReady, setImagesReady] = React.useState(false)
   const [showTerrainColors, setShowTerrainColors] = React.useState(() => {
     try {
@@ -157,6 +179,15 @@ export function MapDisplay({ map, className = '' }: MapDisplayProps) {
         showTerrainColors={showTerrainColors}
         showBorder={false}
         className="h-full w-full"
+        fogRevealedCells={fogRevealedCells}
+        tokens={tokens}
+        selectedTokenId={selectedTokenId}
+        isDm={isDm}
+        sessionTool={sessionTool}
+        isSpaceHeld={isSpaceHeld}
+        onTokenClick={onTokenClick}
+        onTokenDrag={onTokenDrag}
+        onCellClick={onCellClick}
       />
     </div>
   )

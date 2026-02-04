@@ -4,22 +4,29 @@ import type {
   SessionWithDetails,
   WSConnectedUser,
   WSMessage,
+  WSFogState,
+  WSTokenState,
   Map,
   Backdrop,
   MapResponse,
   BackdropResponse,
   SessionStatus,
+  NPC,
+  CellCoord,
 } from '@gygax/shared'
 import { MapDisplay } from '../components/MapDisplay'
 import { BackdropDisplay } from '../components/BackdropDisplay'
 import { PlayerCardsSidebar } from '../components/PlayerCardsSidebar'
 import { DMControls } from '../components/DMControls'
+import type { FogTool, FogBrushSize } from '../components/FogTools'
 import { SessionStatusBanner } from '../components/SessionStatusBanner'
 import { VoiceControls } from '../components/VoiceControls'
 import { ChatPanel } from '../components/ChatPanel'
 import { FloatingConsole } from '../components/FloatingConsole'
 import { useVoiceChat } from '../hooks/useVoiceChat'
 import { useChat } from '../hooks/useChat'
+import { useFog } from '../hooks/useFog'
+import { useTokens } from '../hooks/useTokens'
 import { useAuth } from '../hooks/useAuth'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -30,6 +37,8 @@ interface SessionGameViewProps {
   mutedUsers: Set<string>
   sendMessage: (type: string, payload: unknown) => void
   lastMessage: WSMessage | null
+  fogState: WSFogState | null
+  tokenState: WSTokenState | null
   isConnected: boolean
   rtcOfferRef: React.MutableRefObject<((fromUserId: string, sdp: RTCSessionDescriptionInit) => void) | undefined>
   rtcAnswerRef: React.MutableRefObject<((fromUserId: string, sdp: RTCSessionDescriptionInit) => void) | undefined>
@@ -44,6 +53,8 @@ export function SessionGameView({
   mutedUsers,
   sendMessage,
   lastMessage,
+  fogState,
+  tokenState,
   isConnected,
   rtcOfferRef,
   rtcAnswerRef,
@@ -102,9 +113,35 @@ export function SessionGameView({
     return () => window.removeEventListener('mainMenuOpened', handleMainMenuOpened)
   }, [])
 
+  // Track space bar for pan-while-held in session mode
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat) {
+        // Don't trigger if typing in an input
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return
+        }
+        e.preventDefault()
+        setIsSpaceHeld(true)
+      }
+    }
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpaceHeld(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [])
+
   // Map and backdrop data cache
   const [maps, setMaps] = React.useState<Map[]>([])
   const [backdrops, setBackdrops] = React.useState<Backdrop[]>([])
+  const [npcs, setNpcs] = React.useState<NPC[]>([])
   const [activeMap, setActiveMap] = React.useState<Map | null>(null)
   const [activeBackdrop, setActiveBackdrop] = React.useState<Backdrop | null>(null)
   const [isLoadingDisplay, setIsLoadingDisplay] = React.useState(false)
@@ -112,6 +149,40 @@ export function SessionGameView({
   // Cache for fetched maps/backdrops
   const mapCacheRef = React.useRef<Record<string, Map>>({})
   const backdropCacheRef = React.useRef<Record<string, Backdrop>>({})
+
+  // Fog of war state
+  const [fogTool, setFogTool] = React.useState<FogTool | null>(null)
+  const [fogBrushSize, setFogBrushSize] = React.useState<FogBrushSize>('small')
+  const [isSpaceHeld, setIsSpaceHeld] = React.useState(false)
+
+  // Token placement state
+  const [placingTokenData, setPlacingTokenData] = React.useState<{
+    type: 'PC' | 'NPC' | 'MONSTER'
+    name: string
+    characterId?: string
+    npcId?: string
+    imageUrl?: string
+  } | null>(null)
+
+  // Fog hook
+  const fog = useFog({
+    mapId: session.activeMapId,
+    isDm,
+    lastMessage,
+    fogState,
+    sendMessage,
+    isConnected,
+  })
+
+  // Tokens hook
+  const tokens = useTokens({
+    mapId: session.activeMapId,
+    isDm,
+    lastMessage,
+    tokenState,
+    sendMessage,
+    isConnected,
+  })
 
   // Voice chat
   const voiceChat = useVoiceChat({
@@ -134,17 +205,20 @@ export function SessionGameView({
     }
   }, [voiceChat.onRtcOffer, voiceChat.onRtcAnswer, voiceChat.onRtcIceCandidate, rtcOfferRef, rtcAnswerRef, rtcIceCandidateRef])
 
-  // Fetch maps and backdrops list for DM controls
+  // Fetch maps, backdrops, and NPCs list for DM controls
   React.useEffect(() => {
     if (!isDm) return
 
     const fetchLists = async () => {
       try {
-        const [mapsRes, backdropsRes] = await Promise.all([
+        const [mapsRes, backdropsRes, npcsRes] = await Promise.all([
           fetch(`${API_URL}/api/adventures/${session.adventureId}/maps`, {
             credentials: 'include',
           }),
           fetch(`${API_URL}/api/adventures/${session.adventureId}/backdrops`, {
+            credentials: 'include',
+          }),
+          fetch(`${API_URL}/api/adventures/${session.adventureId}/npcs`, {
             credentials: 'include',
           }),
         ])
@@ -157,6 +231,10 @@ export function SessionGameView({
         if (backdropsRes.ok) {
           const data = await backdropsRes.json()
           setBackdrops(data.backdrops)
+        }
+        if (npcsRes.ok) {
+          const data = await npcsRes.json()
+          setNpcs(data.npcs)
         }
 
         // If adventure belongs to a campaign, also fetch the campaign's world map
@@ -263,6 +341,113 @@ export function SessionGameView({
   const handlePause = () => onUpdateStatus('PAUSED')
   const handleResume = () => onUpdateStatus('ACTIVE')
   const handleEnd = () => onUpdateStatus('ENDED')
+
+  // Fog handlers
+  const handleRevealAll = () => {
+    fog.revealAll()
+  }
+
+  const handleHideAll = () => {
+    fog.hideAll()
+  }
+
+  // Token placement handlers
+  const handlePlacePCToken = (participantId: string) => {
+    const participant = session.participants.find((p) => p.id === participantId)
+    if (!participant) return
+
+    setPlacingTokenData({
+      type: 'PC',
+      name: participant.character.name,
+      characterId: participant.characterId,
+      imageUrl: participant.character.avatarUrl || undefined,
+    })
+  }
+
+  const handlePlaceNPCToken = (name: string, npcId?: string) => {
+    const npc = npcId ? npcs.find((n) => n.id === npcId) : null
+    setPlacingTokenData({
+      type: 'NPC',
+      name,
+      npcId,
+      imageUrl: npc?.avatarUrl || undefined,
+    })
+  }
+
+  const handlePlaceMonsterToken = (name: string) => {
+    setPlacingTokenData({
+      type: 'MONSTER',
+      name,
+    })
+  }
+
+  // Handle cell click for fog reveal or token placement
+  const handleCellClick = (coord: CellCoord) => {
+    // Token placement takes priority
+    if (placingTokenData) {
+      tokens.placeToken(
+        placingTokenData.type,
+        placingTokenData.name,
+        coord,
+        {
+          characterId: placingTokenData.characterId,
+          npcId: placingTokenData.npcId,
+          imageUrl: placingTokenData.imageUrl,
+        }
+      )
+      setPlacingTokenData(null)
+      return
+    }
+
+    // Fog reveal with brush tool
+    if (fogTool === 'brush' && isDm) {
+      const cellsToReveal = getBrushCells(coord, fogBrushSize, activeMap)
+      fog.revealCells(cellsToReveal)
+    }
+  }
+
+  // Handle token drag for moving
+  const handleTokenDrag = (tokenId: string, position: CellCoord) => {
+    tokens.moveToken(tokenId, position)
+  }
+
+  // Get brush cells based on size
+  function getBrushCells(center: CellCoord, size: FogBrushSize, map: Map | null): CellCoord[] {
+    if (!map) return [center]
+
+    const radius = size === 'small' ? 0 : size === 'medium' ? 1 : 2
+    const cells: CellCoord[] = []
+
+    if (map.gridType === 'HEX') {
+      // Hex brush
+      const q = center.q ?? 0
+      const r = center.r ?? 0
+      for (let dq = -radius; dq <= radius; dq++) {
+        for (let dr = Math.max(-radius, -dq - radius); dr <= Math.min(radius, -dq + radius); dr++) {
+          const newQ = q + dq
+          const newR = r + dr
+          if (newQ >= 0 && newQ < map.width && newR >= 0 && newR < map.height) {
+            cells.push({ q: newQ, r: newR })
+          }
+        }
+      }
+    } else {
+      // Square brush
+      const col = center.col ?? 0
+      const row = center.row ?? 0
+      for (let dc = -radius; dc <= radius; dc++) {
+        for (let dr = -radius; dr <= radius; dr++) {
+          const newCol = col + dc
+          const newRow = row + dr
+          if (newCol >= 0 && newCol < map.width && newRow >= 0 && newRow < map.height) {
+            cells.push({ col: newCol, row: newRow })
+          }
+        }
+      }
+    }
+
+    return cells
+  }
 
   // Handler for player leaving session (calls API then navigates)
   const handlePlayerLeave = async () => {
@@ -401,7 +586,23 @@ export function SessionGameView({
               <span className="ml-4 font-body text-ink-soft">Loading...</span>
             </div>
           ) : activeMap ? (
-            <MapDisplay map={activeMap} />
+            <MapDisplay
+              map={activeMap}
+              fogRevealedCells={fog.revealedCells}
+              tokens={tokens.tokens}
+              selectedTokenId={tokens.selectedTokenId}
+              isDm={isDm}
+              sessionTool={
+                placingTokenData ? 'token-place' :
+                fogTool === 'brush' ? 'fog-brush' :
+                fogTool === 'rect' ? 'fog-rect' :
+                null
+              }
+              isSpaceHeld={isSpaceHeld}
+              onTokenClick={isDm ? tokens.selectToken : undefined}
+              onTokenDrag={isDm ? handleTokenDrag : undefined}
+              onCellClick={isDm ? handleCellClick : undefined}
+            />
           ) : activeBackdrop ? (
             <BackdropDisplay backdrop={activeBackdrop} />
           ) : (
@@ -431,6 +632,23 @@ export function SessionGameView({
                   onResume={handleResume}
                   onEnd={handleEnd}
                   isUpdating={isUpdating}
+                  // Fog props
+                  fogTool={fogTool}
+                  fogBrushSize={fogBrushSize}
+                  onFogToolChange={setFogTool}
+                  onFogBrushSizeChange={setFogBrushSize}
+                  onRevealAll={handleRevealAll}
+                  onHideAll={handleHideAll}
+                  // Token props
+                  tokens={tokens.tokens}
+                  participants={session.participants}
+                  npcs={npcs}
+                  selectedTokenId={tokens.selectedTokenId}
+                  onPlacePCToken={handlePlacePCToken}
+                  onPlaceNPCToken={handlePlaceNPCToken}
+                  onPlaceMonsterToken={handlePlaceMonsterToken}
+                  onSelectToken={tokens.selectToken}
+                  onRemoveToken={tokens.removeToken}
                 />
               ) : null
             }

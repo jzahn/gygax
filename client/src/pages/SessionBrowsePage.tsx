@@ -5,7 +5,6 @@ import type {
   SessionListResponse,
   Character,
   CharacterListResponse,
-  SessionParticipantResponse,
 } from '@gygax/shared'
 import { Button } from '../components/ui'
 import { SessionTypeChip } from '../components/SessionTypeChip'
@@ -87,7 +86,7 @@ export function SessionBrowsePage() {
         throw new Error(data.message || 'Failed to join session')
       }
 
-      const _data: SessionParticipantResponse = await response.json()
+      await response.json()
       navigate(`/sessions/${sessionId}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to join session')

@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import type { ChatChannelParticipant } from '@gygax/shared'
 
 interface CreateChannelDialogProps {
   open: boolean

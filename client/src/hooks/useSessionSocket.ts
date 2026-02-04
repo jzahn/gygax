@@ -12,6 +12,8 @@ import type {
   WSRtcAnswerRelayed,
   WSRtcIceCandidateRelayed,
   WSRtcMuteStateRelayed,
+  WSFogState,
+  WSTokenState,
 } from '@gygax/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -30,6 +32,8 @@ interface UseSessionSocketReturn {
   connectedUsers: WSConnectedUser[]
   sessionState: WSSessionState | null
   lastMessage: WSMessage | null
+  fogState: WSFogState | null
+  tokenState: WSTokenState | null
   error: string | null
   mutedUsers: Set<string>
   sendMessage: (type: string, payload: unknown) => void
@@ -46,6 +50,8 @@ export function useSessionSocket({
   const [connectedUsers, setConnectedUsers] = useState<WSConnectedUser[]>([])
   const [sessionState, setSessionState] = useState<WSSessionState | null>(null)
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null)
+  const [fogState, setFogState] = useState<WSFogState | null>(null)
+  const [tokenState, setTokenState] = useState<WSTokenState | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [mutedUsers, setMutedUsers] = useState<Set<string>>(new Set())
 
@@ -235,6 +241,17 @@ export function useSessionSocket({
               })
               break
             }
+            // Handle fog and token state directly to avoid message batching issues
+            case 'fog:state': {
+              const payload = message.payload as WSFogState
+              setFogState(payload)
+              break
+            }
+            case 'token:state': {
+              const payload = message.payload as WSTokenState
+              setTokenState(payload)
+              break
+            }
           }
         } catch {
           // Invalid JSON - ignore
@@ -310,6 +327,8 @@ export function useSessionSocket({
     connectedUsers,
     sessionState,
     lastMessage,
+    fogState,
+    tokenState,
     error,
     mutedUsers,
     sendMessage,
