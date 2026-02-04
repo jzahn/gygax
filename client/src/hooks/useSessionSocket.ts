@@ -60,6 +60,7 @@ export function useSessionSocket({
   const reconnectAttemptRef = useRef(0)
   const pingIntervalRef = useRef<number | null>(null)
   const mountedRef = useRef(true)
+  const enabledRef = useRef(enabled)
 
   // Store callbacks in refs to avoid dependency issues
   const onRtcOfferRef = useRef(onRtcOffer)
@@ -71,6 +72,11 @@ export function useSessionSocket({
     onRtcAnswerRef.current = onRtcAnswer
     onRtcIceCandidateRef.current = onRtcIceCandidate
   }, [onRtcOffer, onRtcAnswer, onRtcIceCandidate])
+
+  // Keep enabledRef in sync with enabled prop
+  useEffect(() => {
+    enabledRef.current = enabled
+  }, [enabled])
 
   const sendMessage = useCallback((type: string, payload: unknown) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -270,12 +276,13 @@ export function useSessionSocket({
         setIsConnected(false)
 
         // Schedule reconnect with exponential backoff (only if still mounted and enabled)
-        if (enabled && mountedRef.current) {
+        // Use enabledRef.current to get current value, not stale closure value
+        if (enabledRef.current && mountedRef.current) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptRef.current), 30000)
           reconnectAttemptRef.current += 1
 
           reconnectTimeoutRef.current = window.setTimeout(() => {
-            if (mountedRef.current && enabled) {
+            if (mountedRef.current && enabledRef.current) {
               connect()
             }
           }, delay)
@@ -321,6 +328,30 @@ export function useSessionSocket({
       }
     }
   }, [connect])
+
+  // Disconnect when enabled becomes false (e.g., navigating away from session)
+  useEffect(() => {
+    if (!enabled && socketRef.current) {
+      // Clear any pending reconnect
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current)
+        pingIntervalRef.current = null
+      }
+
+      // Close socket cleanly
+      socketRef.current.onopen = null
+      socketRef.current.onmessage = null
+      socketRef.current.onclose = null
+      socketRef.current.onerror = null
+      socketRef.current.close(1000, 'Session disabled')
+      socketRef.current = null
+      setIsConnected(false)
+    }
+  }, [enabled])
 
   return {
     isConnected,

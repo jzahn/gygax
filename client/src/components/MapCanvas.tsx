@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { Map, HexCoord, TerrainType, MapPoint, CellCoord, SessionToken } from '@gygax/shared'
+import type { Map, HexCoord, TerrainType, MapPoint, CellCoord, SessionToken, GridType } from '@gygax/shared'
 import type { DrawingState, DrawingTool, StoredTerrain } from '../hooks/useMapDrawing'
 import { hexToPixel, pixelToHex, isHexInBounds, findNearestSnapPoint } from '../utils/hexUtils'
 import { renderTerrainIcon, drawTerrainTint } from '../utils/terrainIcons'
@@ -311,6 +311,46 @@ function isInViewport(
     bounds.minY <= visible.maxY
 }
 
+// Get token center position in map coordinates
+function getTokenCenter(
+  token: SessionToken,
+  map: Map
+): { x: number; y: number } {
+  const pos = token.position
+  if (map.gridType === 'HEX') {
+    const q = pos.q ?? 0
+    const r = pos.r ?? 0
+    const size = map.cellSize / 2
+    const hexHeight = Math.sqrt(3) * size
+    const horizSpacing = size * 1.5
+    const vertSpacing = hexHeight
+    return {
+      x: size + q * horizSpacing,
+      y: hexHeight / 2 + r * vertSpacing + (q % 2 === 1 ? vertSpacing / 2 : 0),
+    }
+  } else {
+    const col = pos.col ?? 0
+    const row = pos.row ?? 0
+    return {
+      x: col * map.cellSize + map.cellSize / 2,
+      y: row * map.cellSize + map.cellSize / 2,
+    }
+  }
+}
+
+// Hit test a token at the given map position
+function hitTestToken(
+  mapPos: MapPoint,
+  token: SessionToken,
+  map: Map
+): boolean {
+  const center = getTokenCenter(token, map)
+  const tokenRadius = (map.cellSize * 0.8) / 2
+  const dx = mapPos.x - center.x
+  const dy = mapPos.y - center.y
+  return dx * dx + dy * dy <= tokenRadius * tokenRadius
+}
+
 export function MapCanvas({
   map,
   className = '',
@@ -357,9 +397,6 @@ export function MapCanvas({
   onTokenDrag,
   onCellClick,
 }: MapCanvasProps) {
-  // Note: onTokenClick and onTokenDrag are for future token interaction
-  void onTokenClick
-  void onTokenDrag
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const [containerSize, setContainerSize] = React.useState({ width: 0, height: 0 })
@@ -384,6 +421,10 @@ export function MapCanvas({
   const [isOverFeature, setIsOverFeature] = React.useState(false)
   const [newLabelPosition, setNewLabelPosition] = React.useState<MapPoint | null>(null)
   const [hoveredCell, setHoveredCell] = React.useState<{ col: number; row: number } | null>(null)
+
+  // Token dragging state
+  const [draggingTokenId, setDraggingTokenId] = React.useState<string | null>(null)
+  const [draggingTokenPos, setDraggingTokenPos] = React.useState<{ x: number; y: number } | null>(null)
 
   const tool = drawingState?.tool ?? 'pan'
   const isHexGrid = map.gridType === 'HEX'
@@ -715,6 +756,7 @@ export function MapCanvas({
       }
 
       const tokenSize = map.cellSize * 0.8
+      const tokenRadius = tokenSize / 2
       const TOKEN_COLORS: Record<string, string> = {
         PC: '#22c55e',
         NPC: '#3b82f6',
@@ -734,9 +776,12 @@ export function MapCanvas({
         }
         if (!isVisible) continue
 
-        // Calculate token center position
+        // Calculate token center position (use dragging position if this token is being dragged)
         let cx: number, cy: number
-        if (isHexGrid) {
+        if (draggingTokenId === token.id && draggingTokenPos) {
+          cx = draggingTokenPos.x
+          cy = draggingTokenPos.y
+        } else if (isHexGrid) {
           const q = pos.q ?? 0
           const r = pos.r ?? 0
           const size = map.cellSize / 2
@@ -755,48 +800,37 @@ export function MapCanvas({
         // Draw token background
         const borderColor = token.color || TOKEN_COLORS[token.type] || '#666666'
         const isSelected = selectedTokenId === token.id
+        const isDragging = draggingTokenId === token.id
 
         ctx.save()
 
-        // Token shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
-        ctx.fillRect(
-          cx - tokenSize / 2 + 2,
-          cy - tokenSize / 2 + 2,
-          tokenSize,
-          tokenSize
-        )
+        // Token shadow (neobrutalist solid shadow, 2px offset)
+        ctx.fillStyle = '#1a1a1a'
+        ctx.beginPath()
+        ctx.arc(cx + 2, cy + 2, tokenRadius, 0, Math.PI * 2)
+        ctx.fill()
 
-        // Token background
+        // Token background (circular)
         ctx.fillStyle = '#F5F0E6' // parchment-100
-        ctx.fillRect(
-          cx - tokenSize / 2,
-          cy - tokenSize / 2,
-          tokenSize,
-          tokenSize
-        )
+        ctx.beginPath()
+        ctx.arc(cx, cy, tokenRadius, 0, Math.PI * 2)
+        ctx.fill()
 
-        // Token border
+        // Token border (circular)
         ctx.strokeStyle = borderColor
         ctx.lineWidth = 3 / viewport.zoom
-        ctx.strokeRect(
-          cx - tokenSize / 2,
-          cy - tokenSize / 2,
-          tokenSize,
-          tokenSize
-        )
+        ctx.beginPath()
+        ctx.arc(cx, cy, tokenRadius, 0, Math.PI * 2)
+        ctx.stroke()
 
-        // Selection ring
-        if (isSelected) {
+        // Selection ring (circular)
+        if (isSelected || isDragging) {
           ctx.strokeStyle = '#1a1a1a'
           ctx.lineWidth = 2 / viewport.zoom
           ctx.setLineDash([4 / viewport.zoom, 2 / viewport.zoom])
-          ctx.strokeRect(
-            cx - tokenSize / 2 - 4,
-            cy - tokenSize / 2 - 4,
-            tokenSize + 8,
-            tokenSize + 8
-          )
+          ctx.beginPath()
+          ctx.arc(cx, cy, tokenRadius + 4, 0, Math.PI * 2)
+          ctx.stroke()
           ctx.setLineDash([])
         }
 
@@ -945,7 +979,7 @@ export function MapCanvas({
     }
 
     ctx.restore()
-  }, [map, containerSize, drawingState, tool, isHexGrid, isSquareGrid, cursorMapPos, snapPoint, isOverPath, isOverLabel, hoveredCell, showTerrainColors, fogRevealedCells, tokens, selectedTokenId, isDm])
+  }, [map, containerSize, drawingState, tool, isHexGrid, isSquareGrid, cursorMapPos, snapPoint, isOverPath, isOverLabel, hoveredCell, showTerrainColors, fogRevealedCells, tokens, selectedTokenId, isDm, draggingTokenId, draggingTokenPos])
 
   const scheduleRender = React.useCallback(() => {
     if (rafIdRef.current !== null) {
@@ -1130,6 +1164,23 @@ export function MapCanvas({
       const now = Date.now()
       const isDoubleClick = now - lastClickTimeRef.current < 300
       lastClickTimeRef.current = now
+
+      // Handle token click/drag in session mode (DM only)
+      // Check this BEFORE session tools so tokens can be selected/dragged
+      if (isDm && tokens && tokens.length > 0 && !isSpaceHeld && !sessionTool) {
+        // Find if we clicked on a token
+        for (const token of tokens) {
+          if (hitTestToken(mapPos, token, map)) {
+            // Select this token
+            onTokenClick?.(token.id)
+            // Start dragging
+            setDraggingTokenId(token.id)
+            const tokenCenter = getTokenCenter(token, map)
+            setDraggingTokenPos(tokenCenter)
+            return
+          }
+        }
+      }
 
       // Handle session tools (fog, token placement) - these take priority
       // But space bar overrides to enable panning
@@ -1471,6 +1522,9 @@ export function MapCanvas({
       sessionTool,
       onCellClick,
       isSpaceHeld,
+      isDm,
+      tokens,
+      onTokenClick,
     ]
   )
 
@@ -1489,6 +1543,13 @@ export function MapCanvas({
       if (!mapPos) return
 
       setCursorMapPos(mapPos)
+
+      // Handle token dragging
+      if (draggingTokenId && draggingTokenPos) {
+        setDraggingTokenPos({ x: mapPos.x, y: mapPos.y })
+        scheduleRender()
+        return
+      }
 
       // Handle fog brush painting
       if (isPaintingRef.current && sessionTool === 'fog-brush' && onCellClick) {
@@ -1714,6 +1775,8 @@ export function MapCanvas({
       onEraseWall,
       sessionTool,
       onCellClick,
+      draggingTokenId,
+      draggingTokenPos,
     ]
   )
 
@@ -1722,6 +1785,23 @@ export function MapCanvas({
     isPaintingRef.current = false
     lastPaintedHexRef.current = null
     setIsPanningState(false)
+
+    // Finish token drag
+    if (draggingTokenId && draggingTokenPos) {
+      // Convert pixel position to cell coordinate
+      let newPosition: CellCoord
+      if (isHexGrid) {
+        const hex = pixelToHex(draggingTokenPos.x, draggingTokenPos.y, map.cellSize)
+        newPosition = { q: hex.col, r: hex.row }
+      } else {
+        const col = Math.floor(draggingTokenPos.x / map.cellSize)
+        const row = Math.floor(draggingTokenPos.y / map.cellSize)
+        newPosition = { col, row }
+      }
+      onTokenDrag?.(draggingTokenId, newPosition)
+      setDraggingTokenId(null)
+      setDraggingTokenPos(null)
+    }
 
     if (drawingState?.draggingVertexIndex !== null && drawingState?.draggingVertexIndex !== undefined) {
       onStopDraggingVertex?.()
@@ -1732,7 +1812,7 @@ export function MapCanvas({
     if (drawingState?.draggingFeature) {
       onStopDraggingFeature?.()
     }
-  }, [drawingState, onStopDraggingVertex, onStopDraggingLabel, onStopDraggingFeature])
+  }, [drawingState, onStopDraggingVertex, onStopDraggingLabel, onStopDraggingFeature, draggingTokenId, draggingTokenPos, isHexGrid, map, onTokenDrag])
 
   const handleMouseLeave = React.useCallback(() => {
     isPanningRef.current = false
@@ -1742,6 +1822,9 @@ export function MapCanvas({
     setCursorMapPos(null)
     setSnapPoint(null)
     setHoveredCell(null)
+    // Clear token dragging state
+    setDraggingTokenId(null)
+    setDraggingTokenPos(null)
     if (onHexHover) {
       onHexHover(null)
     }

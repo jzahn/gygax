@@ -192,7 +192,7 @@ function Token({
         width: size,
         height: size,
         borderColor,
-        borderRadius: 2,
+        borderRadius: '50%',
       }}
       onMouseDown={handleMouseDown}
       title={token.name}
@@ -201,7 +201,7 @@ function Token({
         <img
           src={token.imageUrl}
           alt={token.name}
-          className="h-full w-full rounded-sm object-cover"
+          className="h-full w-full rounded-full object-cover"
           draggable={false}
         />
       ) : (

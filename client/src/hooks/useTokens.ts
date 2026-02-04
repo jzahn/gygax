@@ -89,7 +89,13 @@ export function useTokens({
       case 'token:placed': {
         const payload = lastMessage.payload as WSTokenPlaced
         if (payload.token.mapId === mapId) {
-          setTokens((prev) => [...prev, payload.token])
+          setTokens((prev) => {
+            // Check if token already exists to prevent duplicates
+            if (prev.some((t) => t.id === payload.token.id)) {
+              return prev
+            }
+            return [...prev, payload.token]
+          })
         }
         break
       }
@@ -143,10 +149,17 @@ export function useTokens({
     [isDm, mapId, sendMessage]
   )
 
-  // Move a token (DM only)
+  // Move a token (DM only) - optimistic update
   const moveToken = useCallback(
     (tokenId: string, position: CellCoord) => {
       if (!isDm) return
+      // Optimistically update local state immediately
+      setTokens((prev) =>
+        prev.map((token) =>
+          token.id === tokenId ? { ...token, position } : token
+        )
+      )
+      // Send to server for persistence
       sendMessage('token:move', { tokenId, position })
     },
     [isDm, sendMessage]

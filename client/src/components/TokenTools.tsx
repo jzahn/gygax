@@ -1,6 +1,13 @@
 import * as React from 'react'
 import type { SessionToken, SessionTokenType, SessionParticipantWithDetails, NPC } from '@gygax/shared'
-import { Button, Dialog, Input } from './ui'
+import { Button, Input } from './ui'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from './ui/dialog'
 
 interface TokenToolsProps {
   tokens: SessionToken[]
@@ -178,51 +185,52 @@ export function TokenTools({
       )}
 
       {/* PC Token Dialog */}
-      <Dialog
-        open={placingMode === 'pc'}
-        onClose={handleCloseDialog}
-        title="Place PC Token"
-      >
-        <div className="flex flex-col gap-3">
-          <p className="font-body text-sm text-ink">
-            Select a player to place their character token on the map.
-          </p>
-          <div className="flex flex-col gap-1">
-            {availableParticipants.length === 0 ? (
-              <p className="font-body text-sm text-ink-soft">
-                All players already have tokens on the map.
-              </p>
-            ) : (
-              availableParticipants.map((p) => (
-                <label
-                  key={p.id}
-                  className={`flex cursor-pointer items-center gap-2 border-2 p-2 ${
-                    selectedParticipantId === p.id
-                      ? 'border-ink bg-ink/10'
-                      : 'border-ink/30 hover:border-ink'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="participant"
-                    value={p.id}
-                    checked={selectedParticipantId === p.id}
-                    onChange={() => setSelectedParticipantId(p.id)}
-                    className="sr-only"
-                  />
-                  <span
-                    className={`h-4 w-4 border-2 border-ink ${
-                      selectedParticipantId === p.id ? 'bg-ink' : 'bg-parchment-100'
+      <Dialog open={placingMode === 'pc'} onOpenChange={(open) => !open && handleCloseDialog()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Place PC Token</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <p className="font-body text-sm text-ink">
+              Select a player to place their character token on the map.
+            </p>
+            <div className="flex flex-col gap-1">
+              {availableParticipants.length === 0 ? (
+                <p className="font-body text-sm text-ink-soft">
+                  All players already have tokens on the map.
+                </p>
+              ) : (
+                availableParticipants.map((p) => (
+                  <label
+                    key={p.id}
+                    className={`flex cursor-pointer items-center gap-2 border-2 p-2 ${
+                      selectedParticipantId === p.id
+                        ? 'border-ink bg-ink/10'
+                        : 'border-ink/30 hover:border-ink'
                     }`}
-                  />
-                  <span className="font-body text-sm text-ink">
-                    {p.user.name} - {p.character.name} ({p.character.class} {p.character.level})
-                  </span>
-                </label>
-              ))
-            )}
+                  >
+                    <input
+                      type="radio"
+                      name="participant"
+                      value={p.id}
+                      checked={selectedParticipantId === p.id}
+                      onChange={() => setSelectedParticipantId(p.id)}
+                      className="sr-only"
+                    />
+                    <span
+                      className={`h-4 w-4 border-2 border-ink ${
+                        selectedParticipantId === p.id ? 'bg-ink' : 'bg-parchment-100'
+                      }`}
+                    />
+                    <span className="font-body text-sm text-ink">
+                      {p.user.name} - {p.character.name} ({p.character.class} {p.character.level})
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
           </div>
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <Button variant="ghost" size="sm" onClick={handleCloseDialog}>
               Cancel
             </Button>
@@ -234,51 +242,52 @@ export function TokenTools({
             >
               Place
             </Button>
-          </div>
-        </div>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
 
       {/* NPC Token Dialog */}
-      <Dialog
-        open={placingMode === 'npc'}
-        onClose={handleCloseDialog}
-        title="Place NPC Token"
-      >
-        <div className="flex flex-col gap-3">
-          <Input
-            label="Token Name"
-            value={tokenName}
-            onChange={(e) => {
-              setTokenName(e.target.value)
-              setSelectedNpcId(null)
-            }}
-            placeholder="Enter name..."
-          />
-          {npcs.length > 0 && (
-            <>
-              <p className="font-body text-xs text-ink-soft">Or select from Adventure NPCs:</p>
-              <div className="max-h-32 overflow-y-auto border-2 border-ink/30">
-                {npcs.map((npc) => (
-                  <button
-                    key={npc.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedNpcId(npc.id)
-                      setTokenName(npc.name)
-                    }}
-                    className={`w-full px-2 py-1 text-left font-body text-sm ${
-                      selectedNpcId === npc.id
-                        ? 'bg-ink/10 text-ink'
-                        : 'text-ink hover:bg-parchment-200'
-                    }`}
-                  >
-                    {npc.name}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          <div className="flex justify-end gap-2">
+      <Dialog open={placingMode === 'npc'} onOpenChange={(open) => !open && handleCloseDialog()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Place NPC Token</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <Input
+              label="Token Name"
+              value={tokenName}
+              onChange={(e) => {
+                setTokenName(e.target.value)
+                setSelectedNpcId(null)
+              }}
+              placeholder="Enter name..."
+            />
+            {npcs.length > 0 && (
+              <>
+                <p className="font-body text-xs text-ink-soft">Or select from Adventure NPCs:</p>
+                <div className="max-h-32 overflow-y-auto border-2 border-ink/30">
+                  {npcs.map((npc) => (
+                    <button
+                      key={npc.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedNpcId(npc.id)
+                        setTokenName(npc.name)
+                      }}
+                      className={`w-full px-2 py-1 text-left font-body text-sm ${
+                        selectedNpcId === npc.id
+                          ? 'bg-ink/10 text-ink'
+                          : 'text-ink hover:bg-parchment-200'
+                      }`}
+                    >
+                      {npc.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
             <Button variant="ghost" size="sm" onClick={handleCloseDialog}>
               Cancel
             </Button>
@@ -290,24 +299,25 @@ export function TokenTools({
             >
               Place
             </Button>
-          </div>
-        </div>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
 
       {/* Monster Token Dialog */}
-      <Dialog
-        open={placingMode === 'monster'}
-        onClose={handleCloseDialog}
-        title="Place Monster Token"
-      >
-        <div className="flex flex-col gap-3">
-          <Input
-            label="Monster Name"
-            value={tokenName}
-            onChange={(e) => setTokenName(e.target.value)}
-            placeholder="e.g., Goblin Scout"
-          />
-          <div className="flex justify-end gap-2">
+      <Dialog open={placingMode === 'monster'} onOpenChange={(open) => !open && handleCloseDialog()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Place Monster Token</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <Input
+              label="Monster Name"
+              value={tokenName}
+              onChange={(e) => setTokenName(e.target.value)}
+              placeholder="e.g., Goblin Scout"
+            />
+          </div>
+          <DialogFooter>
             <Button variant="ghost" size="sm" onClick={handleCloseDialog}>
               Cancel
             </Button>
@@ -319,8 +329,8 @@ export function TokenTools({
             >
               Place
             </Button>
-          </div>
-        </div>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   )
