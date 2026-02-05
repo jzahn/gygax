@@ -482,7 +482,7 @@ A full-screen map viewing/editing page.
 **Layout:**
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  ← Back to Adventure    Level 1: The Crypt    [Edit] [···]   │
+│  ← Back to Quest    Level 1: The Crypt    [Edit] [···]   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │                                                             │

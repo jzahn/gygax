@@ -50,6 +50,7 @@ export function useChat({
 
   // Track which channels we've already loaded messages for
   const loadedChannelsRef = useRef<Set<string>>(new Set())
+  const fetchedChannelsRef = useRef(false)
 
   // Get messages for active channel
   const messages = activeChannelId ? messagesByChannel[activeChannelId] ?? [] : []
@@ -57,6 +58,35 @@ export function useChat({
 
   // Calculate total unread count across all channels
   const totalUnreadCount = channels.reduce((sum, ch) => sum + ch.unreadCount, 0)
+
+  // Fetch channels via REST on mount if connected but no channels yet
+  // This handles the case where chat:channels WS message was sent before this hook mounted
+  // (e.g., DM starts session from FORMING → ACTIVE, SessionGameView mounts after WS connected)
+  useEffect(() => {
+    if (!isConnected || channels.length > 0 || fetchedChannelsRef.current) return
+    fetchedChannelsRef.current = true
+
+    fetch(`${API_URL}/api/sessions/${sessionId}/channels`, {
+      credentials: 'include',
+    })
+      .then((res) => {
+        if (!res.ok) return
+        return res.json()
+      })
+      .then((data) => {
+        if (!data?.channels?.length) return
+        setChannels(data.channels)
+        if (!activeChannelId) {
+          const mainChannel = data.channels.find((c: ChatChannel) => c.isMain)
+          if (mainChannel) {
+            setActiveChannelIdState(mainChannel.id)
+          }
+        }
+      })
+      .catch(() => {
+        // Silently fail - WS message may arrive later
+      })
+  }, [isConnected, sessionId, channels.length, activeChannelId])
 
   // Handle incoming WebSocket messages
   useEffect(() => {

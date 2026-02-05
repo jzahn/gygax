@@ -105,7 +105,7 @@ export function SessionBrowsePage() {
               to="/adventure"
               className="font-body text-sm text-ink-faded hover:text-ink"
             >
-              ← Back to Adventure
+              ← Back to Quest
             </Link>
           </div>
           <h1 className="font-display text-2xl uppercase tracking-wide text-ink md:text-3xl">

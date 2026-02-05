@@ -37,7 +37,7 @@ import {
 } from './chatHandler.js'
 import { handleFogMessage, sendFogStateToUser } from './fogHandler.js'
 import { handleTokenMessage, sendTokenStateToUser } from './tokenHandler.js'
-import { addUserToMainChannel } from '../services/chatService.js'
+import { addUserToMainChannel, removeUserFromMainChannel } from '../services/chatService.js'
 
 function formatSessionParticipant(participant: {
   id: string
@@ -284,11 +284,11 @@ export async function handleConnection(
     payload: sessionState,
   })
 
+  // Add user to main channel before sending channels (so the channel list includes Main)
+  await addUserToMainChannel(fastify.prisma, sessionId, userId)
+
   // Send chat channels to the connecting user
   await sendChatChannelsOnConnect(fastify, sessionId, userId)
-
-  // Add user to main channel if not already (in case they joined mid-session)
-  await addUserToMainChannel(fastify.prisma, sessionId, userId)
 
   // Send fog and token state if there's an active map
   if (session.activeMapId) {
@@ -366,6 +366,11 @@ export async function handleConnection(
       // Send "player left" system message to chat
       sendPlayerLeftMessage(fastify, sessionId, userId, user.name).catch((err) => {
         fastify.log.error({ err }, 'Failed to send player left message')
+      })
+
+      // Remove player from main chat channel
+      removeUserFromMainChannel(fastify.prisma, sessionId, userId).catch((err) => {
+        fastify.log.error({ err }, 'Failed to remove user from main channel')
       })
 
       fastify.prisma.sessionParticipant

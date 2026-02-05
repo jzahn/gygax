@@ -162,6 +162,28 @@ export async function addUserToMainChannel(
   }
 }
 
+// Remove a user from the main channel when they leave a session
+export async function removeUserFromMainChannel(
+  prisma: PrismaClient,
+  sessionId: string,
+  userId: string
+): Promise<void> {
+  const mainChannel = await prisma.chatChannel.findFirst({
+    where: { sessionId, isMain: true },
+  })
+
+  if (!mainChannel) {
+    return
+  }
+
+  await prisma.chatChannelParticipant.deleteMany({
+    where: {
+      channelId: mainChannel.id,
+      userId,
+    },
+  })
+}
+
 // Get channels for a user in a session
 export async function getChannelsForUser(
   prisma: PrismaClient,
