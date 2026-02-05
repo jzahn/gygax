@@ -138,7 +138,7 @@ export function JoinSessionModal({ open, onClose }: JoinSessionModalProps) {
   return (
     <>
       <Dialog open={open && !joiningSession} onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Join a Session</DialogTitle>
           </DialogHeader>

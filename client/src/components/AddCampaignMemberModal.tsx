@@ -61,7 +61,7 @@ export function AddCampaignMemberModal({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Add Campaign Member</DialogTitle>
         </DialogHeader>

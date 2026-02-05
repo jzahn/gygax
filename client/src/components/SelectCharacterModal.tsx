@@ -105,7 +105,7 @@ export function SelectCharacterModal({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Choose Your Adventurer</DialogTitle>
         </DialogHeader>

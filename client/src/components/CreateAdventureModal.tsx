@@ -147,7 +147,7 @@ export function CreateAdventureModal({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Adventure' : 'Forge a New Adventure'}</DialogTitle>
         </DialogHeader>

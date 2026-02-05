@@ -136,7 +136,7 @@ export function StartSessionModal({ open, onClose }: StartSessionModalProps) {
   return (
     <>
       <Dialog open={open && !creatingForAdventure} onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Start a Session</DialogTitle>
           </DialogHeader>
@@ -248,7 +248,7 @@ export function StartSessionModal({ open, onClose }: StartSessionModalProps) {
         open={!!creatingForAdventure}
         onOpenChange={(isOpen) => !isOpen && setCreatingForAdventure(null)}
       >
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Start New Session</DialogTitle>
           </DialogHeader>

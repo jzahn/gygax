@@ -1173,7 +1173,7 @@ export function AdventurePage() {
         open={isAccessTypeModalOpen}
         onOpenChange={(isOpen) => !isOpen && setIsAccessTypeModalOpen(false)}
       >
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Start New Session</DialogTitle>
           </DialogHeader>

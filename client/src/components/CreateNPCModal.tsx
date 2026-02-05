@@ -176,7 +176,7 @@ export function CreateNPCModal({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit NPC' : 'Create NPC'}</DialogTitle>
         </DialogHeader>

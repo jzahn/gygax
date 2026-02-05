@@ -186,7 +186,7 @@ export function TokenTools({
 
       {/* PC Token Dialog */}
       <Dialog open={placingMode === 'pc'} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Place PC Token</DialogTitle>
           </DialogHeader>
@@ -248,7 +248,7 @@ export function TokenTools({
 
       {/* NPC Token Dialog */}
       <Dialog open={placingMode === 'npc'} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Place NPC Token</DialogTitle>
           </DialogHeader>
@@ -305,7 +305,7 @@ export function TokenTools({
 
       {/* Monster Token Dialog */}
       <Dialog open={placingMode === 'monster'} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Place Monster Token</DialogTitle>
           </DialogHeader>
