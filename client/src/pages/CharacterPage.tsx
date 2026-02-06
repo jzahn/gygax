@@ -4,6 +4,7 @@ import type { Character, CharacterResponse, UpdateCharacterRequest } from '@gyga
 import { Button } from '../components/ui'
 import { CharacterSheet } from '../components/CharacterSheet'
 import { DeleteCharacterDialog } from '../components/DeleteCharacterDialog'
+import { exportCharacter } from '../utils/characterExport'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -164,14 +165,19 @@ export function CharacterPage() {
               Level {character.level} {character.class}
             </span>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsDeleteDialogOpen(true)}
-            className="text-blood-red"
-          >
-            Delete
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => exportCharacter(character)}>
+              Export
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="text-blood-red"
+            >
+              Delete
+            </Button>
+          </div>
         </div>
       </header>
 

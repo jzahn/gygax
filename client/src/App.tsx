@@ -10,6 +10,7 @@ import {
   MapEditorPage,
   CharacterPage,
   NPCPage,
+  MonsterPage,
   SessionBrowsePage,
   SessionPage,
   LoginPage,
@@ -42,6 +43,7 @@ export function App() {
             <Route path="/maps/:id" element={<MapEditorPage />} />
             <Route path="/characters/:id" element={<CharacterPage />} />
             <Route path="/adventures/:adventureId/npcs/:npcId" element={<NPCPage />} />
+            <Route path="/adventures/:adventureId/monsters/:monsterId" element={<MonsterPage />} />
           </Route>
 
           {/* Public routes */}

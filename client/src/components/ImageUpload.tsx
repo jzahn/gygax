@@ -13,7 +13,7 @@ interface ImageUploadProps {
   maxSize?: number
   error?: string
   className?: string
-  /** Compact mode for small avatars - hides focal point picker */
+  /** Compact mode for small avatars */
   compact?: boolean
   /** Aspect ratio for the image container (e.g., "1/1", "2/3") */
   aspectRatio?: string
@@ -37,6 +37,7 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const [isDragging, setIsDragging] = React.useState(false)
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
+  const [showHotspot, setShowHotspot] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
@@ -138,6 +139,18 @@ export function ImageUpload({
                 >
                   Change
                 </button>
+                {onFocusChange && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowHotspot(true)
+                    }}
+                    className="font-body text-xs text-parchment-100 underline underline-offset-2"
+                  >
+                    Set hotspot
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleRemove}
@@ -162,6 +175,30 @@ export function ImageUpload({
           />
         </div>
         {error && <p className="mt-1 font-body text-xs text-blood-red">{error}</p>}
+
+        {/* Hotspot picker dialog */}
+        {showHotspot && previewUrl && onFocusChange && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50" onClick={(e) => { e.stopPropagation(); setShowHotspot(false) }}>
+            <div className="w-80 border-3 border-ink bg-parchment-100 p-4 shadow-brutal" onClick={(e) => e.stopPropagation()}>
+              <h3 className="mb-3 font-display text-sm uppercase tracking-wide text-ink">Set Portrait Hotspot</h3>
+              <p className="mb-3 font-body text-xs text-ink-soft">Click or drag to set the focal point</p>
+              <FocalPointPicker
+                imageUrl={previewUrl}
+                focusX={focusX}
+                focusY={focusY}
+                onChange={onFocusChange}
+                className="mx-auto max-w-xs"
+              />
+              <button
+                type="button"
+                onClick={() => setShowHotspot(false)}
+                className="mt-3 w-full border-3 border-ink bg-parchment-200 px-4 py-2 font-display text-sm uppercase tracking-wide text-ink hover:bg-parchment-300"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

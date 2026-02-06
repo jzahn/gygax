@@ -11,6 +11,7 @@ import { campaignRoutes } from './routes/campaigns'
 import { mapRoutes } from './routes/maps'
 import { characterRoutes } from './routes/characters'
 import { npcRoutes } from './routes/npcs'
+import { monsterRoutes } from './routes/monsters'
 import { backdropRoutes } from './routes/backdrops'
 import { noteRoutes } from './routes/notes'
 import { sessionRoutes } from './routes/sessions'
@@ -65,6 +66,7 @@ export async function buildApp() {
   await fastify.register(mapRoutes)
   await fastify.register(characterRoutes)
   await fastify.register(npcRoutes)
+  await fastify.register(monsterRoutes)
   await fastify.register(backdropRoutes)
   await fastify.register(noteRoutes)
   await fastify.register(sessionRoutes)

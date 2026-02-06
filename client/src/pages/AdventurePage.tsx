@@ -9,6 +9,9 @@ import type {
   NPCListItem,
   NPCListResponse,
   NPCResponse,
+  MonsterListItem,
+  MonsterListResponse,
+  MonsterResponse,
   Backdrop,
   BackdropListResponse,
   BackdropResponse,
@@ -31,6 +34,10 @@ import { NPCCard } from '../components/NPCCard'
 import { CreateNPCModal, NPCFormData } from '../components/CreateNPCModal'
 import { DeleteNPCDialog } from '../components/DeleteNPCDialog'
 import { exportNPC } from '../utils/npcExport'
+import { MonsterCard } from '../components/MonsterCard'
+import { CreateMonsterModal, MonsterFormData } from '../components/CreateMonsterModal'
+import { DeleteMonsterDialog } from '../components/DeleteMonsterDialog'
+import { exportMonster } from '../utils/monsterExport'
 import { BackdropCard } from '../components/BackdropCard'
 import { CreateBackdropModal, BackdropFormData } from '../components/CreateBackdropModal'
 import { EditBackdropModal, EditBackdropFormData } from '../components/EditBackdropModal'
@@ -61,6 +68,11 @@ export function AdventurePage() {
   const [isCreateNpcModalOpen, setIsCreateNpcModalOpen] = React.useState(false)
   const [editingNpc, setEditingNpc] = React.useState<NPCListItem | null>(null)
   const [deletingNpc, setDeletingNpc] = React.useState<NPCListItem | null>(null)
+  const [monsters, setMonsters] = React.useState<MonsterListItem[]>([])
+  const [isLoadingMonsters, setIsLoadingMonsters] = React.useState(true)
+  const [isCreateMonsterModalOpen, setIsCreateMonsterModalOpen] = React.useState(false)
+  const [editingMonster, setEditingMonster] = React.useState<MonsterListItem | null>(null)
+  const [deletingMonster, setDeletingMonster] = React.useState<MonsterListItem | null>(null)
   const [backdrops, setBackdrops] = React.useState<Backdrop[]>([])
   const [isLoadingBackdrops, setIsLoadingBackdrops] = React.useState(true)
   const [isCreateBackdropModalOpen, setIsCreateBackdropModalOpen] = React.useState(false)
@@ -168,6 +180,33 @@ export function AdventurePage() {
       fetchNpcs()
     }
   }, [adventure, fetchNpcs])
+
+  const fetchMonsters = React.useCallback(async () => {
+    if (!id) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/adventures/${id}/monsters`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        return
+      }
+
+      const data: MonsterListResponse = await response.json()
+      setMonsters(data.monsters)
+    } catch {
+      // Silently fail - monsters section will show empty
+    } finally {
+      setIsLoadingMonsters(false)
+    }
+  }, [id])
+
+  React.useEffect(() => {
+    if (adventure) {
+      fetchMonsters()
+    }
+  }, [adventure, fetchMonsters])
 
   const fetchBackdrops = React.useCallback(async () => {
     if (!id) return
@@ -485,19 +524,47 @@ export function AdventurePage() {
   const handleCreateNpc = async (data: NPCFormData) => {
     if (!adventure) return
 
+    const { portraitImage, hotspotX, hotspotY, ...createData } = data
+
     const response = await fetch(`${API_URL}/api/adventures/${adventure.id}/npcs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify(data),
+      body: JSON.stringify(createData),
     })
 
     if (!response.ok) {
       throw new Error('Failed to create NPC')
     }
 
-    const result: NPCResponse = await response.json()
-    // Convert full NPC to list item
+    let result: NPCResponse = await response.json()
+
+    // Upload portrait if provided
+    if (portraitImage instanceof File) {
+      const formData = new FormData()
+      formData.append('image', portraitImage)
+      const avatarRes = await fetch(`${API_URL}/api/npcs/${result.npc.id}/avatar`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+      if (avatarRes.ok) {
+        result = await avatarRes.json()
+      }
+
+      if (hotspotX !== undefined && hotspotY !== undefined) {
+        const hotspotRes = await fetch(`${API_URL}/api/npcs/${result.npc.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ avatarHotspotX: hotspotX, avatarHotspotY: hotspotY }),
+        })
+        if (hotspotRes.ok) {
+          result = await hotspotRes.json()
+        }
+      }
+    }
+
     const listItem: NPCListItem = {
       id: result.npc.id,
       name: result.npc.name,
@@ -505,6 +572,8 @@ export function AdventurePage() {
       class: result.npc.class,
       level: result.npc.level,
       avatarUrl: result.npc.avatarUrl,
+      avatarHotspotX: result.npc.avatarHotspotX,
+      avatarHotspotY: result.npc.avatarHotspotY,
       adventureId: result.npc.adventureId,
       createdAt: result.npc.createdAt,
       updatedAt: result.npc.updatedAt,
@@ -516,22 +585,51 @@ export function AdventurePage() {
   const handleEditNpc = async (data: NPCFormData) => {
     if (!editingNpc) return
 
+    const { portraitImage, hotspotX, hotspotY, ...updateFields } = data
+
+    const patchData: Record<string, unknown> = {
+      name: updateFields.name,
+      description: updateFields.description || null,
+      class: updateFields.class || null,
+    }
+    if (hotspotX !== undefined) patchData.avatarHotspotX = hotspotX
+    if (hotspotY !== undefined) patchData.avatarHotspotY = hotspotY
+
     const response = await fetch(`${API_URL}/api/npcs/${editingNpc.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({
-        name: data.name,
-        description: data.description || null,
-        class: data.class || null,
-      }),
+      body: JSON.stringify(patchData),
     })
 
     if (!response.ok) {
       throw new Error('Failed to update NPC')
     }
 
-    const result: NPCResponse = await response.json()
+    let result: NPCResponse = await response.json()
+
+    // Handle portrait changes
+    if (portraitImage instanceof File) {
+      const formData = new FormData()
+      formData.append('image', portraitImage)
+      const avatarRes = await fetch(`${API_URL}/api/npcs/${editingNpc.id}/avatar`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+      if (avatarRes.ok) {
+        result = await avatarRes.json()
+      }
+    } else if (portraitImage === null) {
+      const avatarRes = await fetch(`${API_URL}/api/npcs/${editingNpc.id}/avatar`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (avatarRes.ok) {
+        result = await avatarRes.json()
+      }
+    }
+
     const listItem: NPCListItem = {
       id: result.npc.id,
       name: result.npc.name,
@@ -539,6 +637,8 @@ export function AdventurePage() {
       class: result.npc.class,
       level: result.npc.level,
       avatarUrl: result.npc.avatarUrl,
+      avatarHotspotX: result.npc.avatarHotspotX,
+      avatarHotspotY: result.npc.avatarHotspotY,
       adventureId: result.npc.adventureId,
       createdAt: result.npc.createdAt,
       updatedAt: result.npc.updatedAt,
@@ -579,6 +679,165 @@ export function AdventurePage() {
     } catch {
       // Could add toast notification here
       console.error('Failed to export NPC')
+    }
+  }
+
+  const handleCreateMonster = async (data: MonsterFormData) => {
+    if (!adventure) return
+
+    const { portraitImage, hotspotX, hotspotY, ...createData } = data
+
+    const response = await fetch(`${API_URL}/api/adventures/${adventure.id}/monsters`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(createData),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to create monster')
+    }
+
+    let result: MonsterResponse = await response.json()
+
+    // Upload portrait if provided
+    if (portraitImage instanceof File) {
+      const formData = new FormData()
+      formData.append('image', portraitImage)
+      const avatarRes = await fetch(`${API_URL}/api/monsters/${result.monster.id}/avatar`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+      if (avatarRes.ok) {
+        result = await avatarRes.json()
+      }
+
+      if (hotspotX !== undefined && hotspotY !== undefined) {
+        const hotspotRes = await fetch(`${API_URL}/api/monsters/${result.monster.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ avatarHotspotX: hotspotX, avatarHotspotY: hotspotY }),
+        })
+        if (hotspotRes.ok) {
+          result = await hotspotRes.json()
+        }
+      }
+    }
+
+    const listItem: MonsterListItem = {
+      id: result.monster.id,
+      name: result.monster.name,
+      description: result.monster.description,
+      class: result.monster.class,
+      level: result.monster.level,
+      avatarUrl: result.monster.avatarUrl,
+      avatarHotspotX: result.monster.avatarHotspotX,
+      avatarHotspotY: result.monster.avatarHotspotY,
+      adventureId: result.monster.adventureId,
+      createdAt: result.monster.createdAt,
+      updatedAt: result.monster.updatedAt,
+    }
+    setMonsters((prev) => [listItem, ...prev])
+    setIsCreateMonsterModalOpen(false)
+  }
+
+  const handleEditMonster = async (data: MonsterFormData) => {
+    if (!editingMonster) return
+
+    const { portraitImage, hotspotX, hotspotY, ...updateFields } = data
+
+    const patchData: Record<string, unknown> = {
+      name: updateFields.name,
+      description: updateFields.description || null,
+      class: updateFields.class || null,
+    }
+    if (hotspotX !== undefined) patchData.avatarHotspotX = hotspotX
+    if (hotspotY !== undefined) patchData.avatarHotspotY = hotspotY
+
+    const response = await fetch(`${API_URL}/api/monsters/${editingMonster.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(patchData),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to update monster')
+    }
+
+    let result: MonsterResponse = await response.json()
+
+    // Handle portrait changes
+    if (portraitImage instanceof File) {
+      const formData = new FormData()
+      formData.append('image', portraitImage)
+      const avatarRes = await fetch(`${API_URL}/api/monsters/${editingMonster.id}/avatar`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+      if (avatarRes.ok) {
+        result = await avatarRes.json()
+      }
+    } else if (portraitImage === null) {
+      const avatarRes = await fetch(`${API_URL}/api/monsters/${editingMonster.id}/avatar`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (avatarRes.ok) {
+        result = await avatarRes.json()
+      }
+    }
+
+    const listItem: MonsterListItem = {
+      id: result.monster.id,
+      name: result.monster.name,
+      description: result.monster.description,
+      class: result.monster.class,
+      level: result.monster.level,
+      avatarUrl: result.monster.avatarUrl,
+      avatarHotspotX: result.monster.avatarHotspotX,
+      avatarHotspotY: result.monster.avatarHotspotY,
+      adventureId: result.monster.adventureId,
+      createdAt: result.monster.createdAt,
+      updatedAt: result.monster.updatedAt,
+    }
+    setMonsters((prev) => prev.map((m) => (m.id === listItem.id ? listItem : m)))
+    setEditingMonster(null)
+  }
+
+  const handleDeleteMonster = async () => {
+    if (!deletingMonster) return
+
+    const response = await fetch(`${API_URL}/api/monsters/${deletingMonster.id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to delete monster')
+    }
+
+    setMonsters((prev) => prev.filter((m) => m.id !== deletingMonster.id))
+    setDeletingMonster(null)
+  }
+
+  const handleExportMonster = async (monster: MonsterListItem) => {
+    try {
+      const response = await fetch(`${API_URL}/api/monsters/${monster.id}`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch monster')
+      }
+
+      const data: MonsterResponse = await response.json()
+      exportMonster(data.monster)
+    } catch {
+      console.error('Failed to export monster')
     }
   }
 
@@ -943,6 +1202,50 @@ export function AdventurePage() {
           )}
         </div>
 
+        {/* Monsters Section */}
+        <div className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg uppercase tracking-wide text-ink">Monsters</h2>
+            <Button variant="default" size="sm" onClick={() => setIsCreateMonsterModalOpen(true)}>
+              + New Monster
+            </Button>
+          </div>
+
+          {isLoadingMonsters ? (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <span className="animate-quill-scratch text-2xl">&#9998;</span>
+              <p className="mt-2 font-body text-ink-soft">Loading monsters...</p>
+            </div>
+          ) : monsters.length === 0 ? (
+            <div className="rounded border-3 border-dashed border-ink-soft bg-parchment-200 p-8 text-center">
+              <div className="mb-4 text-2xl text-ink-soft">&#9760;</div>
+              <p className="font-body text-ink">No monsters yet</p>
+              <p className="mt-1 font-body text-sm text-ink-soft">
+                Create your first monster to populate this adventure.
+              </p>
+              <Button
+                variant="default"
+                className="mt-4"
+                onClick={() => setIsCreateMonsterModalOpen(true)}
+              >
+                Create Monster
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {monsters.map((monster) => (
+                <MonsterCard
+                  key={monster.id}
+                  monster={monster}
+                  onEdit={() => setEditingMonster(monster)}
+                  onDelete={() => setDeletingMonster(monster)}
+                  onExport={() => handleExportMonster(monster)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Backdrops Section */}
         <div className="mb-8">
           <div className="mb-4 flex items-center justify-between">
@@ -1097,6 +1400,26 @@ export function AdventurePage() {
         onClose={() => setDeletingNpc(null)}
         onConfirm={handleDeleteNpc}
         npc={deletingNpc}
+      />
+
+      <CreateMonsterModal
+        open={isCreateMonsterModalOpen}
+        onClose={() => setIsCreateMonsterModalOpen(false)}
+        onSubmit={handleCreateMonster}
+      />
+
+      <CreateMonsterModal
+        open={!!editingMonster}
+        onClose={() => setEditingMonster(null)}
+        onSubmit={handleEditMonster}
+        monster={editingMonster}
+      />
+
+      <DeleteMonsterDialog
+        open={!!deletingMonster}
+        onClose={() => setDeletingMonster(null)}
+        onConfirm={handleDeleteMonster}
+        monster={deletingMonster}
       />
 
       <CreateBackdropModal

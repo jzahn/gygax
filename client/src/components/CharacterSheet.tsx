@@ -226,6 +226,12 @@ export function CharacterSheet({
               value={character.avatarUrl}
               onChange={handleAvatarChange}
               onRemove={onAvatarRemove}
+              focusX={character.avatarHotspotX ?? 50}
+              focusY={character.avatarHotspotY ?? 50}
+              onFocusChange={(x, y) => {
+                handleFieldUpdate('avatarHotspotX', x)
+                handleFieldUpdate('avatarHotspotY', y)
+              }}
               className="w-48 md:w-56"
               aspectRatio="3/4"
               compact

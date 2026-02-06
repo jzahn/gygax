@@ -61,7 +61,7 @@ async function handleTokenPlace(
     return
   }
 
-  const { mapId, type, name, position, characterId, npcId, color, imageUrl } = payload
+  const { mapId, type, name, position, characterId, npcId, monsterId, color, imageUrl, imageHotspotX, imageHotspotY } = payload
 
   // Validate required fields
   if (!mapId || !type || !name || !position) {
@@ -76,9 +76,20 @@ async function handleTokenPlace(
   const token = await placeToken(fastify.prisma, sessionId, mapId, type, name, position, {
     characterId,
     npcId,
+    monsterId,
     color,
     imageUrl,
+    imageHotspotX,
+    imageHotspotY,
   })
+
+  if (!token) {
+    sendToUser(sessionId, userId, {
+      type: 'error',
+      payload: { message: 'Could not place token (party token may already exist on this map)' },
+    })
+    return
+  }
 
   // Broadcast to all session participants
   broadcastToSession(sessionId, {

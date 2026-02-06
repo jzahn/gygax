@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { Character, CharacterClass } from '@gygax/shared'
+import type { Character, CharacterClass, CharacterExportFile } from '@gygax/shared'
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { ImageUpload } from './ImageUpload'
 import { roll3d6, roll4d6DropLowest } from '../utils/bxRules'
 
 export interface CharacterFormData {
@@ -21,6 +22,26 @@ export interface CharacterFormData {
   dexterity: number
   constitution: number
   charisma: number
+  portraitImage?: File | null | undefined
+  hotspotX?: number
+  hotspotY?: number
+  // Imported stat fields (carried through from file import)
+  level?: number
+  alignment?: 'Lawful' | 'Neutral' | 'Chaotic'
+  title?: string
+  hitPointsMax?: number
+  hitPointsCurrent?: number
+  armorClass?: number
+  saveDeathRay?: number
+  saveWands?: number
+  saveParalysis?: number
+  saveBreath?: number
+  saveSpells?: number
+  experiencePoints?: number
+  goldPieces?: number
+  equipment?: string
+  spells?: string
+  notes?: string
 }
 
 interface CreateCharacterModalProps {
@@ -67,8 +88,14 @@ export function CreateCharacterModal({
     constitution: 10,
     charisma: 10,
   })
+  const [portraitImage, setPortraitImage] = React.useState<File | string | null>(null)
+  const [hotspotX, setHotspotX] = React.useState(50)
+  const [hotspotY, setHotspotY] = React.useState(50)
+  const [removePortrait, setRemovePortrait] = React.useState(false)
+  const [importedData, setImportedData] = React.useState<CharacterExportFile['character'] | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [errors, setErrors] = React.useState<{ name?: string }>({})
+  const [errors, setErrors] = React.useState<{ name?: string; import?: string }>({})
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const isEditing = !!character
 
@@ -85,6 +112,10 @@ export function CreateCharacterModal({
           constitution: character.constitution,
           charisma: character.charisma,
         })
+        setPortraitImage(character.avatarUrl)
+        setHotspotX(character.avatarHotspotX ?? 50)
+        setHotspotY(character.avatarHotspotY ?? 50)
+        setRemovePortrait(false)
       } else {
         setName('')
         setCharClass('Fighter')
@@ -96,8 +127,16 @@ export function CreateCharacterModal({
           constitution: 10,
           charisma: 10,
         })
+        setPortraitImage(null)
+        setHotspotX(50)
+        setHotspotY(50)
+        setRemovePortrait(false)
+        setImportedData(null)
       }
       setErrors({})
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }, [open, character])
 
@@ -124,11 +163,46 @@ export function CreateCharacterModal({
 
     setIsSubmitting(true)
     try {
-      await onSubmit({
+      // undefined = no change, null = explicitly remove, File = new upload
+      let imageToSubmit: File | null | undefined
+      if (removePortrait) {
+        imageToSubmit = null
+      } else if (portraitImage instanceof File) {
+        imageToSubmit = portraitImage
+      } else {
+        imageToSubmit = undefined
+      }
+
+      const formData: CharacterFormData = {
         name: name.trim(),
         class: charClass,
         ...abilities,
-      })
+        portraitImage: imageToSubmit,
+        hotspotX,
+        hotspotY,
+      }
+
+      // Include imported stats if present
+      if (importedData) {
+        if (importedData.level) formData.level = importedData.level
+        if (importedData.alignment) formData.alignment = importedData.alignment as 'Lawful' | 'Neutral' | 'Chaotic'
+        if (importedData.title) formData.title = importedData.title
+        if (importedData.hitPointsMax) formData.hitPointsMax = importedData.hitPointsMax
+        if (importedData.hitPointsCurrent) formData.hitPointsCurrent = importedData.hitPointsCurrent
+        if (importedData.armorClass) formData.armorClass = importedData.armorClass
+        if (importedData.saveDeathRay) formData.saveDeathRay = importedData.saveDeathRay
+        if (importedData.saveWands) formData.saveWands = importedData.saveWands
+        if (importedData.saveParalysis) formData.saveParalysis = importedData.saveParalysis
+        if (importedData.saveBreath) formData.saveBreath = importedData.saveBreath
+        if (importedData.saveSpells) formData.saveSpells = importedData.saveSpells
+        if (importedData.experiencePoints) formData.experiencePoints = importedData.experiencePoints
+        if (importedData.goldPieces) formData.goldPieces = importedData.goldPieces
+        if (importedData.equipment) formData.equipment = importedData.equipment
+        if (importedData.spells) formData.spells = importedData.spells
+        if (importedData.notes) formData.notes = importedData.notes
+      }
+
+      await onSubmit(formData)
       onClose()
     } catch {
       // Error handling is done in parent component
@@ -166,6 +240,76 @@ export function CreateCharacterModal({
     })
   }
 
+  const handlePortraitChange = (file: File | null) => {
+    setPortraitImage(file)
+    setRemovePortrait(false)
+    if (file) {
+      setHotspotX(50)
+      setHotspotY(50)
+    }
+  }
+
+  const handleRemovePortrait = () => {
+    setPortraitImage(null)
+    setRemovePortrait(true)
+    setHotspotX(50)
+    setHotspotY(50)
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text) as CharacterExportFile
+
+      if (data.version !== 1) {
+        setErrors({ import: 'Unsupported file version' })
+        return
+      }
+
+      if (!data.character?.name) {
+        setErrors({ import: 'Invalid character file: missing name' })
+        return
+      }
+
+      // Pre-fill form fields
+      setName(data.character.name)
+      setCharClass(data.character.class || 'Fighter')
+      setAbilities({
+        strength: data.character.strength ?? 10,
+        intelligence: data.character.intelligence ?? 10,
+        wisdom: data.character.wisdom ?? 10,
+        dexterity: data.character.dexterity ?? 10,
+        constitution: data.character.constitution ?? 10,
+        charisma: data.character.charisma ?? 10,
+      })
+      setImportedData(data.character)
+      setErrors({})
+    } catch {
+      setErrors({ import: 'Invalid file format' })
+    }
+  }
+
+  const handleClearImport = () => {
+    setImportedData(null)
+    setName('')
+    setCharClass('Fighter')
+    setAbilities({
+      strength: 10,
+      intelligence: 10,
+      wisdom: 10,
+      dexterity: 10,
+      constitution: 10,
+      charisma: 10,
+    })
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+    setErrors({})
+  }
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-md" aria-describedby={undefined}>
@@ -174,6 +318,68 @@ export function CreateCharacterModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {!isEditing && (
+            <>
+              <div className="space-y-2">
+                <Label className="font-display text-xs uppercase tracking-wide">
+                  Import from file (optional)
+                </Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json,.character.gygax.json"
+                    onChange={handleFileChange}
+                    className="flex-1 border-3 border-ink bg-parchment-100 px-3 py-2 font-body text-sm text-ink file:mr-3 file:border-0 file:bg-transparent file:font-body file:text-ink-soft"
+                  />
+                  {importedData && (
+                    <Button type="button" variant="ghost" size="sm" onClick={handleClearImport}>
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                {importedData && (
+                  <p className="font-body text-xs text-forest-green">
+                    Imported: {importedData.name}
+                    {importedData.class ? ` (Level ${importedData.level} ${importedData.class})` : ''}
+                  </p>
+                )}
+                {errors.import && (
+                  <p className="font-body text-sm text-blood-red">{errors.import}</p>
+                )}
+                <p className="font-body text-xs text-ink-faded">
+                  Import a .character.gygax.json file
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="h-px flex-1 bg-ink-faded" />
+                <span className="font-body text-xs text-ink-faded">or</span>
+                <div className="h-px flex-1 bg-ink-faded" />
+              </div>
+            </>
+          )}
+
+          <div className="space-y-2">
+            <Label className="font-display text-xs uppercase tracking-wide">
+              Portrait <span className="font-body text-ink-faded">(optional)</span>
+            </Label>
+            <ImageUpload
+              value={portraitImage}
+              onChange={handlePortraitChange}
+              onRemove={handleRemovePortrait}
+              focusX={hotspotX}
+              focusY={hotspotY}
+              onFocusChange={(x, y) => {
+                setHotspotX(x)
+                setHotspotY(y)
+              }}
+              className="w-48"
+              aspectRatio="3/4"
+              compact
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name" className="font-display text-xs uppercase tracking-wide">
               Character Name

@@ -405,6 +405,8 @@ export interface Character {
 
   // Avatar
   avatarUrl: string | null
+  avatarHotspotX: number | null
+  avatarHotspotY: number | null
 
   createdAt: string
   updatedAt: string
@@ -454,6 +456,8 @@ export interface UpdateCharacterRequest {
   equipment?: string | null
   spells?: string | null
   notes?: string | null
+  avatarHotspotX?: number | null
+  avatarHotspotY?: number | null
 }
 
 // NPC types (DM-owned characters in Adventures)
@@ -498,6 +502,8 @@ export interface NPC {
 
   // Avatar
   avatarUrl: string | null
+  avatarHotspotX: number | null
+  avatarHotspotY: number | null
 
   adventureId: string
   createdAt: string
@@ -512,6 +518,8 @@ export interface NPCListItem {
   class: string | null
   level: number
   avatarUrl: string | null
+  avatarHotspotX: number | null
+  avatarHotspotY: number | null
   adventureId: string
   createdAt: string
   updatedAt: string
@@ -580,6 +588,8 @@ export interface UpdateNPCRequest {
   equipment?: string | null
   spells?: string | null
   notes?: string | null
+  avatarHotspotX?: number | null
+  avatarHotspotY?: number | null
 }
 
 // Backdrop types
@@ -671,6 +681,193 @@ export interface NPCExportFile {
   }
 }
 
+// Monster types (DM-owned creatures in Adventures)
+export interface Monster {
+  id: string
+  name: string
+  description: string | null
+
+  class: string | null
+  level: number
+  alignment: Alignment | null
+  title: string | null
+
+  strength: number | null
+  intelligence: number | null
+  wisdom: number | null
+  dexterity: number | null
+  constitution: number | null
+  charisma: number | null
+
+  hitPointsMax: number | null
+  hitPointsCurrent: number | null
+  armorClass: number | null
+
+  saveDeathRay: number | null
+  saveWands: number | null
+  saveParalysis: number | null
+  saveBreath: number | null
+  saveSpells: number | null
+
+  experiencePoints: number | null
+  goldPieces: number | null
+
+  equipment: string | null
+  spells: string | null
+  notes: string | null
+
+  avatarUrl: string | null
+  avatarHotspotX: number | null
+  avatarHotspotY: number | null
+
+  adventureId: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MonsterListItem {
+  id: string
+  name: string
+  description: string | null
+  class: string | null
+  level: number
+  avatarUrl: string | null
+  avatarHotspotX: number | null
+  avatarHotspotY: number | null
+  adventureId: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MonsterListResponse {
+  monsters: MonsterListItem[]
+}
+
+export interface MonsterResponse {
+  monster: Monster
+}
+
+export interface CreateMonsterRequest {
+  name: string
+  description?: string
+  class?: string
+  level?: number
+  alignment?: Alignment
+  title?: string
+  strength?: number
+  intelligence?: number
+  wisdom?: number
+  dexterity?: number
+  constitution?: number
+  charisma?: number
+  hitPointsMax?: number
+  hitPointsCurrent?: number
+  armorClass?: number
+  saveDeathRay?: number
+  saveWands?: number
+  saveParalysis?: number
+  saveBreath?: number
+  saveSpells?: number
+  experiencePoints?: number
+  goldPieces?: number
+  equipment?: string
+  spells?: string
+  notes?: string
+}
+
+export interface UpdateMonsterRequest {
+  name?: string
+  description?: string | null
+  class?: string | null
+  level?: number
+  alignment?: Alignment | null
+  title?: string | null
+  strength?: number | null
+  intelligence?: number | null
+  wisdom?: number | null
+  dexterity?: number | null
+  constitution?: number | null
+  charisma?: number | null
+  hitPointsMax?: number | null
+  hitPointsCurrent?: number | null
+  armorClass?: number | null
+  saveDeathRay?: number | null
+  saveWands?: number | null
+  saveParalysis?: number | null
+  saveBreath?: number | null
+  saveSpells?: number | null
+  experiencePoints?: number | null
+  goldPieces?: number | null
+  equipment?: string | null
+  spells?: string | null
+  notes?: string | null
+}
+
+// Monster export file format
+export interface MonsterExportFile {
+  version: 1
+  exportedAt: string
+  monster: {
+    name: string
+    description: string | null
+    class: string | null
+    level: number
+    alignment: string | null
+    title: string | null
+    strength: number | null
+    intelligence: number | null
+    wisdom: number | null
+    dexterity: number | null
+    constitution: number | null
+    charisma: number | null
+    hitPointsMax: number | null
+    hitPointsCurrent: number | null
+    armorClass: number | null
+    saveDeathRay: number | null
+    saveWands: number | null
+    saveParalysis: number | null
+    saveBreath: number | null
+    saveSpells: number | null
+    experiencePoints: number | null
+    goldPieces: number | null
+    equipment: string | null
+    spells: string | null
+    notes: string | null
+  }
+}
+
+// Character export file format
+export interface CharacterExportFile {
+  version: 1
+  exportedAt: string
+  character: {
+    name: string
+    class: CharacterClass
+    level: number
+    alignment: Alignment | null
+    title: string | null
+    strength: number
+    intelligence: number
+    wisdom: number
+    dexterity: number
+    constitution: number
+    charisma: number
+    hitPointsMax: number
+    hitPointsCurrent: number
+    armorClass: number
+    saveDeathRay: number
+    saveWands: number
+    saveParalysis: number
+    saveBreath: number
+    saveSpells: number
+    experiencePoints: number
+    goldPieces: number
+    equipment: string | null
+    spells: string | null
+    notes: string | null
+  }
+}
+
 // Session types
 export type SessionStatus = 'FORMING' | 'ACTIVE' | 'PAUSED' | 'ENDED'
 export type SessionAccessType = 'OPEN' | 'CAMPAIGN' | 'INVITE'
@@ -747,6 +944,8 @@ export interface SessionParticipantWithDetails extends SessionParticipant {
     hitPointsMax: number
     armorClass: number
     avatarUrl: string | null
+    avatarHotspotX: number | null
+    avatarHotspotY: number | null
   }
 }
 
@@ -1076,7 +1275,7 @@ export interface FogState {
 }
 
 // Token types
-export type SessionTokenType = 'PC' | 'NPC' | 'MONSTER'
+export type SessionTokenType = 'PC' | 'NPC' | 'MONSTER' | 'PARTY'
 
 export interface SessionToken {
   id: string
@@ -1088,6 +1287,9 @@ export interface SessionToken {
   imageUrl?: string
   characterId?: string
   npcId?: string
+  monsterId?: string
+  imageHotspotX?: number
+  imageHotspotY?: number
   color: string
 }
 
@@ -1096,6 +1298,7 @@ export const TOKEN_COLORS: Record<SessionTokenType, string> = {
   PC: '#22c55e',      // green-500
   NPC: '#3b82f6',     // blue-500
   MONSTER: '#ef4444', // red-500
+  PARTY: '#f59e0b',   // amber-500
 }
 
 // REST API responses
@@ -1129,8 +1332,11 @@ export interface WSTokenPlace {
   position: CellCoord
   characterId?: string
   npcId?: string
+  monsterId?: string
   color?: string
   imageUrl?: string
+  imageHotspotX?: number
+  imageHotspotY?: number
 }
 
 export interface WSTokenMove {

@@ -49,6 +49,11 @@ export function SessionPlayerCard({
               src={avatarUrl}
               alt={name}
               className="h-12 w-12 border-2 border-ink object-cover"
+              style={{
+                objectPosition: participant?.character.avatarHotspotX != null
+                  ? `${participant.character.avatarHotspotX}% ${participant.character.avatarHotspotY ?? 50}%`
+                  : undefined,
+              }}
             />
           ) : (
             <div className="flex h-12 w-12 items-center justify-center border-2 border-ink bg-parchment-300 font-display text-lg text-ink">

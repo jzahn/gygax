@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { NPCListItem, NPCExportFile, CreateNPCRequest } from '@gygax/shared'
+import type { MonsterListItem, MonsterExportFile, CreateMonsterRequest } from '@gygax/shared'
 import {
   Dialog,
   DialogContent,
@@ -12,18 +12,18 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { ImageUpload } from './ImageUpload'
 
-export interface NPCFormData extends CreateNPCRequest {
+export interface MonsterFormData extends CreateMonsterRequest {
   name: string
   portraitImage?: File | null | undefined
   hotspotX?: number
   hotspotY?: number
 }
 
-interface CreateNPCModalProps {
+interface CreateMonsterModalProps {
   open: boolean
   onClose: () => void
-  onSubmit: (data: NPCFormData) => Promise<void>
-  npc?: NPCListItem | null
+  onSubmit: (data: MonsterFormData) => Promise<void>
+  monster?: MonsterListItem | null
 }
 
 const MAX_NAME_LENGTH = 100
@@ -39,40 +39,40 @@ const NPC_CLASSES = [
   'Halfling',
 ]
 
-export function CreateNPCModal({
+export function CreateMonsterModal({
   open,
   onClose,
   onSubmit,
-  npc,
-}: CreateNPCModalProps) {
+  monster,
+}: CreateMonsterModalProps) {
   const [name, setName] = React.useState('')
   const [description, setDescription] = React.useState('')
-  const [npcClass, setNpcClass] = React.useState<string>('')
+  const [monsterClass, setMonsterClass] = React.useState<string>('')
   const [portraitImage, setPortraitImage] = React.useState<File | string | null>(null)
   const [hotspotX, setHotspotX] = React.useState(50)
   const [hotspotY, setHotspotY] = React.useState(50)
   const [removePortrait, setRemovePortrait] = React.useState(false)
-  const [importedData, setImportedData] = React.useState<NPCExportFile['npc'] | null>(null)
+  const [importedData, setImportedData] = React.useState<MonsterExportFile['monster'] | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [errors, setErrors] = React.useState<{ name?: string; import?: string }>({})
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  const isEditing = !!npc
+  const isEditing = !!monster
 
   React.useEffect(() => {
     if (open) {
-      if (npc) {
-        setName(npc.name)
-        setDescription(npc.description || '')
-        setNpcClass(npc.class || '')
-        setPortraitImage(npc.avatarUrl)
-        setHotspotX(npc.avatarHotspotX ?? 50)
-        setHotspotY(npc.avatarHotspotY ?? 50)
+      if (monster) {
+        setName(monster.name)
+        setDescription(monster.description || '')
+        setMonsterClass(monster.class || '')
+        setPortraitImage(monster.avatarUrl)
+        setHotspotX(monster.avatarHotspotX ?? 50)
+        setHotspotY(monster.avatarHotspotY ?? 50)
         setRemovePortrait(false)
       } else {
         setName('')
         setDescription('')
-        setNpcClass('')
+        setMonsterClass('')
         setPortraitImage(null)
         setHotspotX(50)
         setHotspotY(50)
@@ -84,7 +84,7 @@ export function CreateNPCModal({
         fileInputRef.current.value = ''
       }
     }
-  }, [open, npc])
+  }, [open, monster])
 
   const validateForm = (): boolean => {
     const newErrors: { name?: string } = {}
@@ -119,10 +119,10 @@ export function CreateNPCModal({
         imageToSubmit = undefined
       }
 
-      const formData: NPCFormData = {
+      const formData: MonsterFormData = {
         name: name.trim(),
         description: description.trim() || undefined,
-        class: npcClass || undefined,
+        class: monsterClass || undefined,
         portraitImage: imageToSubmit,
         hotspotX,
         hotspotY,
@@ -169,23 +169,23 @@ export function CreateNPCModal({
 
     try {
       const text = await file.text()
-      const data = JSON.parse(text) as NPCExportFile
+      const data = JSON.parse(text) as MonsterExportFile
 
       if (data.version !== 1) {
         setErrors({ import: 'Unsupported file version' })
         return
       }
 
-      if (!data.npc?.name) {
-        setErrors({ import: 'Invalid NPC file: missing name' })
+      if (!data.monster?.name) {
+        setErrors({ import: 'Invalid monster file: missing name' })
         return
       }
 
       // Pre-fill form fields
-      setName(data.npc.name)
-      setDescription(data.npc.description || '')
-      setNpcClass(data.npc.class || '')
-      setImportedData(data.npc)
+      setName(data.monster.name)
+      setDescription(data.monster.description || '')
+      setMonsterClass(data.monster.class || '')
+      setImportedData(data.monster)
       setErrors({})
     } catch {
       setErrors({ import: 'Invalid file format' })
@@ -196,7 +196,7 @@ export function CreateNPCModal({
     setImportedData(null)
     setName('')
     setDescription('')
-    setNpcClass('')
+    setMonsterClass('')
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -223,7 +223,7 @@ export function CreateNPCModal({
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-md" aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit NPC' : 'Create NPC'}</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Monster' : 'Create Monster'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -237,7 +237,7 @@ export function CreateNPCModal({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".json,.npc.gygax.json"
+                    accept=".json,.monster.gygax.json"
                     onChange={handleFileChange}
                     className="flex-1 border-3 border-ink bg-parchment-100 px-3 py-2 font-body text-sm text-ink file:mr-3 file:border-0 file:bg-transparent file:font-body file:text-ink-soft"
                   />
@@ -257,7 +257,7 @@ export function CreateNPCModal({
                   <p className="font-body text-sm text-blood-red">{errors.import}</p>
                 )}
                 <p className="font-body text-xs text-ink-faded">
-                  Import a .npc.gygax.json file
+                  Import a .monster.gygax.json file
                 </p>
               </div>
 
@@ -297,7 +297,7 @@ export function CreateNPCModal({
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Who is this NPC?"
+              placeholder="Who is this monster?"
               error={!!errors.name}
               maxLength={MAX_NAME_LENGTH + 10}
             />
@@ -312,7 +312,7 @@ export function CreateNPCModal({
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Role, personality, notes for the DM..."
+              placeholder="What kind of creature is this?"
               maxLength={MAX_DESCRIPTION_LENGTH}
               rows={3}
               className="w-full resize-none border-3 border-ink bg-parchment-100 px-3 py-2 font-body text-ink placeholder:text-ink-faded focus:outline-none focus:ring-2 focus:ring-ink"
@@ -325,8 +325,8 @@ export function CreateNPCModal({
             </Label>
             <select
               id="class"
-              value={npcClass}
-              onChange={(e) => setNpcClass(e.target.value)}
+              value={monsterClass}
+              onChange={(e) => setMonsterClass(e.target.value)}
               className="w-full border-3 border-ink bg-parchment-100 px-3 py-2 font-body text-ink focus:outline-none focus:ring-2 focus:ring-ink"
             >
               <option value="">— None —</option>
@@ -337,7 +337,7 @@ export function CreateNPCModal({
               ))}
             </select>
             <p className="font-body text-xs text-ink-faded">
-              Leave blank for classless NPCs (villagers, monsters, etc.)
+              Leave blank for classless monsters
             </p>
           </div>
 

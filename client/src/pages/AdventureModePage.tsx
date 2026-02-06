@@ -41,18 +41,48 @@ export function AdventureModePage() {
   }, [fetchCharacters])
 
   const handleCreateCharacter = async (data: CharacterFormData) => {
+    const { portraitImage, hotspotX, hotspotY, ...createData } = data
+
     const response = await fetch(`${API_URL}/api/characters`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify(data),
+      body: JSON.stringify(createData),
     })
 
     if (!response.ok) {
       throw new Error('Failed to create character')
     }
 
-    const result: CharacterResponse = await response.json()
+    let result: CharacterResponse = await response.json()
+
+    // Upload portrait if provided
+    if (portraitImage instanceof File) {
+      const formData = new FormData()
+      formData.append('image', portraitImage)
+      const avatarRes = await fetch(`${API_URL}/api/characters/${result.character.id}/avatar`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+      if (avatarRes.ok) {
+        result = await avatarRes.json()
+      }
+
+      // Set hotspot values
+      if (hotspotX !== undefined && hotspotY !== undefined) {
+        const hotspotRes = await fetch(`${API_URL}/api/characters/${result.character.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ avatarHotspotX: hotspotX, avatarHotspotY: hotspotY }),
+        })
+        if (hotspotRes.ok) {
+          result = await hotspotRes.json()
+        }
+      }
+    }
+
     setCharacters((prev) => [result.character, ...prev])
     setIsCreateModalOpen(false)
   }
@@ -60,18 +90,49 @@ export function AdventureModePage() {
   const handleEditCharacter = async (data: CharacterFormData) => {
     if (!editingCharacter) return
 
+    const { portraitImage, hotspotX, hotspotY, ...updateData } = data
+
+    // Include hotspot in the PATCH if we have values
+    const patchData: Record<string, unknown> = { ...updateData }
+    if (hotspotX !== undefined) patchData.avatarHotspotX = hotspotX
+    if (hotspotY !== undefined) patchData.avatarHotspotY = hotspotY
+
     const response = await fetch(`${API_URL}/api/characters/${editingCharacter.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify(data),
+      body: JSON.stringify(patchData),
     })
 
     if (!response.ok) {
       throw new Error('Failed to update character')
     }
 
-    const result: CharacterResponse = await response.json()
+    let result: CharacterResponse = await response.json()
+
+    // Handle portrait changes
+    if (portraitImage instanceof File) {
+      const formData = new FormData()
+      formData.append('image', portraitImage)
+      const avatarRes = await fetch(`${API_URL}/api/characters/${editingCharacter.id}/avatar`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+      if (avatarRes.ok) {
+        result = await avatarRes.json()
+      }
+    } else if (portraitImage === null) {
+      // Explicitly remove portrait
+      const avatarRes = await fetch(`${API_URL}/api/characters/${editingCharacter.id}/avatar`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (avatarRes.ok) {
+        result = await avatarRes.json()
+      }
+    }
+
     setCharacters((prev) =>
       prev.map((c) => (c.id === result.character.id ? result.character : c))
     )

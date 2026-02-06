@@ -12,6 +12,7 @@ import type {
   BackdropResponse,
   SessionStatus,
   NPC,
+  MonsterListItem,
   CellCoord,
 } from '@gygax/shared'
 import { MapDisplay } from '../components/MapDisplay'
@@ -142,6 +143,7 @@ export function SessionGameView({
   const [maps, setMaps] = React.useState<Map[]>([])
   const [backdrops, setBackdrops] = React.useState<Backdrop[]>([])
   const [npcs, setNpcs] = React.useState<NPC[]>([])
+  const [monsters, setMonsters] = React.useState<MonsterListItem[]>([])
   const [activeMap, setActiveMap] = React.useState<Map | null>(null)
   const [activeBackdrop, setActiveBackdrop] = React.useState<Backdrop | null>(null)
   const [isLoadingDisplay, setIsLoadingDisplay] = React.useState(false)
@@ -157,11 +159,14 @@ export function SessionGameView({
 
   // Token placement state
   const [placingTokenData, setPlacingTokenData] = React.useState<{
-    type: 'PC' | 'NPC' | 'MONSTER'
+    type: 'PC' | 'NPC' | 'MONSTER' | 'PARTY'
     name: string
     characterId?: string
     npcId?: string
+    monsterId?: string
     imageUrl?: string
+    imageHotspotX?: number
+    imageHotspotY?: number
   } | null>(null)
 
   // Fog hook
@@ -178,11 +183,49 @@ export function SessionGameView({
   const tokens = useTokens({
     mapId: session.activeMapId,
     isDm,
-    lastMessage,
     tokenState,
+    lastMessage,
     sendMessage,
     isConnected,
   })
+
+  // Enrich tokens with entity avatars when the token doesn't have its own imageUrl
+  // (handles tokens placed before portrait feature, and portrait changes after placement)
+  const enrichedTokens = React.useMemo(() => {
+    return tokens.tokens.map((token) => {
+      if (token.imageUrl) return token
+
+      let imageUrl: string | undefined
+      let imageHotspotX: number | undefined
+      let imageHotspotY: number | undefined
+
+      if (token.characterId) {
+        const participant = session.participants.find((p) => p.characterId === token.characterId)
+        if (participant?.character.avatarUrl) {
+          imageUrl = participant.character.avatarUrl
+          imageHotspotX = participant.character.avatarHotspotX ?? undefined
+          imageHotspotY = participant.character.avatarHotspotY ?? undefined
+        }
+      } else if (token.npcId) {
+        const npc = npcs.find((n) => n.id === token.npcId)
+        if (npc?.avatarUrl) {
+          imageUrl = npc.avatarUrl
+          imageHotspotX = npc.avatarHotspotX ?? undefined
+          imageHotspotY = npc.avatarHotspotY ?? undefined
+        }
+      } else if (token.monsterId) {
+        const monster = monsters.find((m) => m.id === token.monsterId)
+        if (monster?.avatarUrl) {
+          imageUrl = monster.avatarUrl
+          imageHotspotX = monster.avatarHotspotX ?? undefined
+          imageHotspotY = monster.avatarHotspotY ?? undefined
+        }
+      }
+
+      if (!imageUrl) return token
+      return { ...token, imageUrl, imageHotspotX, imageHotspotY }
+    })
+  }, [tokens.tokens, session.participants, npcs, monsters])
 
   // Voice chat
   const voiceChat = useVoiceChat({
@@ -211,7 +254,7 @@ export function SessionGameView({
 
     const fetchLists = async () => {
       try {
-        const [mapsRes, backdropsRes, npcsRes] = await Promise.all([
+        const [mapsRes, backdropsRes, npcsRes, monstersRes] = await Promise.all([
           fetch(`${API_URL}/api/adventures/${session.adventureId}/maps`, {
             credentials: 'include',
           }),
@@ -219,6 +262,9 @@ export function SessionGameView({
             credentials: 'include',
           }),
           fetch(`${API_URL}/api/adventures/${session.adventureId}/npcs`, {
+            credentials: 'include',
+          }),
+          fetch(`${API_URL}/api/adventures/${session.adventureId}/monsters`, {
             credentials: 'include',
           }),
         ])
@@ -235,6 +281,10 @@ export function SessionGameView({
         if (npcsRes.ok) {
           const data = await npcsRes.json()
           setNpcs(data.npcs)
+        }
+        if (monstersRes.ok) {
+          const data = await monstersRes.json()
+          setMonsters(data.monsters)
         }
 
         // If adventure belongs to a campaign, also fetch the campaign's world map
@@ -361,6 +411,8 @@ export function SessionGameView({
       name: participant.character.name,
       characterId: participant.characterId,
       imageUrl: participant.character.avatarUrl || undefined,
+      imageHotspotX: participant.character.avatarHotspotX ?? undefined,
+      imageHotspotY: participant.character.avatarHotspotY ?? undefined,
     })
   }
 
@@ -371,13 +423,27 @@ export function SessionGameView({
       name,
       npcId,
       imageUrl: npc?.avatarUrl || undefined,
+      imageHotspotX: npc?.avatarHotspotX ?? undefined,
+      imageHotspotY: npc?.avatarHotspotY ?? undefined,
     })
   }
 
-  const handlePlaceMonsterToken = (name: string) => {
+  const handlePlaceMonsterToken = (name: string, monsterId?: string) => {
+    const monster = monsterId ? monsters.find((m) => m.id === monsterId) : null
     setPlacingTokenData({
       type: 'MONSTER',
       name,
+      monsterId,
+      imageUrl: monster?.avatarUrl || undefined,
+      imageHotspotX: monster?.avatarHotspotX ?? undefined,
+      imageHotspotY: monster?.avatarHotspotY ?? undefined,
+    })
+  }
+
+  const handlePlacePartyToken = () => {
+    setPlacingTokenData({
+      type: 'PARTY',
+      name: 'Party',
     })
   }
 
@@ -392,7 +458,10 @@ export function SessionGameView({
         {
           characterId: placingTokenData.characterId,
           npcId: placingTokenData.npcId,
+          monsterId: placingTokenData.monsterId,
           imageUrl: placingTokenData.imageUrl,
+          imageHotspotX: placingTokenData.imageHotspotX,
+          imageHotspotY: placingTokenData.imageHotspotY,
         }
       )
       setPlacingTokenData(null)
@@ -589,7 +658,7 @@ export function SessionGameView({
             <MapDisplay
               map={activeMap}
               fogRevealedCells={fog.revealedCells}
-              tokens={tokens.tokens}
+              tokens={enrichedTokens}
               selectedTokenId={tokens.selectedTokenId}
               isDm={isDm}
               sessionTool={
@@ -640,15 +709,18 @@ export function SessionGameView({
                   onRevealAll={handleRevealAll}
                   onHideAll={handleHideAll}
                   // Token props
-                  tokens={tokens.tokens}
+                  tokens={enrichedTokens}
                   participants={session.participants}
                   npcs={npcs}
+                  monsters={monsters}
                   selectedTokenId={tokens.selectedTokenId}
                   onPlacePCToken={handlePlacePCToken}
                   onPlaceNPCToken={handlePlaceNPCToken}
                   onPlaceMonsterToken={handlePlaceMonsterToken}
+                  onPlacePartyToken={handlePlacePartyToken}
                   onSelectToken={tokens.selectToken}
                   onRemoveToken={tokens.removeToken}
+                  isHexMap={activeMap?.gridType === 'HEX'}
                 />
               ) : null
             }

@@ -56,6 +56,8 @@ function formatCharacter(character: {
   spells: string | null
   notes: string | null
   avatarUrl: string | null
+  avatarHotspotX: number | null
+  avatarHotspotY: number | null
   createdAt: Date
   updatedAt: Date
 }): Character {
@@ -86,6 +88,8 @@ function formatCharacter(character: {
     spells: character.spells,
     notes: character.notes,
     avatarUrl: character.avatarUrl,
+    avatarHotspotX: character.avatarHotspotX,
+    avatarHotspotY: character.avatarHotspotY,
     createdAt: character.createdAt.toISOString(),
     updatedAt: character.updatedAt.toISOString(),
   }
@@ -457,6 +461,31 @@ export async function characterRoutes(fastify: FastifyInstance) {
           })
         }
         updateData.notes = request.body.notes
+      }
+
+      // Avatar hotspot
+      if (request.body.avatarHotspotX !== undefined) {
+        if (request.body.avatarHotspotX !== null) {
+          if (typeof request.body.avatarHotspotX !== 'number' || request.body.avatarHotspotX < 0 || request.body.avatarHotspotX > 100) {
+            return reply.status(400).send({
+              error: 'Bad Request',
+              message: 'avatarHotspotX must be a number between 0 and 100',
+            })
+          }
+        }
+        updateData.avatarHotspotX = request.body.avatarHotspotX
+      }
+
+      if (request.body.avatarHotspotY !== undefined) {
+        if (request.body.avatarHotspotY !== null) {
+          if (typeof request.body.avatarHotspotY !== 'number' || request.body.avatarHotspotY < 0 || request.body.avatarHotspotY > 100) {
+            return reply.status(400).send({
+              error: 'Bad Request',
+              message: 'avatarHotspotY must be a number between 0 and 100',
+            })
+          }
+        }
+        updateData.avatarHotspotY = request.body.avatarHotspotY
       }
 
       const updatedCharacter = await fastify.prisma.character.update({

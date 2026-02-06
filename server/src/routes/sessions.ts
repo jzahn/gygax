@@ -73,6 +73,8 @@ function formatSessionParticipant(participant: {
     hitPointsMax: number
     armorClass: number
     avatarUrl: string | null
+    avatarHotspotX: number | null
+    avatarHotspotY: number | null
   }
 }): SessionParticipantWithDetails {
   return {
@@ -96,6 +98,8 @@ function formatSessionParticipant(participant: {
       hitPointsMax: participant.character.hitPointsMax,
       armorClass: participant.character.armorClass,
       avatarUrl: participant.character.avatarUrl,
+      avatarHotspotX: participant.character.avatarHotspotX,
+      avatarHotspotY: participant.character.avatarHotspotY,
     },
   }
 }
@@ -160,6 +164,8 @@ function formatSessionWithDetails(session: {
       hitPointsMax: number
       armorClass: number
       avatarUrl: string | null
+      avatarHotspotX: number | null
+      avatarHotspotY: number | null
     }
   }>
   invites: Array<{
@@ -349,6 +355,8 @@ export async function sessionRoutes(fastify: FastifyInstance) {
                   hitPointsMax: true,
                   armorClass: true,
                   avatarUrl: true,
+                  avatarHotspotX: true,
+                  avatarHotspotY: true,
                 },
               },
             },
@@ -566,6 +574,8 @@ export async function sessionRoutes(fastify: FastifyInstance) {
                   hitPointsMax: true,
                   armorClass: true,
                   avatarUrl: true,
+                  avatarHotspotX: true,
+                  avatarHotspotY: true,
                 },
               },
             },
@@ -971,6 +981,8 @@ export async function sessionRoutes(fastify: FastifyInstance) {
                   hitPointsMax: true,
                   armorClass: true,
                   avatarUrl: true,
+                  avatarHotspotX: true,
+                  avatarHotspotY: true,
                 },
               },
             },

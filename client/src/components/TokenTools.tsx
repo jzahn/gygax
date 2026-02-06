@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { SessionToken, SessionTokenType, SessionParticipantWithDetails, NPC } from '@gygax/shared'
+import type { SessionToken, SessionTokenType, SessionParticipantWithDetails, NPC, MonsterListItem } from '@gygax/shared'
 import { Button, Input } from './ui'
 import {
   Dialog,
@@ -13,13 +13,17 @@ interface TokenToolsProps {
   tokens: SessionToken[]
   participants: SessionParticipantWithDetails[]
   npcs: NPC[]
+  monsters: MonsterListItem[]
   selectedTokenId: string | null
   onPlacePCToken: (participantId: string) => void
   onPlaceNPCToken: (name: string, npcId?: string) => void
-  onPlaceMonsterToken: (name: string) => void
+  onPlaceMonsterToken: (name: string, monsterId?: string) => void
+  onPlacePartyToken: () => void
   onSelectToken: (tokenId: string | null) => void
   onRemoveToken: (tokenId: string) => void
   disabled?: boolean
+  /** Whether the active map is a hex map (for showing party token option) */
+  isHexMap?: boolean
 }
 
 type PlacingMode = 'pc' | 'npc' | 'monster' | null
@@ -28,24 +32,29 @@ const TOKEN_TYPE_COLORS: Record<SessionTokenType, string> = {
   PC: '#22c55e',
   NPC: '#3b82f6',
   MONSTER: '#ef4444',
+  PARTY: '#f59e0b',
 }
 
 export function TokenTools({
   tokens,
   participants,
   npcs,
+  monsters,
   selectedTokenId,
   onPlacePCToken,
   onPlaceNPCToken,
   onPlaceMonsterToken,
+  onPlacePartyToken,
   onSelectToken,
   onRemoveToken,
   disabled = false,
+  isHexMap = false,
 }: TokenToolsProps) {
   const [placingMode, setPlacingMode] = React.useState<PlacingMode>(null)
   const [selectedParticipantId, setSelectedParticipantId] = React.useState<string | null>(null)
   const [tokenName, setTokenName] = React.useState('')
   const [selectedNpcId, setSelectedNpcId] = React.useState<string | null>(null)
+  const [selectedMonsterId, setSelectedMonsterId] = React.useState<string | null>(null)
 
   const handleOpenPCDialog = () => {
     setPlacingMode('pc')
@@ -61,6 +70,7 @@ export function TokenTools({
   const handleOpenMonsterDialog = () => {
     setPlacingMode('monster')
     setTokenName('')
+    setSelectedMonsterId(null)
   }
 
   const handleCloseDialog = () => {
@@ -68,6 +78,7 @@ export function TokenTools({
     setSelectedParticipantId(null)
     setTokenName('')
     setSelectedNpcId(null)
+    setSelectedMonsterId(null)
   }
 
   const handlePlacePC = () => {
@@ -89,8 +100,12 @@ export function TokenTools({
   }
 
   const handlePlaceMonster = () => {
-    if (tokenName.trim()) {
-      onPlaceMonsterToken(tokenName.trim())
+    const name = selectedMonsterId
+      ? monsters.find((m) => m.id === selectedMonsterId)?.name || tokenName
+      : tokenName
+
+    if (name.trim()) {
+      onPlaceMonsterToken(name.trim(), selectedMonsterId || undefined)
       handleCloseDialog()
     }
   }
@@ -110,10 +125,13 @@ export function TokenTools({
     (p) => !existingPCCharacterIds.has(p.characterId)
   )
 
+  // Check if a party token already exists on this map
+  const hasPartyToken = tokens.some((t) => t.type === 'PARTY')
+
   return (
     <div className="flex flex-col gap-2">
       {/* Token placement buttons */}
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         <Button
           variant="ghost"
           size="sm"
@@ -147,6 +165,19 @@ export function TokenTools({
           <span className="mr-1" style={{ color: TOKEN_TYPE_COLORS.MONSTER }}>&#9679;</span>
           +Monster
         </Button>
+        {isHexMap && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onPlacePartyToken}
+            disabled={disabled || hasPartyToken}
+            className="flex-1"
+            title={hasPartyToken ? 'Party token already placed' : 'Add party token'}
+          >
+            <span className="mr-1" style={{ color: TOKEN_TYPE_COLORS.PARTY }}>&#9679;</span>
+            +Party
+          </Button>
+        )}
       </div>
 
       {/* Active tokens list (horizontal chips on mobile) */}
@@ -313,9 +344,36 @@ export function TokenTools({
             <Input
               label="Monster Name"
               value={tokenName}
-              onChange={(e) => setTokenName(e.target.value)}
+              onChange={(e) => {
+                setTokenName(e.target.value)
+                setSelectedMonsterId(null)
+              }}
               placeholder="e.g., Goblin Scout"
             />
+            {monsters.length > 0 && (
+              <>
+                <p className="font-body text-xs text-ink-soft">Or select from Adventure Monsters:</p>
+                <div className="max-h-32 overflow-y-auto border-2 border-ink/30">
+                  {monsters.map((monster) => (
+                    <button
+                      key={monster.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedMonsterId(monster.id)
+                        setTokenName(monster.name)
+                      }}
+                      className={`w-full px-2 py-1 text-left font-body text-sm ${
+                        selectedMonsterId === monster.id
+                          ? 'bg-ink/10 text-ink'
+                          : 'text-ink hover:bg-parchment-200'
+                      }`}
+                    >
+                      {monster.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" size="sm" onClick={handleCloseDialog}>

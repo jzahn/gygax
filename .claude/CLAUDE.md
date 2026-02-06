@@ -105,6 +105,11 @@ npm run build            # Production build
 - Integration tests for API routes
 - E2E tests for critical user flows
 
+### Prisma ORM Commands
+
+- Run prisma migration related commands on the docker database container
+- There is no database installed or running locally on the dev machine
+
 ## Frontend Design
 
 - Follow design system in `/specs/002-auth.md` § Design System Setup (typography, colors, animations, components)

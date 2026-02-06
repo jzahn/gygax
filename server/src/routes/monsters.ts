@@ -1,13 +1,13 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import crypto from 'crypto'
 import type {
-  NPC,
-  NPCListItem,
+  Monster,
+  MonsterListItem,
   Alignment,
-  NPCListResponse,
-  NPCResponse,
-  CreateNPCRequest,
-  UpdateNPCRequest,
+  MonsterListResponse,
+  MonsterResponse,
+  CreateMonsterRequest,
+  UpdateMonsterRequest,
 } from '@gygax/shared'
 import { uploadFile, deleteFile, extractKeyFromUrl } from '../services/storage.js'
 
@@ -30,7 +30,7 @@ const VALID_CLASSES = [
 
 const VALID_ALIGNMENTS: Alignment[] = ['Lawful', 'Neutral', 'Chaotic']
 
-function formatNPC(npc: {
+function formatMonster(monster: {
   id: string
   name: string
   description: string | null
@@ -63,44 +63,44 @@ function formatNPC(npc: {
   adventureId: string
   createdAt: Date
   updatedAt: Date
-}): NPC {
+}): Monster {
   return {
-    id: npc.id,
-    name: npc.name,
-    description: npc.description,
-    class: npc.class,
-    level: npc.level,
-    alignment: npc.alignment as Alignment | null,
-    title: npc.title,
-    strength: npc.strength,
-    intelligence: npc.intelligence,
-    wisdom: npc.wisdom,
-    dexterity: npc.dexterity,
-    constitution: npc.constitution,
-    charisma: npc.charisma,
-    hitPointsMax: npc.hitPointsMax,
-    hitPointsCurrent: npc.hitPointsCurrent,
-    armorClass: npc.armorClass,
-    saveDeathRay: npc.saveDeathRay,
-    saveWands: npc.saveWands,
-    saveParalysis: npc.saveParalysis,
-    saveBreath: npc.saveBreath,
-    saveSpells: npc.saveSpells,
-    experiencePoints: npc.experiencePoints,
-    goldPieces: npc.goldPieces,
-    equipment: npc.equipment,
-    spells: npc.spells,
-    notes: npc.notes,
-    avatarUrl: npc.avatarUrl,
-    avatarHotspotX: npc.avatarHotspotX,
-    avatarHotspotY: npc.avatarHotspotY,
-    adventureId: npc.adventureId,
-    createdAt: npc.createdAt.toISOString(),
-    updatedAt: npc.updatedAt.toISOString(),
+    id: monster.id,
+    name: monster.name,
+    description: monster.description,
+    class: monster.class,
+    level: monster.level,
+    alignment: monster.alignment as Alignment | null,
+    title: monster.title,
+    strength: monster.strength,
+    intelligence: monster.intelligence,
+    wisdom: monster.wisdom,
+    dexterity: monster.dexterity,
+    constitution: monster.constitution,
+    charisma: monster.charisma,
+    hitPointsMax: monster.hitPointsMax,
+    hitPointsCurrent: monster.hitPointsCurrent,
+    armorClass: monster.armorClass,
+    saveDeathRay: monster.saveDeathRay,
+    saveWands: monster.saveWands,
+    saveParalysis: monster.saveParalysis,
+    saveBreath: monster.saveBreath,
+    saveSpells: monster.saveSpells,
+    experiencePoints: monster.experiencePoints,
+    goldPieces: monster.goldPieces,
+    equipment: monster.equipment,
+    spells: monster.spells,
+    notes: monster.notes,
+    avatarUrl: monster.avatarUrl,
+    avatarHotspotX: monster.avatarHotspotX,
+    avatarHotspotY: monster.avatarHotspotY,
+    adventureId: monster.adventureId,
+    createdAt: monster.createdAt.toISOString(),
+    updatedAt: monster.updatedAt.toISOString(),
   }
 }
 
-function formatNPCListItem(npc: {
+function formatMonsterListItem(monster: {
   id: string
   name: string
   description: string | null
@@ -112,19 +112,19 @@ function formatNPCListItem(npc: {
   adventureId: string
   createdAt: Date
   updatedAt: Date
-}): NPCListItem {
+}): MonsterListItem {
   return {
-    id: npc.id,
-    name: npc.name,
-    description: npc.description,
-    class: npc.class,
-    level: npc.level,
-    avatarUrl: npc.avatarUrl,
-    avatarHotspotX: npc.avatarHotspotX,
-    avatarHotspotY: npc.avatarHotspotY,
-    adventureId: npc.adventureId,
-    createdAt: npc.createdAt.toISOString(),
-    updatedAt: npc.updatedAt.toISOString(),
+    id: monster.id,
+    name: monster.name,
+    description: monster.description,
+    class: monster.class,
+    level: monster.level,
+    avatarUrl: monster.avatarUrl,
+    avatarHotspotX: monster.avatarHotspotX,
+    avatarHotspotY: monster.avatarHotspotY,
+    adventureId: monster.adventureId,
+    createdAt: monster.createdAt.toISOString(),
+    updatedAt: monster.updatedAt.toISOString(),
   }
 }
 
@@ -199,10 +199,10 @@ function isValidAbilityScore(score: number): boolean {
   return Number.isInteger(score) && score >= 3 && score <= 18
 }
 
-export async function npcRoutes(fastify: FastifyInstance) {
-  // GET /api/adventures/:adventureId/npcs - List NPCs in an adventure
+export async function monsterRoutes(fastify: FastifyInstance) {
+  // GET /api/adventures/:adventureId/monsters - List monsters in an adventure
   fastify.get<{ Params: { adventureId: string } }>(
-    '/api/adventures/:adventureId/npcs',
+    '/api/adventures/:adventureId/monsters',
     async (request: FastifyRequest<{ Params: { adventureId: string } }>, reply: FastifyReply) => {
       const user = await requireVerifiedUser(fastify, request, reply)
       if (!user) return
@@ -212,7 +212,7 @@ export async function npcRoutes(fastify: FastifyInstance) {
       const hasAccess = await requireAdventureOwnership(fastify, adventureId, user.id, reply)
       if (!hasAccess) return
 
-      const npcs = await fastify.prisma.nPC.findMany({
+      const monsters = await fastify.prisma.monster.findMany({
         where: { adventureId },
         orderBy: { updatedAt: 'desc' },
         select: {
@@ -230,19 +230,19 @@ export async function npcRoutes(fastify: FastifyInstance) {
         },
       })
 
-      const response: NPCListResponse = {
-        npcs: npcs.map(formatNPCListItem),
+      const response: MonsterListResponse = {
+        monsters: monsters.map(formatMonsterListItem),
       }
 
       return reply.status(200).send(response)
     }
   )
 
-  // POST /api/adventures/:adventureId/npcs - Create a new NPC
-  fastify.post<{ Params: { adventureId: string }; Body: CreateNPCRequest }>(
-    '/api/adventures/:adventureId/npcs',
+  // POST /api/adventures/:adventureId/monsters - Create a new monster
+  fastify.post<{ Params: { adventureId: string }; Body: CreateMonsterRequest }>(
+    '/api/adventures/:adventureId/monsters',
     async (
-      request: FastifyRequest<{ Params: { adventureId: string }; Body: CreateNPCRequest }>,
+      request: FastifyRequest<{ Params: { adventureId: string }; Body: CreateMonsterRequest }>,
       reply: FastifyReply
     ) => {
       const user = await requireVerifiedUser(fastify, request, reply)
@@ -253,7 +253,7 @@ export async function npcRoutes(fastify: FastifyInstance) {
       const hasAccess = await requireAdventureOwnership(fastify, adventureId, user.id, reply)
       if (!hasAccess) return
 
-      const { name, description, class: npcClass, level, alignment, title } = request.body
+      const { name, description, class: monsterClass, level, alignment, title } = request.body
 
       // Validate name
       if (!name || typeof name !== 'string') {
@@ -300,8 +300,8 @@ export async function npcRoutes(fastify: FastifyInstance) {
       }
 
       // Validate class if provided
-      if (npcClass !== undefined && npcClass !== null) {
-        if (!VALID_CLASSES.includes(npcClass)) {
+      if (monsterClass !== undefined && monsterClass !== null) {
+        if (!VALID_CLASSES.includes(monsterClass)) {
           return reply.status(400).send({
             error: 'Bad Request',
             message: `Class must be one of: ${VALID_CLASSES.join(', ')}`,
@@ -455,11 +455,11 @@ export async function npcRoutes(fastify: FastifyInstance) {
         textData.notes = notes || null
       }
 
-      const npc = await fastify.prisma.nPC.create({
+      const monster = await fastify.prisma.monster.create({
         data: {
           name: trimmedName,
           description: trimmedDescription,
-          class: npcClass || null,
+          class: monsterClass || null,
           level: validLevel,
           alignment: alignment || null,
           title: title || null,
@@ -472,55 +472,55 @@ export async function npcRoutes(fastify: FastifyInstance) {
         },
       })
 
-      const response: NPCResponse = {
-        npc: formatNPC(npc),
+      const response: MonsterResponse = {
+        monster: formatMonster(monster),
       }
 
       return reply.status(201).send(response)
     }
   )
 
-  // GET /api/npcs/:id - Get a single NPC
+  // GET /api/monsters/:id - Get a single monster
   fastify.get<{ Params: { id: string } }>(
-    '/api/npcs/:id',
+    '/api/monsters/:id',
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const user = await requireVerifiedUser(fastify, request, reply)
       if (!user) return
 
       const { id } = request.params
 
-      const npc = await fastify.prisma.nPC.findUnique({
+      const monster = await fastify.prisma.monster.findUnique({
         where: { id },
         include: { adventure: { select: { ownerId: true } } },
       })
 
-      if (!npc) {
+      if (!monster) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: 'NPC not found',
+          message: 'Monster not found',
         })
       }
 
-      if (npc.adventure.ownerId !== user.id) {
+      if (monster.adventure.ownerId !== user.id) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: 'NPC not found',
+          message: 'Monster not found',
         })
       }
 
-      const response: NPCResponse = {
-        npc: formatNPC(npc),
+      const response: MonsterResponse = {
+        monster: formatMonster(monster),
       }
 
       return reply.status(200).send(response)
     }
   )
 
-  // PATCH /api/npcs/:id - Update an NPC
-  fastify.patch<{ Params: { id: string }; Body: UpdateNPCRequest }>(
-    '/api/npcs/:id',
+  // PATCH /api/monsters/:id - Update a monster
+  fastify.patch<{ Params: { id: string }; Body: UpdateMonsterRequest }>(
+    '/api/monsters/:id',
     async (
-      request: FastifyRequest<{ Params: { id: string }; Body: UpdateNPCRequest }>,
+      request: FastifyRequest<{ Params: { id: string }; Body: UpdateMonsterRequest }>,
       reply: FastifyReply
     ) => {
       const user = await requireVerifiedUser(fastify, request, reply)
@@ -528,22 +528,22 @@ export async function npcRoutes(fastify: FastifyInstance) {
 
       const { id } = request.params
 
-      const npc = await fastify.prisma.nPC.findUnique({
+      const monster = await fastify.prisma.monster.findUnique({
         where: { id },
         include: { adventure: { select: { ownerId: true } } },
       })
 
-      if (!npc) {
+      if (!monster) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: 'NPC not found',
+          message: 'Monster not found',
         })
       }
 
-      if (npc.adventure.ownerId !== user.id) {
+      if (monster.adventure.ownerId !== user.id) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: 'NPC not found',
+          message: 'Monster not found',
         })
       }
 
@@ -784,51 +784,51 @@ export async function npcRoutes(fastify: FastifyInstance) {
         updateData.avatarHotspotY = request.body.avatarHotspotY
       }
 
-      const updatedNpc = await fastify.prisma.nPC.update({
+      const updatedMonster = await fastify.prisma.monster.update({
         where: { id },
         data: updateData,
       })
 
-      const response: NPCResponse = {
-        npc: formatNPC(updatedNpc),
+      const response: MonsterResponse = {
+        monster: formatMonster(updatedMonster),
       }
 
       return reply.status(200).send(response)
     }
   )
 
-  // DELETE /api/npcs/:id - Delete an NPC
+  // DELETE /api/monsters/:id - Delete a monster
   fastify.delete<{ Params: { id: string } }>(
-    '/api/npcs/:id',
+    '/api/monsters/:id',
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const user = await requireVerifiedUser(fastify, request, reply)
       if (!user) return
 
       const { id } = request.params
 
-      const npc = await fastify.prisma.nPC.findUnique({
+      const monster = await fastify.prisma.monster.findUnique({
         where: { id },
         include: { adventure: { select: { ownerId: true } } },
       })
 
-      if (!npc) {
+      if (!monster) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: 'NPC not found',
+          message: 'Monster not found',
         })
       }
 
-      if (npc.adventure.ownerId !== user.id) {
+      if (monster.adventure.ownerId !== user.id) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: 'NPC not found',
+          message: 'Monster not found',
         })
       }
 
       // Delete avatar from storage if exists
-      if (npc.avatarUrl) {
+      if (monster.avatarUrl) {
         try {
-          const key = extractKeyFromUrl(npc.avatarUrl)
+          const key = extractKeyFromUrl(monster.avatarUrl)
           if (key) {
             await deleteFile(key)
           }
@@ -837,7 +837,7 @@ export async function npcRoutes(fastify: FastifyInstance) {
         }
       }
 
-      await fastify.prisma.nPC.delete({
+      await fastify.prisma.monster.delete({
         where: { id },
       })
 
@@ -845,31 +845,31 @@ export async function npcRoutes(fastify: FastifyInstance) {
     }
   )
 
-  // POST /api/npcs/:id/avatar - Upload avatar
+  // POST /api/monsters/:id/avatar - Upload avatar
   fastify.post<{ Params: { id: string } }>(
-    '/api/npcs/:id/avatar',
+    '/api/monsters/:id/avatar',
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const user = await requireVerifiedUser(fastify, request, reply)
       if (!user) return
 
       const { id } = request.params
 
-      const npc = await fastify.prisma.nPC.findUnique({
+      const monster = await fastify.prisma.monster.findUnique({
         where: { id },
         include: { adventure: { select: { ownerId: true } } },
       })
 
-      if (!npc) {
+      if (!monster) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: 'NPC not found',
+          message: 'Monster not found',
         })
       }
 
-      if (npc.adventure.ownerId !== user.id) {
+      if (monster.adventure.ownerId !== user.id) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: 'NPC not found',
+          message: 'Monster not found',
         })
       }
 
@@ -890,9 +890,9 @@ export async function npcRoutes(fastify: FastifyInstance) {
       }
 
       // Delete old avatar if exists
-      if (npc.avatarUrl) {
+      if (monster.avatarUrl) {
         try {
-          const oldKey = extractKeyFromUrl(npc.avatarUrl)
+          const oldKey = extractKeyFromUrl(monster.avatarUrl)
           if (oldKey) {
             await deleteFile(oldKey)
           }
@@ -904,61 +904,61 @@ export async function npcRoutes(fastify: FastifyInstance) {
       // Upload new avatar
       const buffer = await data.toBuffer()
       const ext = data.mimetype.split('/')[1]
-      const key = `npcs/${id}/avatar-${crypto.randomBytes(8).toString('hex')}.${ext}`
+      const key = `monsters/${id}/avatar-${crypto.randomBytes(8).toString('hex')}.${ext}`
 
       const avatarUrl = await uploadFile(key, buffer, data.mimetype)
 
-      const updatedNpc = await fastify.prisma.nPC.update({
+      const updatedMonster = await fastify.prisma.monster.update({
         where: { id },
         data: { avatarUrl },
       })
 
-      const response: NPCResponse = {
-        npc: formatNPC(updatedNpc),
+      const response: MonsterResponse = {
+        monster: formatMonster(updatedMonster),
       }
 
       return reply.status(200).send(response)
     }
   )
 
-  // DELETE /api/npcs/:id/avatar - Remove avatar
+  // DELETE /api/monsters/:id/avatar - Remove avatar
   fastify.delete<{ Params: { id: string } }>(
-    '/api/npcs/:id/avatar',
+    '/api/monsters/:id/avatar',
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const user = await requireVerifiedUser(fastify, request, reply)
       if (!user) return
 
       const { id } = request.params
 
-      const npc = await fastify.prisma.nPC.findUnique({
+      const monster = await fastify.prisma.monster.findUnique({
         where: { id },
         include: { adventure: { select: { ownerId: true } } },
       })
 
-      if (!npc) {
+      if (!monster) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: 'NPC not found',
+          message: 'Monster not found',
         })
       }
 
-      if (npc.adventure.ownerId !== user.id) {
+      if (monster.adventure.ownerId !== user.id) {
         return reply.status(404).send({
           error: 'Not Found',
-          message: 'NPC not found',
+          message: 'Monster not found',
         })
       }
 
-      if (!npc.avatarUrl) {
+      if (!monster.avatarUrl) {
         return reply.status(400).send({
           error: 'Bad Request',
-          message: 'NPC does not have an avatar',
+          message: 'Monster does not have an avatar',
         })
       }
 
       // Delete from storage
       try {
-        const key = extractKeyFromUrl(npc.avatarUrl)
+        const key = extractKeyFromUrl(monster.avatarUrl)
         if (key) {
           await deleteFile(key)
         }
@@ -966,13 +966,13 @@ export async function npcRoutes(fastify: FastifyInstance) {
         // Continue even if deletion fails
       }
 
-      const updatedNpc = await fastify.prisma.nPC.update({
+      const updatedMonster = await fastify.prisma.monster.update({
         where: { id },
         data: { avatarUrl: null },
       })
 
-      const response: NPCResponse = {
-        npc: formatNPC(updatedNpc),
+      const response: MonsterResponse = {
+        monster: formatMonster(updatedMonster),
       }
 
       return reply.status(200).send(response)

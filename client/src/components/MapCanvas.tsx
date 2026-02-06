@@ -426,6 +426,27 @@ export function MapCanvas({
   const [draggingTokenId, setDraggingTokenId] = React.useState<string | null>(null)
   const [draggingTokenPos, setDraggingTokenPos] = React.useState<{ x: number; y: number } | null>(null)
 
+  // Token image cache: loads images asynchronously and triggers re-render when ready
+  const tokenImageCacheRef = React.useRef<Map<string, HTMLImageElement>>(new Map())
+  const [tokenImagesLoaded, setTokenImagesLoaded] = React.useState(0)
+
+  React.useEffect(() => {
+    if (!tokens) return
+    const cache = tokenImageCacheRef.current
+    for (const token of tokens) {
+      if (token.imageUrl && !cache.has(token.imageUrl)) {
+        const img = new Image()
+        img.src = token.imageUrl
+        img.onload = () => {
+          cache.set(token.imageUrl!, img)
+          setTokenImagesLoaded((n) => n + 1)
+        }
+        // Store placeholder to avoid re-requesting
+        cache.set(token.imageUrl, img)
+      }
+    }
+  }, [tokens])
+
   const tool = drawingState?.tool ?? 'pan'
   const isHexGrid = map.gridType === 'HEX'
   const isSquareGrid = map.gridType === 'SQUARE'
@@ -834,13 +855,40 @@ export function MapCanvas({
           ctx.setLineDash([])
         }
 
-        // Token abbreviation
-        const abbrev = token.name.substring(0, 2).toUpperCase()
-        ctx.fillStyle = '#1a1a1a'
-        ctx.font = `bold ${tokenSize * 0.35}px "Rosarivo", serif`
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText(abbrev, cx, cy)
+        // Draw token image or abbreviation
+        const cachedImg = token.imageUrl ? tokenImageCacheRef.current.get(token.imageUrl) : undefined
+        if (cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0) {
+          // Draw image clipped to circle
+          ctx.save()
+          ctx.beginPath()
+          ctx.arc(cx, cy, tokenRadius - 1.5 / viewport.zoom, 0, Math.PI * 2)
+          ctx.clip()
+
+          // Calculate source rect based on hotspot (object-position equivalent)
+          const hx = (token.imageHotspotX ?? 50) / 100
+          const hy = (token.imageHotspotY ?? 50) / 100
+          const imgW = cachedImg.naturalWidth
+          const imgH = cachedImg.naturalHeight
+          const diameter = (tokenRadius - 1.5 / viewport.zoom) * 2
+
+          // object-fit: cover calculation
+          const scale = Math.max(diameter / imgW, diameter / imgH)
+          const scaledW = imgW * scale
+          const scaledH = imgH * scale
+          const drawX = cx - scaledW * hx
+          const drawY = cy - scaledH * hy
+
+          ctx.drawImage(cachedImg, drawX, drawY, scaledW, scaledH)
+          ctx.restore()
+        } else {
+          // Fallback: abbreviation text
+          const abbrev = token.name.substring(0, 2).toUpperCase()
+          ctx.fillStyle = '#1a1a1a'
+          ctx.font = `bold ${tokenSize * 0.35}px "Rosarivo", serif`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(abbrev, cx, cy)
+        }
 
         ctx.restore()
       }
@@ -979,7 +1027,7 @@ export function MapCanvas({
     }
 
     ctx.restore()
-  }, [map, containerSize, drawingState, tool, isHexGrid, isSquareGrid, cursorMapPos, snapPoint, isOverPath, isOverLabel, hoveredCell, showTerrainColors, fogRevealedCells, tokens, selectedTokenId, isDm, draggingTokenId, draggingTokenPos])
+  }, [map, containerSize, drawingState, tool, isHexGrid, isSquareGrid, cursorMapPos, snapPoint, isOverPath, isOverLabel, hoveredCell, showTerrainColors, fogRevealedCells, tokens, selectedTokenId, isDm, draggingTokenId, draggingTokenPos, tokenImagesLoaded])
 
   const scheduleRender = React.useCallback(() => {
     if (rafIdRef.current !== null) {

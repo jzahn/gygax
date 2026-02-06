@@ -84,6 +84,7 @@ model Adventure {
   owner      User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   maps       Map[]
   npcs       NPC[]
+  monsters   Monster[]
   backdrops  Backdrop[]
   notes      Note[]
   sessions   Session[]
@@ -164,6 +165,8 @@ model Character {
 
   // Optional
   avatarUrl        String?
+  avatarHotspotX   Float?   @default(50)
+  avatarHotspotY   Float?   @default(50)
   notes            String?
 
   createdAt        DateTime @default(now())
@@ -219,6 +222,8 @@ model NPC {
 
   // Avatar
   avatarUrl        String?
+  avatarHotspotX   Float?   @default(50)
+  avatarHotspotY   Float?   @default(50)
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -228,6 +233,52 @@ model NPC {
 
   @@index([adventureId])
   @@map("npcs")
+}
+
+model Monster {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  class            String?
+  level            Int      @default(1)
+  alignment        String?
+  title            String?
+
+  strength         Int?
+  intelligence     Int?
+  wisdom           Int?
+  dexterity        Int?
+  constitution     Int?
+  charisma         Int?
+
+  hitPointsMax     Int?
+  hitPointsCurrent Int?
+  armorClass       Int?
+
+  saveDeathRay     Int?
+  saveWands        Int?
+  saveParalysis    Int?
+  saveBreath       Int?
+  saveSpells       Int?
+
+  experiencePoints Int?
+  goldPieces       Int?
+  equipment        String?
+  spells           String?
+  notes            String?
+
+  avatarUrl        String?
+  avatarHotspotX   Float?   @default(50)
+  avatarHotspotY   Float?   @default(50)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  adventureId      String
+  adventure        Adventure @relation(fields: [adventureId], references: [id], onDelete: Cascade)
+
+  @@index([adventureId])
+  @@map("monsters")
 }
 
 model Backdrop {
@@ -411,6 +462,7 @@ enum SessionTokenType {
   PC        // Player character
   NPC       // Friendly or neutral NPC
   MONSTER   // Hostile creature
+  PARTY     // Party token for hex maps
 }
 
 model ChatMessage {
@@ -512,9 +564,14 @@ model SessionToken {
   name      String
   imageUrl  String?
 
-  // Optional link to character/NPC
+  // Optional link to character/NPC/Monster
   characterId String?
   npcId       String?
+  monsterId   String?
+
+  // Image hotspot for portrait cropping
+  imageHotspotX Float?
+  imageHotspotY Float?
 
   // Visual
   color     String   @default("#666666")

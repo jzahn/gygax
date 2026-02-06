@@ -13,8 +13,8 @@ import type {
 interface UseTokensOptions {
   mapId: string | null
   isDm: boolean
+  tokenState: WSTokenState | null
   lastMessage: WSMessage | null
-  tokenState: WSTokenState | null  // Dedicated token state from socket (avoids message batching issues)
   sendMessage: (type: string, payload: unknown) => void
   isConnected: boolean
 }
@@ -30,8 +30,11 @@ interface UseTokensReturn {
     options?: {
       characterId?: string
       npcId?: string
+      monsterId?: string
       color?: string
       imageUrl?: string
+      imageHotspotX?: number
+      imageHotspotY?: number
     }
   ) => void
   moveToken: (tokenId: string, position: CellCoord) => void
@@ -55,8 +58,8 @@ function cellsEqual(a: CellCoord, b: CellCoord): boolean {
 export function useTokens({
   mapId,
   isDm,
-  lastMessage,
   tokenState,
+  lastMessage,
   sendMessage,
   isConnected,
 }: UseTokensOptions): UseTokensReturn {
@@ -81,7 +84,7 @@ export function useTokens({
     }
   }, [tokenState, mapId])
 
-  // Handle incremental token updates via lastMessage
+  // Handle incremental token updates
   useEffect(() => {
     if (!lastMessage) return
 
@@ -133,8 +136,11 @@ export function useTokens({
       options?: {
         characterId?: string
         npcId?: string
+        monsterId?: string
         color?: string
         imageUrl?: string
+        imageHotspotX?: number
+        imageHotspotY?: number
       }
     ) => {
       if (!isDm || !mapId) return

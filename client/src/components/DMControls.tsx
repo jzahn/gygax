@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { Map, Backdrop, SessionStatus, SessionToken, SessionParticipantWithDetails, NPC } from '@gygax/shared'
+import type { Map, Backdrop, SessionStatus, SessionToken, SessionParticipantWithDetails, NPC, MonsterListItem } from '@gygax/shared'
 import { Button } from './ui'
 import { FogTools, type FogTool, type FogBrushSize } from './FogTools'
 import { TokenTools } from './TokenTools'
@@ -29,12 +29,16 @@ interface DMControlsProps {
   tokens?: SessionToken[]
   participants?: SessionParticipantWithDetails[]
   npcs?: NPC[]
+  monsters?: MonsterListItem[]
   selectedTokenId?: string | null
   onPlacePCToken?: (participantId: string) => void
   onPlaceNPCToken?: (name: string, npcId?: string) => void
-  onPlaceMonsterToken?: (name: string) => void
+  onPlaceMonsterToken?: (name: string, monsterId?: string) => void
+  onPlacePartyToken?: () => void
   onSelectToken?: (tokenId: string | null) => void
   onRemoveToken?: (tokenId: string) => void
+  /** Whether the active map is a hex map */
+  isHexMap?: boolean
 }
 
 type ExpandedSection = 'display' | 'fog' | 'tokens' | 'session' | null
@@ -94,12 +98,15 @@ export function DMControls({
   tokens = [],
   participants = [],
   npcs = [],
+  monsters = [],
   selectedTokenId = null,
   onPlacePCToken,
   onPlaceNPCToken,
   onPlaceMonsterToken,
+  onPlacePartyToken,
   onSelectToken,
   onRemoveToken,
+  isHexMap = false,
 }: DMControlsProps) {
   const [showEndConfirm, setShowEndConfirm] = React.useState(false)
   const [expandedSection, setExpandedSection] = React.useState<ExpandedSection>('display')
@@ -210,7 +217,7 @@ export function DMControls({
       )}
 
       {/* TOKENS Section (only when map is active) */}
-      {hasMapSelected && onPlacePCToken && onPlaceNPCToken && onPlaceMonsterToken && onSelectToken && onRemoveToken && (
+      {hasMapSelected && onPlacePCToken && onPlaceNPCToken && onPlaceMonsterToken && onPlacePartyToken && onSelectToken && onRemoveToken && (
         <div>
           <SectionHeader title="Tokens" section="tokens" icon="&#9899;" expandedSection={expandedSection} onToggle={toggleSection} />
           {expandedSection === 'tokens' && (
@@ -219,13 +226,16 @@ export function DMControls({
                 tokens={tokens}
                 participants={participants}
                 npcs={npcs}
+                monsters={monsters}
                 selectedTokenId={selectedTokenId}
                 onPlacePCToken={onPlacePCToken}
                 onPlaceNPCToken={onPlaceNPCToken}
                 onPlaceMonsterToken={onPlaceMonsterToken}
+                onPlacePartyToken={onPlacePartyToken}
                 onSelectToken={onSelectToken}
                 onRemoveToken={onRemoveToken}
                 disabled={isUpdating}
+                isHexMap={isHexMap}
               />
             </div>
           )}
