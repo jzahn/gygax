@@ -248,6 +248,8 @@ The dialog contains:
 
 3. **Monster section** — "Monsters" header. Same layout as NPCs: scrollable list of adventure monsters with name, class/level, avatar thumbnail. Click to select, then Place. Below the list, a text input: "Or type a name for an ad-hoc Monster" with its own Place button.
 
+4. **Party section** — "Party" header. Only visible when the current map is a HEX grid (outdoor/wilderness maps). Single button: "Place Party Token". Places a special PARTY token representing the entire adventuring group. Only one party token can exist per map — if one is already placed, this option is disabled with a note ("Party token already on map").
+
 Sections are visually separated (e.g., border or spacing). If a section has no entries (no participants without tokens, no adventure NPCs, no adventure monsters), show a brief "None available" note but still show the ad-hoc input for NPC/Monster sections. The PC section hides entirely if all participants already have tokens.
 
 ### Props & Callbacks
@@ -258,6 +260,7 @@ interface TokenToolsProps {
   participants: SessionParticipantWithDetails[]
   npcs: NPC[]
   monsters: MonsterListItem[]
+  gridType: GridType
   selectedTokenId: string | null
   onPlaceToken: (opts: PlaceTokenOptions) => void
   onSelectToken: (tokenId: string | null) => void
@@ -269,6 +272,7 @@ type PlaceTokenOptions =
   | { type: 'PC'; participantId: string }
   | { type: 'NPC'; name: string; npcId?: string }
   | { type: 'MONSTER'; name: string; monsterId?: string }
+  | { type: 'PARTY' }
 ```
 
 The three separate `onPlacePCToken` / `onPlaceNPCToken` / `onPlaceMonsterToken` callbacks collapse into a single `onPlaceToken` that accepts a discriminated union.
@@ -281,6 +285,7 @@ The three separate `onPlacePCToken` / `onPlaceNPCToken` / `onPlaceMonsterToken` 
   - `PC`: look up participant's character avatar + hotspot
   - `NPC`: if `npcId` provided, look up avatar + hotspot from the NPC; otherwise ad-hoc (no image)
   - `MONSTER`: if `monsterId` provided, look up avatar + hotspot from the monster; otherwise ad-hoc (no image)
+  - `PARTY`: place party token with name "Party", no linked entity
 - Pass `monsters` to `DMControls` → `TokenTools`
 - Extend `placingTokenData` type with `monsterId`, `imageHotspotX`, `imageHotspotY`
 - Pass all fields through in `handleCellClick` → `tokens.placeToken()`
@@ -343,10 +348,131 @@ No new server routes needed — the existing avatar upload endpoints (`POST /api
 
 ---
 
+## Feature 6: Character (PC) Export/Import
+
+### What Changes
+
+NPCs already have export (`.npc.gygax.json`) and import (via `CreateNPCModal` file picker). Monster export is covered in Feature 3. This feature adds the same capability for player characters so DMs and players can share character sheets between adventures or back them up.
+
+### Export (`client/src/utils/characterExport.ts`)
+
+New file, following the `npcExport.ts` pattern:
+- `exportCharacter(character: Character): void` — serializes character stats to JSON and triggers download.
+- File extension: `.character.gygax.json`
+- Exports all stat fields (name, class, level, alignment, title, ability scores, combat stats, saving throws, XP, GP, equipment, spells, notes).
+- `avatarUrl` intentionally excluded (not portable, same as NPC export).
+
+### Import (`client/src/components/CreateCharacterModal.tsx`)
+
+Add a file import option to the create character modal, matching `CreateNPCModal`'s import flow:
+- "Import a .character.gygax.json file" link/button that opens a file picker.
+- On file select: parse JSON, validate version field, populate form fields from imported data.
+- Character class and ability scores pre-fill from the imported data; user can still edit before creating.
+- If the imported file has fields the create form doesn't show (e.g., equipment, spells), carry them through as `importedData` and include them in the POST body.
+
+### Shared Types (`shared/src/types.ts`)
+
+```typescript
+export interface CharacterExportFile {
+  version: 1
+  exportedAt: string
+  character: {
+    name: string
+    class: CharacterClass
+    level: number
+    alignment: Alignment | null
+    title: string | null
+    strength: number
+    intelligence: number
+    wisdom: number
+    dexterity: number
+    constitution: number
+    charisma: number
+    hitPointsMax: number
+    hitPointsCurrent: number
+    armorClass: number
+    saveDeathRay: number
+    saveWands: number
+    saveParalysis: number
+    saveBreath: number
+    saveSpells: number
+    experiencePoints: number
+    goldPieces: number
+    equipment: string | null
+    spells: string | null
+    notes: string | null
+  }
+}
+```
+
+### Where Export Is Triggered
+
+- **Character sheet page** (`CharacterSheet.tsx` or the page wrapping it): Add an "Export" button, matching the NPC page pattern.
+- **Adventure page** (`AdventurePage.tsx`): If characters are listed with action menus, add an export option there too.
+
+---
+
+## Feature 7: Party Token
+
+### What Changes
+
+A new `PARTY` token type for outdoor hex maps. On wilderness maps the DM doesn't place individual PC tokens — instead, a single "Party" token represents the entire adventuring group moving across the hex grid.
+
+### Schema Changes
+
+**`prisma/schema.prisma`** — Add `PARTY` to the `SessionTokenType` enum:
+```prisma
+enum SessionTokenType {
+  PC
+  NPC
+  MONSTER
+  PARTY
+}
+```
+
+### Shared Types (`shared/src/types.ts`)
+
+```typescript
+export type SessionTokenType = 'PC' | 'NPC' | 'MONSTER' | 'PARTY'
+
+// Add PARTY color
+export const TOKEN_COLORS: Record<SessionTokenType, string> = {
+  PC: '#22c55e',
+  NPC: '#3b82f6',
+  MONSTER: '#ef4444',
+  PARTY: '#f59e0b',  // amber-500 — distinct gold/amber for the party
+}
+```
+
+### Token Rendering (`client/src/components/TokenLayer.tsx`)
+
+Party tokens render like other tokens but with a distinct visual identity:
+- **With no image**: Shows a shield/party icon or the abbreviation "PY" in the circle, with the amber border color.
+- **With image**: If the DM has set a campaign or adventure cover image, it could be used, but for now party tokens just use the abbreviation fallback — no image or hotspot needed.
+- **Size**: Same as other tokens (scales with cell size).
+
+### Placement Rules
+
+- Only one `PARTY` token can exist per map. The server enforces this — `tokenService.placeToken()` checks for an existing PARTY token on the same map and rejects duplicates.
+- The token is named "Party" automatically — no name input needed from the DM.
+- Party tokens can be dragged/moved and deleted like any other token.
+
+### Server Changes
+
+- **`server/src/services/tokenService.ts`**: In `placeToken`, if `type === 'PARTY'`, check for existing PARTY token on that map. If one exists, return an error. Add `PARTY` to `formatToken` color mapping.
+- **`server/src/websocket/tokenHandler.ts`**: No special changes needed — PARTY flows through the same `token:place` / `token:move` / `token:remove` handlers.
+
+### Visibility to Players
+
+Party tokens are visible to all players (same as PC tokens — not hidden by fog of war). When a player is in a session on a hex map, they see the party token and know where the group is located.
+
+---
+
 ## Migration
 
 Single Prisma migration covering all schema changes:
 - Monster model creation
+- `PARTY` added to `SessionTokenType` enum
 - `avatarHotspotX`/`avatarHotspotY` on Character and NPC
 - `monsterId`, `imageHotspotX`, `imageHotspotY` on SessionToken
 - Adventure → Monster relation
@@ -364,23 +490,24 @@ Migration name: `add_monsters_and_portrait_hotspots`
 - `client/src/components/DeleteMonsterDialog.tsx`
 - `client/src/pages/MonsterPage.tsx`
 - `client/src/utils/monsterExport.ts`
+- `client/src/utils/characterExport.ts`
 
 ### Modified Files
 - `prisma/schema.prisma` — Monster model, hotspot fields on Character/NPC/SessionToken
-- `shared/src/types.ts` — Monster types, hotspot fields on existing interfaces
+- `shared/src/types.ts` — Monster types, CharacterExportFile, hotspot fields on existing interfaces
 - `server/src/app.ts` — Register monster routes
 - `server/src/routes/characters.ts` — Hotspot format/validation
 - `server/src/routes/npcs.ts` — Hotspot format/validation
 - `server/src/routes/sessions.ts` — Character hotspot in participant details
-- `server/src/services/tokenService.ts` — monsterId + hotspot fields
+- `server/src/services/tokenService.ts` — monsterId + hotspot fields, PARTY token uniqueness check
 - `server/src/websocket/tokenHandler.ts` — Pass new fields
 - `client/src/components/ImageUpload.tsx` — Hotspot picker in compact mode
-- `client/src/components/TokenLayer.tsx` — `objectPosition` on token images
-- `client/src/components/TokenTools.tsx` — Replace three buttons/dialogs with unified +Token dialog
+- `client/src/components/TokenLayer.tsx` — `objectPosition` on token images, PARTY token rendering
+- `client/src/components/TokenTools.tsx` — Replace three buttons/dialogs with unified +Token dialog (includes Party section for hex maps)
 - `client/src/components/SessionPlayerCard.tsx` — `objectPosition` on avatar
 - `client/src/components/NPCCard.tsx` — `objectPosition` on portrait
 - `client/src/components/CharacterSheet.tsx` — Pass hotspot props to ImageUpload
-- `client/src/components/CreateCharacterModal.tsx` — Add portrait upload + hotspot picker
+- `client/src/components/CreateCharacterModal.tsx` — Add portrait upload + hotspot picker + JSON import
 - `client/src/components/CreateNPCModal.tsx` — Add portrait upload + hotspot picker
 - `client/src/components/DMControls.tsx` — Pass monsters prop, unified onPlaceToken callback
 - `client/src/pages/AdventurePage.tsx` — Monsters section
@@ -402,3 +529,8 @@ Migration name: `add_monsters_and_portrait_hotspots`
 8. **NPC card hotspot**: Confirm NPC cards in the adventure view respect the hotspot on their portrait thumbnail.
 9. **Portrait in create dialogs**: Create a new Character with a portrait and hotspot set in the create dialog. Confirm the character is created with the portrait and hotspot already applied — no need to visit the character sheet. Do the same for NPC and Monster creation.
 10. **Create without portrait still works**: Create a Character, NPC, and Monster with no portrait selected in the create dialog. Confirm they are created normally with no avatar.
+11. **Character export/import**: Export a character from the character sheet page. Confirm `.character.gygax.json` file downloads with all stats. Import it via the Create Character modal file picker. Confirm fields pre-populate correctly and the character is created with the imported stats.
+12. **Monster export/import**: Same flow for monsters — export from monster page, import via Create Monster modal.
+13. **Party token on hex map**: Start a session with a hex/wilderness map. Open the +Token dialog — confirm the "Party" section appears. Place a party token. Confirm it shows with amber border and "PY" abbreviation. Reopen the dialog — confirm the Party option is disabled ("Party token already on map"). Delete the party token — confirm the option is available again.
+14. **Party token hidden on square maps**: Start a session with a square/indoor map. Open the +Token dialog — confirm the "Party" section does not appear.
+15. **Party token uniqueness**: Attempt to place a second party token on the same hex map (e.g., via direct WebSocket message). Confirm the server rejects it.
