@@ -430,10 +430,23 @@ export function MapCanvas({
   // Token image cache: loads images asynchronously and triggers re-render when ready
   const tokenImageCacheRef = React.useRef<Map<string, HTMLImageElement>>(new Map())
   const [tokenImagesLoaded, setTokenImagesLoaded] = React.useState(0)
+  const PARTY_ICON_KEY = '__party_icon__'
 
   React.useEffect(() => {
     if (!tokens) return
     const cache = tokenImageCacheRef.current
+
+    // Preload party icon into the same cache
+    if (!cache.has(PARTY_ICON_KEY)) {
+      const img = new Image()
+      img.src = '/icons/PartyIcon.png'
+      img.onload = () => {
+        cache.set(PARTY_ICON_KEY, img)
+        setTokenImagesLoaded((n) => n + 1)
+      }
+      cache.set(PARTY_ICON_KEY, img)
+    }
+
     for (const token of tokens) {
       if (token.imageUrl && !cache.has(token.imageUrl)) {
         const img = new Image()
@@ -911,7 +924,9 @@ export function MapCanvas({
         }
 
         // Draw token image or abbreviation
-        const cachedImg = token.imageUrl ? tokenImageCacheRef.current.get(token.imageUrl) : undefined
+        const cachedImg = token.imageUrl
+          ? tokenImageCacheRef.current.get(token.imageUrl)
+          : token.type === 'PARTY' ? tokenImageCacheRef.current.get(PARTY_ICON_KEY) : undefined
         if (cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0) {
           // Draw image clipped to circle
           ctx.save()
