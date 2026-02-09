@@ -1,14 +1,6 @@
 import type { PrismaClient, SessionTokenType as PrismaTokenType } from '../../prisma/generated/prisma/index.js'
 import type { CellCoord, SessionToken, SessionTokenType } from '@gygax/shared'
 
-// Default colors by type
-const DEFAULT_COLORS: Record<SessionTokenType, string> = {
-  PC: '#22c55e',      // green-500
-  NPC: '#3b82f6',     // blue-500
-  MONSTER: '#ef4444', // red-500
-  PARTY: '#f59e0b',   // amber-500
-}
-
 // Format a token from database to API response
 function formatToken(token: {
   id: string
@@ -23,7 +15,6 @@ function formatToken(token: {
   monsterId: string | null
   imageHotspotX: number | null
   imageHotspotY: number | null
-  color: string
 }): SessionToken {
   return {
     id: token.id,
@@ -38,7 +29,6 @@ function formatToken(token: {
     monsterId: token.monsterId ?? undefined,
     imageHotspotX: token.imageHotspotX ?? undefined,
     imageHotspotY: token.imageHotspotY ?? undefined,
-    color: token.color,
   }
 }
 
@@ -71,7 +61,6 @@ export async function placeToken(
     characterId?: string
     npcId?: string
     monsterId?: string
-    color?: string
     imageUrl?: string
     imageHotspotX?: number
     imageHotspotY?: number
@@ -97,7 +86,6 @@ export async function placeToken(
       characterId: options.characterId,
       npcId: options.npcId,
       monsterId: options.monsterId,
-      color: options.color ?? DEFAULT_COLORS[type],
       imageUrl: options.imageUrl,
       imageHotspotX: options.imageHotspotX,
       imageHotspotY: options.imageHotspotY,

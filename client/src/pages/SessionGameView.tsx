@@ -193,12 +193,11 @@ export function SessionGameView({
   // (handles tokens placed before portrait feature, and portrait changes after placement)
   const enrichedTokens = React.useMemo(() => {
     return tokens.tokens.map((token) => {
-      if (token.imageUrl) return token
-
       let imageUrl: string | undefined
       let imageHotspotX: number | undefined
       let imageHotspotY: number | undefined
 
+      // Always look up the linked entity for latest avatar/hotspot data
       if (token.characterId) {
         const participant = session.participants.find((p) => p.characterId === token.characterId)
         if (participant?.character.avatarUrl) {
@@ -222,8 +221,14 @@ export function SessionGameView({
         }
       }
 
-      if (!imageUrl) return token
-      return { ...token, imageUrl, imageHotspotX, imageHotspotY }
+      // Fall back to token's own data if no linked entity found
+      if (!imageUrl && !token.imageUrl) return token
+      return {
+        ...token,
+        imageUrl: imageUrl ?? token.imageUrl,
+        imageHotspotX: imageHotspotX ?? token.imageHotspotX,
+        imageHotspotY: imageHotspotY ?? token.imageHotspotY,
+      }
     })
   }, [tokens.tokens, session.participants, npcs, monsters])
 

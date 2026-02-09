@@ -61,7 +61,7 @@ async function handleTokenPlace(
     return
   }
 
-  const { mapId, type, name, position, characterId, npcId, monsterId, color, imageUrl, imageHotspotX, imageHotspotY } = payload
+  const { mapId, type, name, position, characterId, npcId, monsterId, imageUrl, imageHotspotX, imageHotspotY } = payload
 
   // Validate required fields
   if (!mapId || !type || !name || !position) {
@@ -77,7 +77,6 @@ async function handleTokenPlace(
     characterId,
     npcId,
     monsterId,
-    color,
     imageUrl,
     imageHotspotX,
     imageHotspotY,

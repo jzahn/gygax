@@ -31,7 +31,6 @@ interface UseTokensReturn {
       characterId?: string
       npcId?: string
       monsterId?: string
-      color?: string
       imageUrl?: string
       imageHotspotX?: number
       imageHotspotY?: number
@@ -137,7 +136,6 @@ export function useTokens({
         characterId?: string
         npcId?: string
         monsterId?: string
-        color?: string
         imageUrl?: string
         imageHotspotX?: number
         imageHotspotY?: number

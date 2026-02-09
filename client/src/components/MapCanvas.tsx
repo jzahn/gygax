@@ -345,7 +345,8 @@ function hitTestToken(
   map: Map
 ): boolean {
   const center = getTokenCenter(token, map)
-  const tokenRadius = (map.cellSize * 0.8) / 2
+  const tokenScale = map.gridType === 'HEX' ? 0.75 : 1.0
+  const tokenRadius = (map.cellSize * 0.8 * tokenScale) / 2
   const dx = mapPos.x - center.x
   const dy = mapPos.y - center.y
   return dx * dx + dy * dy <= tokenRadius * tokenRadius
@@ -762,138 +763,6 @@ export function MapCanvas({
       }
     }
 
-    // 6.6. Draw tokens (session mode)
-    if (tokens && tokens.length > 0) {
-      const revealedSet = new Set<string>()
-      if (fogRevealedCells) {
-        for (const cell of fogRevealedCells) {
-          if (cell.col !== undefined && cell.row !== undefined) {
-            revealedSet.add(`sq:${cell.col},${cell.row}`)
-          }
-          if (cell.q !== undefined && cell.r !== undefined) {
-            revealedSet.add(`hex:${cell.q},${cell.r}`)
-          }
-        }
-      }
-
-      const tokenSize = map.cellSize * 0.8
-      const tokenRadius = tokenSize / 2
-      const TOKEN_COLORS: Record<string, string> = {
-        PC: '#22c55e',
-        NPC: '#3b82f6',
-        MONSTER: '#ef4444',
-      }
-
-      for (const token of tokens) {
-        // Check visibility
-        const pos = token.position
-        let isVisible = true
-        if (!isDm && fogRevealedCells !== undefined) {
-          if (pos.col !== undefined && pos.row !== undefined) {
-            isVisible = revealedSet.has(`sq:${pos.col},${pos.row}`)
-          } else if (pos.q !== undefined && pos.r !== undefined) {
-            isVisible = revealedSet.has(`hex:${pos.q},${pos.r}`)
-          }
-        }
-        if (!isVisible) continue
-
-        // Calculate token center position (use dragging position if this token is being dragged)
-        let cx: number, cy: number
-        if (draggingTokenId === token.id && draggingTokenPos) {
-          cx = draggingTokenPos.x
-          cy = draggingTokenPos.y
-        } else if (isHexGrid) {
-          const q = pos.q ?? 0
-          const r = pos.r ?? 0
-          const size = map.cellSize / 2
-          const hexHeight = Math.sqrt(3) * size
-          const horizSpacing = size * 1.5
-          const vertSpacing = hexHeight
-          cx = size + q * horizSpacing
-          cy = hexHeight / 2 + r * vertSpacing + (q % 2 === 1 ? vertSpacing / 2 : 0)
-        } else {
-          const col = pos.col ?? 0
-          const row = pos.row ?? 0
-          cx = col * map.cellSize + map.cellSize / 2
-          cy = row * map.cellSize + map.cellSize / 2
-        }
-
-        // Draw token background
-        const borderColor = token.color || TOKEN_COLORS[token.type] || '#666666'
-        const isSelected = selectedTokenId === token.id
-        const isDragging = draggingTokenId === token.id
-
-        ctx.save()
-
-        // Token shadow (neobrutalist solid shadow, 2px offset)
-        ctx.fillStyle = '#1a1a1a'
-        ctx.beginPath()
-        ctx.arc(cx + 2, cy + 2, tokenRadius, 0, Math.PI * 2)
-        ctx.fill()
-
-        // Token background (circular)
-        ctx.fillStyle = '#F5F0E6' // parchment-100
-        ctx.beginPath()
-        ctx.arc(cx, cy, tokenRadius, 0, Math.PI * 2)
-        ctx.fill()
-
-        // Token border (circular)
-        ctx.strokeStyle = borderColor
-        ctx.lineWidth = 3 / viewport.zoom
-        ctx.beginPath()
-        ctx.arc(cx, cy, tokenRadius, 0, Math.PI * 2)
-        ctx.stroke()
-
-        // Selection ring (circular)
-        if (isSelected || isDragging) {
-          ctx.strokeStyle = '#1a1a1a'
-          ctx.lineWidth = 2 / viewport.zoom
-          ctx.setLineDash([4 / viewport.zoom, 2 / viewport.zoom])
-          ctx.beginPath()
-          ctx.arc(cx, cy, tokenRadius + 4, 0, Math.PI * 2)
-          ctx.stroke()
-          ctx.setLineDash([])
-        }
-
-        // Draw token image or abbreviation
-        const cachedImg = token.imageUrl ? tokenImageCacheRef.current.get(token.imageUrl) : undefined
-        if (cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0) {
-          // Draw image clipped to circle
-          ctx.save()
-          ctx.beginPath()
-          ctx.arc(cx, cy, tokenRadius - 1.5 / viewport.zoom, 0, Math.PI * 2)
-          ctx.clip()
-
-          // Calculate source rect based on hotspot (object-position equivalent)
-          const hx = (token.imageHotspotX ?? 50) / 100
-          const hy = (token.imageHotspotY ?? 50) / 100
-          const imgW = cachedImg.naturalWidth
-          const imgH = cachedImg.naturalHeight
-          const diameter = (tokenRadius - 1.5 / viewport.zoom) * 2
-
-          // object-fit: cover calculation
-          const scale = Math.max(diameter / imgW, diameter / imgH)
-          const scaledW = imgW * scale
-          const scaledH = imgH * scale
-          const drawX = cx - scaledW * hx
-          const drawY = cy - scaledH * hy
-
-          ctx.drawImage(cachedImg, drawX, drawY, scaledW, scaledH)
-          ctx.restore()
-        } else {
-          // Fallback: abbreviation text
-          const abbrev = token.name.substring(0, 2).toUpperCase()
-          ctx.fillStyle = '#1a1a1a'
-          ctx.font = `bold ${tokenSize * 0.35}px "Rosarivo", serif`
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText(abbrev, cx, cy)
-        }
-
-        ctx.restore()
-      }
-    }
-
     // 7. Draw labels (with viewport culling and fog visibility)
     if (drawingState?.labels) {
       // Build revealed set for fog check
@@ -943,7 +812,150 @@ export function MapCanvas({
       }
     }
 
-    // 8. Draw path preview (while drawing, hex only)
+    // 8. Draw tokens (above labels so they're never obscured)
+    {
+      const tokenScale = map.gridType === 'HEX' ? 0.75 : 1.0
+      const tokenSize = map.cellSize * 0.8 * tokenScale
+      const tokenRadius = tokenSize / 2
+      const TOKEN_COLORS: Record<string, string> = {
+        PC: '#22c55e',
+        NPC: '#3b82f6',
+        MONSTER: '#ef4444',
+        PARTY: '#22c55e',
+      }
+
+      const tokenRevealedSet = new Set<string>()
+      if (fogRevealedCells) {
+        for (const cell of fogRevealedCells) {
+          if (cell.col !== undefined && cell.row !== undefined) {
+            tokenRevealedSet.add(`sq:${cell.col},${cell.row}`)
+          }
+          if (cell.q !== undefined && cell.r !== undefined) {
+            tokenRevealedSet.add(`hex:${cell.q},${cell.r}`)
+          }
+        }
+      }
+
+      for (const token of tokens) {
+        // Check visibility
+        const pos = token.position
+        let isVisible = true
+        if (!isDm && fogRevealedCells !== undefined) {
+          if (pos.col !== undefined && pos.row !== undefined) {
+            isVisible = tokenRevealedSet.has(`sq:${pos.col},${pos.row}`)
+          } else if (pos.q !== undefined && pos.r !== undefined) {
+            isVisible = tokenRevealedSet.has(`hex:${pos.q},${pos.r}`)
+          }
+        }
+        if (!isVisible) continue
+
+        // Calculate token center position (use dragging position if this token is being dragged)
+        let cx: number, cy: number
+        if (draggingTokenId === token.id && draggingTokenPos) {
+          cx = draggingTokenPos.x
+          cy = draggingTokenPos.y
+        } else if (isHexGrid) {
+          const q = pos.q ?? 0
+          const r = pos.r ?? 0
+          const size = map.cellSize / 2
+          const hexHeight = Math.sqrt(3) * size
+          const horizSpacing = size * 1.5
+          const vertSpacing = hexHeight
+          cx = size + q * horizSpacing
+          cy = hexHeight / 2 + r * vertSpacing + (q % 2 === 1 ? vertSpacing / 2 : 0)
+        } else {
+          const col = pos.col ?? 0
+          const row = pos.row ?? 0
+          cx = col * map.cellSize + map.cellSize / 2
+          cy = row * map.cellSize + map.cellSize / 2
+        }
+
+        // Draw token background
+        const borderColor = TOKEN_COLORS[token.type]
+        const isSelected = selectedTokenId === token.id
+        const isDragging = draggingTokenId === token.id
+
+        ctx.save()
+
+        // Token border width
+        const borderWidth = tokenSize * 0.06 + 2 / viewport.zoom
+
+        // Token shadow (neobrutalist solid shadow, offset by border width)
+        ctx.fillStyle = '#1a1a1a'
+        ctx.beginPath()
+        ctx.arc(cx + borderWidth * 0.6, cy + borderWidth * 0.6, tokenRadius + borderWidth / 2, 0, Math.PI * 2)
+        ctx.fill()
+
+        // Token background (circular)
+        ctx.fillStyle = '#F5F0E6' // parchment-100
+        ctx.beginPath()
+        ctx.arc(cx, cy, tokenRadius, 0, Math.PI * 2)
+        ctx.fill()
+
+        // Token border (circular)
+        ctx.strokeStyle = borderColor
+        ctx.lineWidth = borderWidth
+        ctx.beginPath()
+        ctx.arc(cx, cy, tokenRadius, 0, Math.PI * 2)
+        ctx.stroke()
+
+        // Selection ring (circular)
+        if (isSelected || isDragging) {
+          ctx.strokeStyle = '#1a1a1a'
+          ctx.lineWidth = 2 / viewport.zoom
+          ctx.setLineDash([4 / viewport.zoom, 2 / viewport.zoom])
+          ctx.beginPath()
+          ctx.arc(cx, cy, tokenRadius + 4, 0, Math.PI * 2)
+          ctx.stroke()
+          ctx.setLineDash([])
+        }
+
+        // Draw token image or abbreviation
+        const cachedImg = token.imageUrl ? tokenImageCacheRef.current.get(token.imageUrl) : undefined
+        if (cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0) {
+          // Draw image clipped to circle
+          ctx.save()
+          ctx.beginPath()
+          ctx.arc(cx, cy, tokenRadius - 1.5 / viewport.zoom, 0, Math.PI * 2)
+          ctx.clip()
+
+          // Calculate source rect based on hotspot (object-position equivalent)
+          const hx = (token.imageHotspotX ?? 50) / 100
+          const hy = (token.imageHotspotY ?? 50) / 100
+          const imgW = cachedImg.naturalWidth
+          const imgH = cachedImg.naturalHeight
+          const diameter = (tokenRadius - 1.5 / viewport.zoom) * 2
+
+          // Zoom 1.5x and center on the hotspot point
+          const scale = Math.max(diameter / imgW, diameter / imgH) * 1.5
+          const scaledW = imgW * scale
+          const scaledH = imgH * scale
+          // Place hotspot point at circle center, then clamp to avoid empty space
+          const halfD = diameter / 2
+          let drawX = cx - hx * scaledW
+          let drawY = cy - hy * scaledH
+          drawX = Math.min(drawX, cx - halfD)                // don't go past left edge
+          drawX = Math.max(drawX, cx + halfD - scaledW)      // don't go past right edge
+          drawY = Math.min(drawY, cy - halfD)                // don't go past top edge
+          drawY = Math.max(drawY, cy + halfD - scaledH)      // don't go past bottom edge
+
+          ctx.drawImage(cachedImg, drawX, drawY, scaledW, scaledH)
+          ctx.restore()
+        } else {
+          // Fallback: abbreviation text
+          const abbrev = token.name.substring(0, 2).toUpperCase()
+          ctx.fillStyle = '#1a1a1a'
+          ctx.font = `bold ${tokenSize * 0.35}px "Rosarivo", serif`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(abbrev, cx, cy)
+        }
+
+        ctx.restore()
+      }
+    }
+
+    // 9. Draw path preview (while drawing, hex only)
     if (isHexGrid && drawingState?.pathInProgress && tool === 'path') {
       renderPathPreview(
         ctx,

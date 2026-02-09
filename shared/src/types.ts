@@ -1290,15 +1290,6 @@ export interface SessionToken {
   monsterId?: string
   imageHotspotX?: number
   imageHotspotY?: number
-  color: string
-}
-
-// Token colors by type
-export const TOKEN_COLORS: Record<SessionTokenType, string> = {
-  PC: '#22c55e',      // green-500
-  NPC: '#3b82f6',     // blue-500
-  MONSTER: '#ef4444', // red-500
-  PARTY: '#f59e0b',   // amber-500
 }
 
 // REST API responses
@@ -1333,7 +1324,6 @@ export interface WSTokenPlace {
   characterId?: string
   npcId?: string
   monsterId?: string
-  color?: string
   imageUrl?: string
   imageHotspotX?: number
   imageHotspotY?: number

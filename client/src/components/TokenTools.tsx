@@ -32,7 +32,7 @@ const TOKEN_TYPE_COLORS: Record<SessionTokenType, string> = {
   PC: '#22c55e',
   NPC: '#3b82f6',
   MONSTER: '#ef4444',
-  PARTY: '#f59e0b',
+  PARTY: '#22c55e',
 }
 
 export function TokenTools({
@@ -195,7 +195,7 @@ export function TokenTools({
               }`}
               title={token.name}
             >
-              <span style={{ color: token.color }}>&#9679;</span>
+              <span style={{ color: TOKEN_TYPE_COLORS[token.type] }}>&#9679;</span>
               <span className="max-w-16 truncate">{token.name}</span>
             </button>
           ))}

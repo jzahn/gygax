@@ -573,9 +573,6 @@ model SessionToken {
   imageHotspotX Float?
   imageHotspotY Float?
 
-  // Visual
-  color     String   @default("#666666")
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
