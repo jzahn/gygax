@@ -10,18 +10,18 @@ Existing VTT solutions like Roll20 and Foundry are complex, expensive, or focuse
 
 - **Campaigns & Adventures** — Organize game content into campaigns containing multiple adventures
 - **Character Sheets** — B/X-style player character creation
+- **NPCs & Monsters** — DM creature/NPC creation with stat blocks, equipment, and portraits
+- **Backdrops** — Display artwork and scene images to players
+- **DM Notes** — Private session notes for the Dungeon Master
 - **Map Drawing** — Hex grids for wilderness, square grids for dungeons, with terrain stamping, labels, and paths
 - **Map Import/Export** — Save and load maps as JSON
 - **World Maps** — Campaign-level world maps shared across adventures
+- **Live Sessions** — Real-time game sessions with player joining and WebSocket sync
+- **Fog of War** — DM-controlled fog reveal with brush and bulk tools
+- **Token Placement** — PC, NPC, Monster, and Party tokens on maps with portrait rendering and focal point cropping
+- **Real-time Chat** — In-session chat with dice rolling and private channels
+- **Voice Chat** — WebRTC peer-to-peer voice communication
 - **Authentication** — Email/password auth with email verification and password reset
-
-### Planned
-
-- NPC creation, backdrops, DM notes
-- Live game sessions with player joining
-- Fog of war
-- Real-time chat with dice rolling
-- WebRTC voice chat
 
 ## Tech Stack
 
